@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# env / secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# build output
+dist/
+
+# prisma generated client (regenerated via `pnpm generate`)
+# (kept out; consumers run generate)
+
+# logs / misc
+*.log
+.DS_Store

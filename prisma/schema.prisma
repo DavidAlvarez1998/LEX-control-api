@@ -1,0 +1,99 @@
+// Esquema Prisma de LEX Control — fuente única de la base de datos (MySQL).
+// Generador del cliente tipado, consumido por el backend (y opcionalmente los frontends).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  ADMIN // administrador de la plataforma LEX Control
+  CLIENTE // usuario que pertenece a una empresa
+}
+
+// Empresa cliente. Se le asignan servicios y agrupa a sus usuarios.
+model Empresa {
+  id        String   @id @default(cuid())
+  nombre    String
+  rfc       String?  @unique // identificador fiscal (opcional)
+  email     String?
+  telefono  String?
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios  Usuario[]
+  servicios EmpresaServicio[]
+
+  @@map("empresas")
+}
+
+// Usuario del sistema. Los ADMIN son de plataforma (sin empresa);
+// los CLIENTE pertenecen a una empresa. Un usuario con esAdminEmpresa
+// puede gestionar a los demás usuarios de su propia empresa.
+model Usuario {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  nombre         String
+  password       String
+  rol            Rol      @default(CLIENTE)
+  activo         Boolean  @default(true)
+  esAdminEmpresa Boolean  @default(false)
+  empresaId      String? // null para ADMIN de plataforma
+  empresa        Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([empresaId])
+  @@map("usuarios")
+}
+
+// Catálogo de servicios. Lo crea el ADMIN. Los precios aquí son de
+// REFERENCIA; el precio real se acuerda por empresa al asignarlo.
+// Modelo de cobro: precioBase (costo fijo del servicio) + precioPorUnidad
+// (costo por cada unidad por encima de las incluidas). `unidad` indica qué
+// se cuenta (mensaje, documento, llamada contestada, usuario…); null si el
+// servicio es de costo fijo (solo se cobra por estar activo).
+model Servicio {
+  id              String   @id @default(cuid())
+  nombre          String   @unique
+  descripcion     String?  @db.Text
+  precioBase      Decimal  @default(0) @db.Decimal(10, 2)
+  precioPorUnidad Decimal  @default(0) @db.Decimal(10, 2)
+  unidad          String? // qué se cuenta: "mensaje", "documento", "usuario"… null = costo fijo
+  incluidos       Int      @default(0) // unidades incluidas en el precioBase (ej. límite de usuarios)
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  empresas EmpresaServicio[]
+
+  @@map("servicios")
+}
+
+// Asignación de un servicio a una empresa, con los precios negociados para
+// esa empresa (pueden diferir de los de referencia del catálogo). Cada empresa
+// puede tener su propio precioBase y precioPorUnidad.
+model EmpresaServicio {
+  id              String   @id @default(cuid())
+  empresaId       String
+  servicioId      String
+  precioBase      Decimal  @default(0) @db.Decimal(10, 2) // costo fijo acordado para esta empresa
+  precioPorUnidad Decimal  @default(0) @db.Decimal(10, 2) // costo por unidad acordado para esta empresa
+  incluidos       Int      @default(0) // unidades incluidas para esta empresa
+  activo          Boolean  @default(true)
+  asignadoEn      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  empresa  Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  servicio Servicio @relation(fields: [servicioId], references: [id], onDelete: Restrict)
+
+  @@unique([empresaId, servicioId]) // un servicio se asigna una vez por empresa
+  @@index([servicioId])
+  @@map("empresa_servicios")
+}
