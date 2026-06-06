@@ -1,13 +1,19 @@
+import { createHash, randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { Rol } from "@prisma/client";
 import { env } from "../../config/env";
 
 const SALT_ROUNDS = 10;
-const TOKEN_TTL = "1d";
+// Vida absoluta del JWT: la sesión caduca 8h después del login, sin importar la
+// actividad. El frontend lee el `exp` para cerrar sesión de forma proactiva.
+const TOKEN_TTL = "8h";
 
-/** Datos que viajan dentro del JWT. */
-export type JwtPayload = { sub: string; rol: Rol };
+/** Datos que viajan dentro del JWT.
+ *  `tv` (token version) refleja `Usuario.tokenVersion` al firmar; al subir esa
+ *  versión en BD, los tokens viejos dejan de coincidir y se rechazan. Es
+ *  opcional para tolerar tokens emitidos antes de este cambio (se tratan como 0). */
+export type JwtPayload = { sub: string; rol: Rol; tv?: number };
 
 /** Hashea una contraseña en texto plano (bcrypt). */
 export function hashPassword(plain: string): Promise<string> {
@@ -27,4 +33,15 @@ export function signToken(payload: JwtPayload): string {
 /** Verifica y decodifica un JWT. Lanza si es inválido o expiró. */
 export function verifyToken(token: string): JwtPayload {
   return jwt.verify(token, env.jwtSecret) as JwtPayload;
+}
+
+/** Hash SHA-256 de un token de activación (alta entropía → no necesita bcrypt). */
+export function hashActivationToken(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
+}
+
+/** Genera un token de activación: `raw` se entrega, `hash` se guarda en la BD. */
+export function generateActivationToken(): { raw: string; hash: string } {
+  const raw = randomBytes(32).toString("hex");
+  return { raw, hash: hashActivationToken(raw) };
 }

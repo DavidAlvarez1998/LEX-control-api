@@ -1,0 +1,375 @@
+// Módulo CONTABLE. Tenant-scoped igual que clientes/comercial (empresaId del
+// token, hard WHERE, assertSameEmpresa) + requirePermiso con claves CONCRETAS.
+// LEE el plan de cobro del comercial (ConfiguracionCobro), nunca lo reescribe.
+// Saldos DERIVADOS al leer, nunca guardados. Ver openspec/changes/contable-module/.
+import { Router } from "express";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../../index";
+import { asyncHandler } from "../../middleware/async";
+import { empresaIdRequerido, requireAuth, requirePermiso } from "../../middleware/auth";
+import { HttpError } from "../../middleware/error";
+import { validate } from "../../middleware/validate";
+import {
+  createCajaSchema, createCarteraSchema, createCuentaSchema, createEgresoSchema,
+  createIngresoSchema, createMovimientoSchema, createNominaSchema, createServicioFijoSchema,
+  idParams, reporteQuery, updateCajaSchema, updateCuentaSchema, updateEgresoSchema,
+  updateNominaSchema, updateServicioFijoSchema,
+} from "./contable.schemas";
+
+export const contableRoutes: Router = Router();
+const n = (d: Prisma.Decimal | null | undefined) => Number(d ?? 0);
+
+// --- validadores same-empresa (las FK son escalares sin constraint en BD) ---
+async function assertCliente(empresaId: string, clienteId: string) {
+  if (!(await prisma.cliente.findFirst({ where: { id: clienteId, empresaId }, select: { id: true } })))
+    throw new HttpError(400, "El cliente no pertenece a tu empresa");
+}
+async function procesoRadicado(empresaId: string, procesoId: string): Promise<string | null> {
+  const p = await prisma.proceso.findFirst({ where: { id: procesoId, empresaId }, select: { radicado: true } });
+  if (!p) throw new HttpError(400, "El proceso no pertenece a tu empresa");
+  return p.radicado;
+}
+async function assertCuenta(empresaId: string, cuentaId: string) {
+  if (!(await prisma.cuentaBancaria.findFirst({ where: { id: cuentaId, empresaId }, select: { id: true } })))
+    throw new HttpError(400, "La cuenta no pertenece a tu empresa");
+}
+
+// ===================== INGRESOS (append-only) =====================
+contableRoutes.get("/ingresos", requireAuth, requirePermiso("contable.ingreso.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { clienteId, procesoId } = req.query as Record<string, string | undefined>;
+    res.json(await prisma.ingreso.findMany({
+      where: { empresaId, ...(clienteId ? { clienteId } : {}), ...(procesoId ? { procesoId } : {}) },
+      orderBy: { fechaIngreso: "desc" },
+    }));
+  }));
+
+contableRoutes.post("/ingresos", requireAuth, requirePermiso("contable.ingreso.crear"),
+  validate({ body: createIngresoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const b = req.body;
+    await assertCliente(empresaId, b.clienteId);
+    let radicado: string | null = null;
+    if (b.procesoId) radicado = await procesoRadicado(empresaId, b.procesoId);
+    if (b.cuentaId) await assertCuenta(empresaId, b.cuentaId);
+    const ingreso = await prisma.ingreso.create({
+      data: { ...b, empresaId, radicado, registradoPorId: req.user!.sub },
+    });
+    res.status(201).json(ingreso);
+  }));
+
+// ===================== EGRESOS =====================
+contableRoutes.get("/egresos", requireAuth, requirePermiso("contable.egreso.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { categoria, procesoId } = req.query as Record<string, string | undefined>;
+    res.json(await prisma.egreso.findMany({
+      where: { empresaId, ...(categoria ? { categoriaGasto: categoria as never } : {}), ...(procesoId ? { procesoId } : {}) },
+      orderBy: { fechaGasto: "desc" },
+    }));
+  }));
+
+contableRoutes.post("/egresos", requireAuth, requirePermiso("contable.egreso.crear"),
+  validate({ body: createEgresoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const b = req.body;
+    if (b.clienteId) await assertCliente(empresaId, b.clienteId);
+    let radicado: string | null = null;
+    if (b.procesoId) radicado = await procesoRadicado(empresaId, b.procesoId);
+    if (b.cuentaId) await assertCuenta(empresaId, b.cuentaId);
+    res.status(201).json(await prisma.egreso.create({
+      data: { ...b, empresaId, radicado, registradoPorId: req.user!.sub },
+    }));
+  }));
+
+contableRoutes.patch("/egresos/:id", requireAuth, requirePermiso("contable.egreso.editar"),
+  validate({ params: idParams, body: updateEgresoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    if (req.body.cuentaId) await assertCuenta(empresaId, req.body.cuentaId);
+    const { count } = await prisma.egreso.updateMany({ where: { id: req.params.id, empresaId }, data: req.body });
+    if (count === 0) throw new HttpError(404, "Egreso no encontrado");
+    res.json(await prisma.egreso.findUnique({ where: { id: req.params.id } }));
+  }));
+
+// ===================== NÓMINA =====================
+contableRoutes.get("/nominas", requireAuth, requirePermiso("contable.nomina.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { periodo } = req.query as Record<string, string | undefined>;
+    res.json(await prisma.nomina.findMany({
+      where: { empresaId, ...(periodo ? { periodo } : {}) }, orderBy: { periodo: "desc" },
+    }));
+  }));
+
+contableRoutes.post("/nominas", requireAuth, requirePermiso("contable.nomina.crear"),
+  validate({ body: createNominaSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    if (req.body.cuentaId) await assertCuenta(empresaId, req.body.cuentaId);
+    res.status(201).json(await prisma.nomina.create({ data: { ...req.body, empresaId } }));
+  }));
+
+contableRoutes.patch("/nominas/:id", requireAuth, requirePermiso("contable.nomina.editar"),
+  validate({ params: idParams, body: updateNominaSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { count } = await prisma.nomina.updateMany({ where: { id: req.params.id, empresaId }, data: req.body });
+    if (count === 0) throw new HttpError(404, "Nómina no encontrada");
+    res.json(await prisma.nomina.findUnique({ where: { id: req.params.id } }));
+  }));
+
+// ===================== CAJA MENOR =====================
+contableRoutes.get("/cajas", requireAuth, requirePermiso("contable.cajamenor.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    res.json(await prisma.cajaMenor.findMany({ where: { empresaId }, orderBy: { createdAt: "desc" } }));
+  }));
+
+contableRoutes.post("/cajas", requireAuth, requirePermiso("contable.cajamenor.crear"),
+  validate({ body: createCajaSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    res.status(201).json(await prisma.cajaMenor.create({ data: { ...req.body, empresaId } }));
+  }));
+
+/** GET caja con saldo DERIVADO (= montoInicial - salidas + reposiciones) + movimientos. */
+contableRoutes.get("/cajas/:id", requireAuth, requirePermiso("contable.cajamenor.ver"),
+  validate({ params: idParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const caja = await prisma.cajaMenor.findFirst({ where: { id: req.params.id, empresaId } });
+    if (!caja) throw new HttpError(404, "Caja menor no encontrada");
+    const movimientos = await prisma.cajaMenorMovimiento.findMany({
+      where: { cajaId: caja.id }, orderBy: { fechaMovimiento: "asc" },
+    });
+    const salidas = movimientos.filter((m) => m.tipoMovimiento === "SALIDA").reduce((s, m) => s + n(m.valor), 0);
+    const reposiciones = movimientos.filter((m) => m.tipoMovimiento === "REPOSICION").reduce((s, m) => s + n(m.valor), 0);
+    res.json({ ...caja, saldoActual: n(caja.montoInicial) - salidas + reposiciones, movimientos });
+  }));
+
+contableRoutes.post("/cajas/:id/movimientos", requireAuth, requirePermiso("contable.cajamenor.crear"),
+  validate({ params: idParams, body: createMovimientoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const caja = await prisma.cajaMenor.findFirst({ where: { id: req.params.id, empresaId }, select: { id: true, estado: true } });
+    if (!caja) throw new HttpError(404, "Caja menor no encontrada");
+    if (caja.estado === "CERRADA") throw new HttpError(400, "La caja menor está cerrada");
+    let radicado: string | null = null;
+    if (req.body.procesoId) radicado = await procesoRadicado(empresaId, req.body.procesoId);
+    res.status(201).json(await prisma.cajaMenorMovimiento.create({
+      data: { ...req.body, cajaId: caja.id, empresaId, radicado },
+    }));
+  }));
+
+contableRoutes.patch("/cajas/:id", requireAuth, requirePermiso("contable.cajamenor.editar"),
+  validate({ params: idParams, body: updateCajaSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { count } = await prisma.cajaMenor.updateMany({ where: { id: req.params.id, empresaId }, data: req.body });
+    if (count === 0) throw new HttpError(404, "Caja menor no encontrada");
+    res.json(await prisma.cajaMenor.findUnique({ where: { id: req.params.id } }));
+  }));
+
+// ===================== SERVICIOS FIJOS =====================
+contableRoutes.get("/servicios-fijos", requireAuth, requirePermiso("contable.serviciofijo.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { periodo } = req.query as Record<string, string | undefined>;
+    res.json(await prisma.servicioFijo.findMany({
+      where: { empresaId, ...(periodo ? { periodo } : {}) }, orderBy: { periodo: "desc" },
+    }));
+  }));
+
+contableRoutes.post("/servicios-fijos", requireAuth, requirePermiso("contable.serviciofijo.crear"),
+  validate({ body: createServicioFijoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    if (req.body.cuentaId) await assertCuenta(empresaId, req.body.cuentaId);
+    try {
+      res.status(201).json(await prisma.servicioFijo.create({ data: { ...req.body, empresaId } }));
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")
+        throw new HttpError(409, "Ya existe ese servicio fijo para el proveedor y periodo");
+      throw err;
+    }
+  }));
+
+contableRoutes.patch("/servicios-fijos/:id", requireAuth, requirePermiso("contable.serviciofijo.editar"),
+  validate({ params: idParams, body: updateServicioFijoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { count } = await prisma.servicioFijo.updateMany({ where: { id: req.params.id, empresaId }, data: req.body });
+    if (count === 0) throw new HttpError(404, "Servicio fijo no encontrado");
+    res.json(await prisma.servicioFijo.findUnique({ where: { id: req.params.id } }));
+  }));
+
+// ===================== CUENTAS / BOLSAS =====================
+contableRoutes.get("/cuentas", requireAuth, requirePermiso("contable.cuenta.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    res.json(await prisma.cuentaBancaria.findMany({ where: { empresaId }, orderBy: { createdAt: "desc" } }));
+  }));
+
+contableRoutes.post("/cuentas", requireAuth, requirePermiso("contable.cuenta.crear"),
+  validate({ body: createCuentaSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    res.status(201).json(await prisma.cuentaBancaria.create({ data: { ...req.body, empresaId } }));
+  }));
+
+/** GET cuenta con saldoActual DERIVADO (saldoInicial + ingresos PAGADO - egresos PAGADO). */
+contableRoutes.get("/cuentas/:id", requireAuth, requirePermiso("contable.cuenta.ver"),
+  validate({ params: idParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const cuenta = await prisma.cuentaBancaria.findFirst({ where: { id: req.params.id, empresaId } });
+    if (!cuenta) throw new HttpError(404, "Cuenta no encontrada");
+    const [ing, egr] = await Promise.all([
+      prisma.ingreso.aggregate({ _sum: { valorRecibido: true }, where: { empresaId, cuentaId: cuenta.id, estadoPago: { in: ["PAGADO", "PARCIAL"] } } }),
+      prisma.egreso.aggregate({ _sum: { valorGasto: true }, where: { empresaId, cuentaId: cuenta.id, estadoGasto: "PAGADO" } }),
+    ]);
+    res.json({ ...cuenta, saldoActual: n(cuenta.saldoInicial) + n(ing._sum.valorRecibido) - n(egr._sum.valorGasto) });
+  }));
+
+contableRoutes.patch("/cuentas/:id", requireAuth, requirePermiso("contable.cuenta.editar"),
+  validate({ params: idParams, body: updateCuentaSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { count } = await prisma.cuentaBancaria.updateMany({ where: { id: req.params.id, empresaId }, data: req.body });
+    if (count === 0) throw new HttpError(404, "Cuenta no encontrada");
+    res.json(await prisma.cuentaBancaria.findUnique({ where: { id: req.params.id } }));
+  }));
+
+// ===================== CARTERA =====================
+/** Total acordado SNAPSHOT desde el plan de cobro del comercial, según modalidad. */
+function totalDesdePlan(config: any, contrato: any): number | null {
+  if (config) {
+    switch (config.modalidadCobro) {
+      case "FIJO": return config.valorFijo != null ? n(config.valorFijo) : null;
+      case "CUOTALITIS":
+      case "CUOTA_MIXTA": {
+        const t = (config.numeroCuotas ?? 0) * n(config.valorCuota) + n(config.valorFijo);
+        return t > 0 ? t : null;
+      }
+      case "PRIMA_EXITO": return null; // monto incierto hasta el éxito
+      default: return config.valorFijo != null ? n(config.valorFijo) : null;
+    }
+  }
+  return contrato.valorAcordado != null ? n(contrato.valorAcordado) : null;
+}
+
+/** valorPagado DERIVADO: por configuracionCobroId si existe, si no por (cliente, proceso). */
+async function valorPagado(c: { empresaId: string; configuracionCobroId: string | null; clienteId: string; procesoId: string | null }) {
+  const where = c.configuracionCobroId
+    ? { empresaId: c.empresaId, configuracionCobroId: c.configuracionCobroId, estadoPago: { in: ["PAGADO", "PARCIAL"] as never } }
+    : { empresaId: c.empresaId, clienteId: c.clienteId, ...(c.procesoId ? { procesoId: c.procesoId } : {}), estadoPago: { in: ["PAGADO", "PARCIAL"] as never } };
+  const agg = await prisma.ingreso.aggregate({ _sum: { valorRecibido: true }, where });
+  return n(agg._sum.valorRecibido);
+}
+
+const conSaldo = async (cartera: any) => {
+  const pagado = await valorPagado(cartera);
+  const total = cartera.valorTotalAcordado != null ? n(cartera.valorTotalAcordado) : null;
+  return { ...cartera, valorPagado: pagado, saldoPendiente: total != null ? total - pagado : null };
+};
+
+contableRoutes.get("/cartera", requireAuth, requirePermiso("contable.cartera.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { clienteId } = req.query as Record<string, string | undefined>;
+    const filas = await prisma.cartera.findMany({
+      where: { empresaId, ...(clienteId ? { clienteId } : {}) }, orderBy: { createdAt: "desc" },
+    });
+    res.json(await Promise.all(filas.map(conSaldo)));
+  }));
+
+/** Abre una cartera para un contrato firmado (snapshot del total del plan). */
+contableRoutes.post("/cartera", requireAuth, requirePermiso("contable.cartera.ver"),
+  validate({ body: createCarteraSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const contrato = await prisma.contratoComercial.findFirst({
+      where: { id: req.body.contratoId, empresaId },
+      select: { id: true, clienteId: true, tipoCobroAcordado: true, valorAcordado: true },
+    });
+    if (!contrato) throw new HttpError(400, "El contrato no pertenece a tu empresa");
+    const config = await prisma.configuracionCobro.findUnique({ where: { contratoId: contrato.id } });
+    try {
+      const cartera = await prisma.cartera.create({
+        data: {
+          empresaId, clienteId: contrato.clienteId, procesoId: req.body.procesoId,
+          contratoId: contrato.id, configuracionCobroId: config?.id,
+          valorTotalAcordado: totalDesdePlan(config, contrato),
+          tipoCobro: config?.modalidadCobro ?? contrato.tipoCobroAcordado,
+          fechaProximoPago: config?.fechaPrimerPago,
+          responsableId: req.body.responsableId, observaciones: req.body.observaciones,
+        },
+      });
+      res.status(201).json(await conSaldo(cartera));
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")
+        throw new HttpError(409, "Ya existe una cartera para ese contrato");
+      throw err;
+    }
+  }));
+
+/** Re-sincroniza el total acordado desde el plan de cobro actual. */
+contableRoutes.post("/cartera/:id/resync", requireAuth, requirePermiso("contable.cartera.resync"),
+  validate({ params: idParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const cartera = await prisma.cartera.findFirst({ where: { id: req.params.id, empresaId } });
+    if (!cartera) throw new HttpError(404, "Cartera no encontrada");
+    const config = cartera.configuracionCobroId
+      ? await prisma.configuracionCobro.findUnique({ where: { id: cartera.configuracionCobroId } })
+      : null;
+    const contrato = cartera.contratoId
+      ? await prisma.contratoComercial.findUnique({ where: { id: cartera.contratoId }, select: { valorAcordado: true, tipoCobroAcordado: true } })
+      : null;
+    const actualizada = await prisma.cartera.update({
+      where: { id: cartera.id },
+      data: {
+        valorTotalAcordado: totalDesdePlan(config, contrato ?? {}),
+        tipoCobro: config?.modalidadCobro ?? cartera.tipoCobro,
+        fechaProximoPago: config?.fechaPrimerPago ?? cartera.fechaProximoPago,
+      },
+    });
+    res.json(await conSaldo(actualizada));
+  }));
+
+// ===================== REPORTES (derivado, mensual) =====================
+contableRoutes.get("/reportes", requireAuth, requirePermiso("contable.reporte.ver"),
+  validate({ query: reporteQuery }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const periodo = String(req.query.periodo); // 'YYYY-MM'
+    const inicio = new Date(`${periodo}-01T00:00:00`);
+    const fin = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 1);
+    const rango = { gte: inicio, lt: fin };
+
+    const [ingresos, egresos, nomina, servicios, cajaSal] = await Promise.all([
+      prisma.ingreso.aggregate({ _sum: { valorRecibido: true }, where: { empresaId, fechaIngreso: rango, estadoPago: { in: ["PAGADO", "PARCIAL"] } } }),
+      prisma.egreso.aggregate({ _sum: { valorGasto: true }, where: { empresaId, fechaGasto: rango, estadoGasto: "PAGADO" } }),
+      prisma.nomina.aggregate({ _sum: { valorNetoPagar: true }, where: { empresaId, periodo, estadoPago: "PAGADO" } }),
+      prisma.servicioFijo.aggregate({ _sum: { valorFacturado: true }, where: { empresaId, periodo, estadoPago: "PAGADO" } }),
+      prisma.cajaMenorMovimiento.aggregate({ _sum: { valor: true }, where: { empresaId, tipoMovimiento: "SALIDA", fechaMovimiento: rango } }),
+    ]);
+    const totalIngresos = n(ingresos._sum.valorRecibido);
+    const totalEgresos = n(egresos._sum.valorGasto) + n(nomina._sum.valorNetoPagar) + n(servicios._sum.valorFacturado) + n(cajaSal._sum.valor);
+    res.json({
+      periodo,
+      totalIngresos,
+      totalEgresos,
+      utilidadNeta: totalIngresos - totalEgresos,
+      desglose: {
+        egresosGenerales: n(egresos._sum.valorGasto),
+        nomina: n(nomina._sum.valorNetoPagar),
+        serviciosFijos: n(servicios._sum.valorFacturado),
+        cajaMenor: n(cajaSal._sum.valor),
+      },
+    });
+  }));

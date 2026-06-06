@@ -30,12 +30,24 @@ const servicio = prisma.servicio as unknown as Record<
   string,
   ReturnType<typeof vi.fn>
 >;
+const usuario = prisma.usuario as unknown as Record<
+  string,
+  ReturnType<typeof vi.fn>
+>;
 
 const adminToken = signToken({ sub: "admin1", rol: "ADMIN" });
-const clienteToken = signToken({ sub: "cli1", rol: "CLIENTE" });
+const clienteToken = signToken({ sub: "cli1", rol: "USUARIO" });
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // `requireAuth` consulta la cuenta del portador del token en BD.
+  usuario.findUnique.mockResolvedValue({
+    activo: true,
+    activationToken: null,
+    tokenVersion: 0,
+  });
+});
 
 describe("GET /servicios", () => {
   it("401 sin token", async () => {
@@ -65,7 +77,7 @@ describe("POST /servicios", () => {
     expect(res.status).toBe(401);
   });
 
-  it("403 con rol CLIENTE", async () => {
+  it("403 con rol USUARIO", async () => {
     const res = await request(app)
       .post("/servicios")
       .set(auth(clienteToken))

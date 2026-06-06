@@ -23,6 +23,10 @@ export const env = {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
+  // URLs de los portales, para construir el link de activación según el rol.
+  // En prod se setean CLIENT_URL / ADMIN_URL (ej. https://app.tudominio.com).
+  clientUrl: process.env.CLIENT_URL ?? "http://localhost:3001",
+  adminUrl: process.env.ADMIN_URL ?? "http://localhost:3000",
 };
 
 export const isProd = env.nodeEnv === "production";

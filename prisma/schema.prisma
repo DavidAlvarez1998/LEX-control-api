@@ -12,7 +12,36 @@ datasource db {
 
 enum Rol {
   ADMIN // administrador de la plataforma LEX Control
-  CLIENTE // usuario que pertenece a una empresa
+  USUARIO // persona que pertenece a una empresa (antes "CLIENTE")
+  COMERCIAL // vendedor de la plataforma: gestiona prospectos y vende Planes (empresaId null)
+}
+
+// Canal por el que llegó un prospecto (venta de la plataforma).
+enum CanalEntrada {
+  WEB
+  WHATSAPP
+  DIRECTO
+  REFERIDO
+  LLAMADA
+  REDES_SOCIALES
+  OTRO
+}
+
+// Etapa del embudo de venta de la plataforma. GANADO/PERDIDO son terminales.
+enum EstadoProspecto {
+  NUEVO
+  CONTACTADO
+  COTIZADO
+  NEGOCIACION
+  GANADO
+  PERDIDO
+}
+
+// Ciclo de pago de una comisión.
+enum EstadoComision {
+  PENDIENTE
+  PAGADA
+  ANULADA
 }
 
 // Empresa cliente. Se le asignan servicios y agrupa a sus usuarios.
@@ -29,24 +58,72 @@ model Empresa {
   usuarios  Usuario[]
   servicios EmpresaServicio[]
 
+  // Módulo de trámites legales (Colombia).
+  tiposProceso TipoProceso[]
+  procesos     Proceso[]
+  litigantes   Litigante[]
+
+  // Cimientos: plan/suscripción y CRM. (Las sillas UsuarioRolEmpresa no llevan
+  // back-ref aquí: su empresaId es desnormalizado y sin FK — ver ese modelo.)
+  suscripcion Suscripcion?
+  clientes    Cliente[]
+
+  // Venta de la plataforma: si esta empresa nació de un prospecto ganado.
+  prospecto Prospecto?
+
+  // Contable: tablas "hoja" sin ancla en Cliente cuelgan directo de Empresa
+  // (única ruta de cascada → seguro errno-150). Ver openspec/changes/contable-module/.
+  egresos          Egreso[]
+  nominas          Nomina[]
+  serviciosFijos   ServicioFijo[]
+  cuentasBancarias CuentaBancaria[]
+  cajasMenores     CajaMenor[]
+
   @@map("empresas")
 }
 
 // Usuario del sistema. Los ADMIN son de plataforma (sin empresa);
-// los CLIENTE pertenecen a una empresa. Un usuario con esAdminEmpresa
+// los USUARIO pertenecen a una empresa. Un usuario con esAdminEmpresa
 // puede gestionar a los demás usuarios de su propia empresa.
 model Usuario {
-  id             String   @id @default(cuid())
-  email          String   @unique
+  id             String  @id @default(cuid())
+  email          String  @unique
   nombre         String
   password       String
-  rol            Rol      @default(CLIENTE)
-  activo         Boolean  @default(true)
-  esAdminEmpresa Boolean  @default(false)
-  empresaId      String? // null para ADMIN de plataforma
-  empresa        Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  rol            Rol     @default(USUARIO)
+  activo         Boolean @default(true)
+  esAdminEmpresa Boolean @default(false)
+
+  // Solo aplica a rol COMERCIAL: % de comisión por defecto de este vendedor,
+  // aplicado al precio de venta. Un monto fijo por venta puede sobreescribirlo.
+  porcentajeComision Decimal? @db.Decimal(5, 2)
+  empresaId          String? // null para ADMIN de plataforma
+  empresa            Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  // Activación por link: se guarda el SHA-256 del token, no el token en claro.
+  // null = usuario ya activado. Mientras hay token, la contraseña es un
+  // placeholder no usable (no bcrypt), así que el login falla hasta activar.
+  activationToken   String?   @unique
+  activationExpires DateTime?
+
+  // Versión de sesión: cada incremento invalida todos los JWT emitidos antes
+  // (el token lleva el claim `tv`). Se sube al resetear/activar contraseña y al
+  // desactivar al usuario. Ver change `auth-session-revocation`.
+  tokenVersion Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Módulo de trámites: autoría/responsabilidad (SetNull para conservar el
+  // expediente si el abogado se elimina; preferir desactivar a borrar).
+  procesosCreados     Proceso[]      @relation("ProcesosCreados")
+  procesosResponsable Proceso[]      @relation("ProcesosResponsable")
+  etapasRegistradas   EtapaProceso[]
+
+  // Cimientos: roles de empresa que ocupa este usuario, y clientes de los que
+  // es responsable comercial.
+  rolesEmpresa      UsuarioRolEmpresa[]
+  clientesComercial Cliente[]
 
   @@index([empresaId])
   @@map("usuarios")
@@ -96,4 +173,1290 @@ model EmpresaServicio {
   @@unique([empresaId, servicioId]) // un servicio se asigna una vez por empresa
   @@index([servicioId])
   @@map("empresa_servicios")
+}
+
+// ============================================================================
+// Módulo de Trámites legales (Colombia). Ver openspec/changes/legal-tramites/.
+// Régimen procesal que rige las etapas de un tipo de trámite.
+// ============================================================================
+
+enum Jurisdiccion {
+  ORDINARIA_CIVIL
+  ORDINARIA_LABORAL
+  CONTENCIOSO_ADMIN
+  PENAL
+  CONSTITUCIONAL
+  FAMILIA
+}
+
+// Naturaleza del área de práctica (cómo la reconoce el Estado).
+enum TipoAreaPractica {
+  JURISDICCION // jurisdicción/especialidad jurisdiccional (Ley 270/1996, Acuerdo 201/1997)
+  ESPECIALIDAD
+  PRACTICA // etiqueta de práctica del despacho que enruta a un régimen
+}
+
+enum Instancia {
+  PRIMERA
+  SEGUNDA
+  UNICA
+  CASACION
+  REVISION
+}
+
+enum CuantiaTipo {
+  MINIMA // ≤ 40 SMLMV
+  MENOR // 40–150 SMLMV
+  MAYOR // > 150 SMLMV
+  SIN_CUANTIA
+}
+
+enum EstadoProceso {
+  ABIERTO
+  EN_PROCESO
+  SUSPENDIDO
+  CERRADO
+  ARCHIVADO
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum TipoPersona {
+  NATURAL
+  JURIDICA
+}
+
+// Documentos de identidad colombianos (NO RFC/CURP, que son mexicanos).
+enum TipoDocumento {
+  CC // Cédula de Ciudadanía
+  CE // Cédula de Extranjería
+  NIT // personas jurídicas
+  TI // Tarjeta de Identidad
+  PASAPORTE
+  PEP_PPT // permisos de migrantes
+}
+
+// Rol procesal de una parte; depende del tipo de proceso.
+enum RolParte {
+  DEMANDANTE
+  DEMANDADO
+  EJECUTANTE
+  EJECUTADO
+  ACCIONANTE
+  ACCIONADO
+  IMPUTADO
+  ACUSADO
+  VICTIMA
+  TERCERO
+  APODERADO
+  OTRO
+}
+
+// Área de práctica reconocida por el Estado colombiano. Tabla sembrada (no enum)
+// para poder extenderla sin migración. `jurisdiccion` enruta al régimen procesal.
+model AreaPractica {
+  id           String           @id @default(cuid())
+  slug         String           @unique
+  nombre       String
+  tipo         TipoAreaPractica @default(PRACTICA)
+  jurisdiccion Jurisdiccion
+  activo       Boolean          @default(true)
+  orden        Int              @default(0)
+
+  tipos TipoProcesoArea[]
+
+  @@map("areas_practica")
+}
+
+// Catálogo de tipos de proceso. Híbrido: empresaId null = global (ADMIN),
+// set = del despacho. `empresaKey` = empresaId ?? "" como sentinela del unique,
+// porque MySQL trata NULL como distinto en índices únicos.
+model TipoProceso {
+  id                String       @id @default(cuid())
+  nombre            String
+  descripcion       String?      @db.Text
+  jurisdiccion      Jurisdiccion
+  esquemaFormulario Json // [{ key, label, tipo, requerido, opciones? }]
+  esquemaVersion    Int          @default(1)
+  etapas            Json // [{ key, nombre, orden, terminal?, reglas? }]
+  empresaId         String? // null = global
+  empresaKey        String // empresaId ?? "" (sentinela del unique)
+  origenId          String? // si el despacho clonó un tipo global
+  activo            Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  empresa           Empresa?                     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  areas             TipoProcesoArea[]
+  procesos          Proceso[]
+  plantillas        PlantillaDocumento[]
+  clientesNecesidad Cliente[] // prospectos cuya "necesidad del proceso" apunta a este tipo
+  cotizaciones      Cotizacion[] // comercial: cotizaciones que apuntan a este tipo
+  solicitudes       SolicitudAsignacionProceso[] // comercial: solicitudes de asignación
+
+  @@unique([empresaKey, nombre])
+  @@index([empresaId])
+  @@index([jurisdiccion])
+  @@map("tipos_tramite")
+}
+
+// M:N entre TipoProceso y AreaPractica (un tipo se etiqueta con varias áreas).
+model TipoProcesoArea {
+  tipoProcesoId String @map("tipoTramiteId")
+  areaId        String
+
+  tipoProceso TipoProceso  @relation(fields: [tipoProcesoId], references: [id], onDelete: Cascade)
+  area        AreaPractica @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@id([tipoProcesoId, areaId])
+  @@index([areaId])
+  @@map("tipo_tramite_areas")
+}
+
+// Expediente: un caso concreto de un despacho.
+model Proceso {
+  id                 String        @id @default(cuid())
+  codigoInterno      String // número de caso del despacho (siempre presente)
+  radicado           String? // 23 dígitos del juzgado (nulo hasta radicar)
+  empresaId          String
+  tipoProcesoId      String        @map("tipoTramiteId")
+  tipoEsquemaVersion Int // versión del esquema con que se abrió (anti-drift)
+  jurisdiccion       Jurisdiccion
+  instancia          Instancia     @default(PRIMERA)
+  cuantiaTipo        CuantiaTipo?
+  cuantiaValor       Decimal?      @db.Decimal(14, 2)
+  despachoJuzgado    String?
+  casoRelacionadoId  String? // enlaza una tutela a su caso base
+  creadoPorId        String?
+  responsableId      String?
+  titulo             String
+  datos              Json
+  etapaActual        String
+  estado             EstadoProceso @default(ABIERTO)
+  prioridad          Prioridad     @default(MEDIA)
+  proximaAudiencia   DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  empresa            Empresa                     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  tipoProceso        TipoProceso                 @relation(fields: [tipoProcesoId], references: [id], onDelete: Restrict)
+  creadoPor          Usuario?                    @relation("ProcesosCreados", fields: [creadoPorId], references: [id], onDelete: SetNull)
+  responsable        Usuario?                    @relation("ProcesosResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  casoRelacionado    Proceso?                    @relation("CasoRelacionado", fields: [casoRelacionadoId], references: [id], onDelete: SetNull)
+  derivados          Proceso[]                   @relation("CasoRelacionado")
+  historial          EtapaProceso[]
+  documentos         DocumentoProceso[]
+  partes             ParteProceso[]
+  // comercial: la solicitud (si la hubo) que materializó este proceso (1:1).
+  solicitudComercial SolicitudAsignacionProceso?
+
+  @@unique([empresaId, codigoInterno])
+  @@index([empresaId])
+  @@index([tipoProcesoId])
+  @@index([responsableId])
+  @@index([estado])
+  @@index([radicado])
+  @@index([casoRelacionadoId])
+  @@map("tramites")
+}
+
+// Bitácora de etapas: cada movimiento del trámite por su flujo.
+model EtapaProceso {
+  id        String   @id @default(cuid())
+  procesoId String   @map("tramiteId")
+  etapaKey  String
+  nota      String?  @db.Text
+  usuarioId String?
+  createdAt DateTime @default(now())
+
+  proceso Proceso  @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([procesoId])
+  @@index([usuarioId])
+  @@map("etapas_tramite")
+}
+
+// Documento de un trámite (adjunto o generado desde plantilla).
+model DocumentoProceso {
+  id                  String   @id @default(cuid())
+  procesoId           String   @map("tramiteId")
+  nombre              String
+  url                 String
+  generadoDePlantilla String?
+  createdAt           DateTime @default(now())
+
+  proceso   Proceso             @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+  plantilla PlantillaDocumento? @relation(fields: [generadoDePlantilla], references: [id], onDelete: SetNull)
+
+  @@index([procesoId])
+  @@index([generadoDePlantilla])
+  @@map("documentos_tramite")
+}
+
+// Litigante: cliente final / parte del despacho, reutilizable entre trámites.
+model Litigante {
+  id              String         @id @default(cuid())
+  empresaId       String
+  tipoPersona     TipoPersona    @default(NATURAL)
+  nombre          String
+  tipoDocumento   TipoDocumento?
+  numeroDocumento String?
+  email           String?
+  telefono        String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  empresa  Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  partes   ParteProceso[]
+  clientes Cliente[] // Cliente CRM vinculado a este litigante al convertir
+
+  // Match atómico al convertir un Cliente (B3). MySQL trata NULL como distinto,
+  // así que litigantes sin documento no colisionan.
+  @@unique([empresaId, tipoDocumento, numeroDocumento])
+  @@index([empresaId])
+  @@map("litigantes")
+}
+
+// Une un litigante a un trámite con su rol procesal.
+model ParteProceso {
+  id               String   @id @default(cuid())
+  procesoId        String   @map("tramiteId")
+  litiganteId      String
+  rol              RolParte
+  rolEtiqueta      String? // etiqueta específica del área (quejoso, trabajador…)
+  esNuestroCliente Boolean  @default(false)
+
+  proceso   Proceso   @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+  // Restrict (no Cascade) para evitar múltiples rutas de cascada a esta tabla
+  // (MySQL errno 150); la fila muere por la cascada del Proceso.
+  litigante Litigante @relation(fields: [litiganteId], references: [id], onDelete: Restrict)
+
+  @@unique([procesoId, litiganteId, rol])
+  @@index([litiganteId])
+  @@map("partes_tramite")
+}
+
+// Plantilla de documento autollenable por tipo de trámite.
+model PlantillaDocumento {
+  id            String   @id @default(cuid())
+  tipoProcesoId String   @map("tipoTramiteId")
+  nombre        String
+  contenido     String   @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tipoProceso TipoProceso        @relation(fields: [tipoProcesoId], references: [id], onDelete: Cascade)
+  documentos  DocumentoProceso[]
+
+  @@index([tipoProcesoId])
+  @@map("plantillas_documento")
+}
+
+// ============================================================================
+// CIMIENTOS: roles por módulo + planes/entitlements + Cliente/Prospecto.
+// Ver openspec/changes/foundations-roles-plans-clientes/. Capa ADITIVA: no toca
+// el eje de auth existente (Rol/esAdminEmpresa/JWT). esAdminEmpresa sigue siendo
+// la autoridad de gestión de equipo; ADMINISTRADOR es su espejo en este eje.
+// ============================================================================
+
+// Segundo eje de autorización DENTRO de un despacho (ortogonal a Rol).
+enum RolEmpresa {
+  ADMINISTRADOR
+  JURIDICO // abogado
+  CONTABLE
+  COMERCIAL
+}
+
+enum EstadoSuscripcion {
+  ACTIVA
+  TRIAL
+  SUSPENDIDA
+  CANCELADA
+}
+
+enum EstadoCliente {
+  PROSPECTO
+  CLIENTE
+  DESCARTADO
+}
+
+enum CanalIngreso {
+  REFERIDO
+  INSTAGRAM
+  FACEBOOK
+  WHATSAPP
+  WEB
+  LLAMADA
+  OTRO
+}
+
+enum TipoCaso {
+  CIVIL
+  LABORAL
+  PENAL
+  ADMINISTRATIVO
+  DISCIPLINARIO
+  CONSTITUCIONAL
+  FAMILIA
+  COMERCIAL
+  TRANSITO
+  AMBIENTAL
+  OTRO
+}
+
+enum Viabilidad {
+  VIABLE
+  NO_VIABLE
+  EN_ESTUDIO
+}
+
+// Catálogo sembrado de módulos funcionales (no enum: extensible sin migración,
+// como AreaPractica). `esBaseline` = siempre activo para todos (no se siembra
+// como PlanModulo). Los toggles de feature (ia_redaccion, logo_personalizado,
+// automatizacion_contratos) son módulos no-baseline (sin tabla PlanFlag).
+model Modulo {
+  id          String   @id @default(cuid())
+  clave       String   @unique
+  nombre      String
+  descripcion String?  @db.Text
+  esBaseline  Boolean  @default(false)
+  activo      Boolean  @default(true)
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permisos           Permiso[]
+  planModulos        PlanModulo[]
+  suscripcionModulos SuscripcionModulo[]
+
+  @@map("modulos")
+}
+
+// Permiso namespaced bajo un módulo (deshabilitar el módulo corta todos sus
+// permisos a la vez). Catálogo sembrado mínimo en cimientos (ver Q7).
+model Permiso {
+  id          String   @id @default(cuid())
+  clave       String   @unique // p.ej. "cliente.crear"
+  nombre      String
+  descripcion String?  @db.Text
+  moduloId    String
+  createdAt   DateTime @default(now())
+
+  modulo Modulo              @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  roles  RolEmpresaPermiso[]
+
+  @@index([moduloId])
+  @@map("permisos")
+}
+
+// Matriz RBAC por defecto: qué RolEmpresa concede qué permiso.
+model RolEmpresaPermiso {
+  rolEmpresa RolEmpresa
+  permisoId  String
+
+  permiso Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@id([rolEmpresa, permisoId])
+  @@index([permisoId])
+  @@map("rol_empresa_permisos")
+}
+
+// Asignación de un RolEmpresa a un usuario = la "silla" que cuentan los cupos.
+// `empresaId` está DESNORMALIZADO (conteo O(1) de sillas) y a propósito NO lleva
+// FK: evitaría tener dos rutas de cascada hacia esta tabla desde Empresa
+// (Empresa→Usuario→aquí y Empresa→aquí), que MySQL rechaza (errno 150). La
+// integridad se mantiene por `usuarioId` (Cascade): la fila muere con el usuario,
+// y al borrar la empresa se borran sus usuarios y con ellos estas filas.
+model UsuarioRolEmpresa {
+  id            String     @id @default(cuid())
+  usuarioId     String
+  rolEmpresa    RolEmpresa
+  empresaId     String // desnormalizado, sin FK (ver nota arriba)
+  asignadoPorId String? // auditoría, sin FK
+  createdAt     DateTime   @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, rolEmpresa]) // un usuario no repite el mismo rol
+  @@index([empresaId, rolEmpresa]) // conteo de sillas por (empresa, rol)
+  @@map("usuario_roles_empresa")
+}
+
+// Plan de la plataforma (lo crea el ADMIN, como Servicio). precioMensual SIEMPRE
+// en COP congelado (sin indexar a SMMLV); bufete_pro guarda el valor COP de 1
+// SMMLV y el ADMIN lo actualiza a mano. Complementa a Servicio/EmpresaServicio,
+// NO reemplaza el cobro.
+model Plan {
+  id            String   @id @default(cuid())
+  clave         String   @unique // independiente, independiente_pro, firma, bufete, bufete_pro
+  nombre        String
+  descripcion   String?  @db.Text
+  precioMensual Decimal  @default(0) @db.Decimal(10, 2)
+  activo        Boolean  @default(true)
+  orden         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  modulos       PlanModulo[]
+  cuotas        PlanCuota[]
+  suscripciones Suscripcion[]
+
+  @@map("planes")
+}
+
+// Módulos NO-baseline incluidos en un plan (los baseline son siempre-activos).
+model PlanModulo {
+  id       String @id @default(cuid())
+  planId   String
+  moduloId String
+
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  modulo Modulo @relation(fields: [moduloId], references: [id], onDelete: Restrict)
+
+  @@unique([planId, moduloId])
+  @@index([moduloId])
+  @@map("plan_modulos")
+}
+
+// Cupo de sillas por RolEmpresa que da un plan. limite NULL = ilimitado.
+model PlanCuota {
+  id         String     @id @default(cuid())
+  planId     String
+  rolEmpresa RolEmpresa
+  limite     Int? // NULL = ilimitado
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, rolEmpresa])
+  @@map("plan_cuotas")
+}
+
+// Suscripción vigente de una empresa a un plan (una por empresa).
+model Suscripcion {
+  id        String            @id @default(cuid())
+  empresaId String            @unique
+  planId    String
+  estado    EstadoSuscripcion @default(ACTIVA)
+  inicioEn  DateTime          @default(now())
+  finEn     DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  empresa Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  plan    Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  modulos SuscripcionModulo[]
+  cuotas  SuscripcionCuota[]
+
+  @@index([planId])
+  @@map("suscripciones")
+}
+
+// Override por empresa de un módulo (habilitar/deshabilitar sobre el plan).
+model SuscripcionModulo {
+  id            String  @id @default(cuid())
+  suscripcionId String
+  moduloId      String
+  habilitado    Boolean @default(true)
+
+  suscripcion Suscripcion @relation(fields: [suscripcionId], references: [id], onDelete: Cascade)
+  modulo      Modulo      @relation(fields: [moduloId], references: [id], onDelete: Restrict)
+
+  @@unique([suscripcionId, moduloId])
+  @@index([moduloId])
+  @@map("suscripcion_modulos")
+}
+
+// Override por empresa del cupo de un rol (sobre el del plan). NULL = ilimitado.
+model SuscripcionCuota {
+  id            String     @id @default(cuid())
+  suscripcionId String
+  rolEmpresa    RolEmpresa
+  limite        Int? // NULL = ilimitado
+
+  suscripcion Suscripcion @relation(fields: [suscripcionId], references: [id], onDelete: Cascade)
+
+  @@unique([suscripcionId, rolEmpresa])
+  @@map("suscripcion_cuotas")
+}
+
+// Identidad comercial (CRM): prospecto/cliente final del despacho. DISTINTA del
+// Litigante procesal; se reconcilia vía `litiganteId` (nullable) al convertir.
+// Una sola fila con ciclo PROSPECTO→CLIENTE→DESCARTADO. Solo Empresa cascadea
+// hacia Cliente; el resto de FKs son SetNull (disciplina errno-150 de ParteProceso).
+model Cliente {
+  id                     String         @id @default(cuid())
+  empresaId              String
+  estado                 EstadoCliente  @default(PROSPECTO)
+  fechaIngreso           DateTime       @default(now())
+  tipoPersona            TipoPersona    @default(NATURAL)
+  nombre                 String
+  tipoDocumento          TipoDocumento?
+  numeroDocumento        String?
+  telefono               String?
+  email                  String?
+  ciudad                 String?
+  canalIngreso           CanalIngreso?
+  tipoCaso               TipoCaso?
+  necesidadTipoProcesoId String?        @map("necesidadTipoTramiteId")
+  resumenCaso            String?        @db.Text
+  viabilidad             Viabilidad?    @default(EN_ESTUDIO)
+  responsableComercialId String?
+  observaciones          String?        @db.Text
+  litiganteId            String? // bridge: se setea al convertir (find-or-create)
+  convertidoEn           DateTime? // PROSPECTO→CLIENTE (lo estampa el módulo contratos)
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  empresa              Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  necesidadTipoProceso TipoProceso? @relation(fields: [necesidadTipoProcesoId], references: [id], onDelete: SetNull)
+  responsableComercial Usuario?     @relation(fields: [responsableComercialId], references: [id], onDelete: SetNull)
+  litigante            Litigante?   @relation(fields: [litiganteId], references: [id], onDelete: SetNull)
+
+  // Módulo comercial (embudo): satélites anclados al Cliente. Ver
+  // openspec/changes/comercial-funnel/.
+  seguimientos         SeguimientoComercial[]
+  fasesComerciales     FaseComercialHistorial[]
+  cotizaciones         Cotizacion[]
+  contratosComerciales ContratoComercial[]
+  solicitudesProceso   SolicitudAsignacionProceso[]
+
+  // Módulo contable: ingresos y cartera se anclan al Cliente.
+  ingresos Ingreso[]
+  cartera  Cartera[]
+
+  // Módulo facturación: facturas emitidas al cliente.
+  facturas Factura[]
+
+  @@index([empresaId])
+  @@index([estado])
+  @@index([responsableComercialId])
+  @@index([necesidadTipoProcesoId])
+  @@index([litiganteId])
+  @@map("clientes")
+}
+
+// ============================================================================
+// Módulo COMERCIAL (embudo de ventas). Ver openspec/changes/comercial-funnel/.
+// Todo cuelga del Cliente (ancla; no se redefine). Cada satélite: clienteId es
+// la ÚNICA FK con Cascade; empresaId va desnormalizado SIN FK (evita errno-150,
+// como UsuarioRolEmpresa). Los "...PorId"/abogado son escalares sin FK (auditoría/
+// referencia; la app valida misma-empresa y rol). Dinero = Decimal(14,2).
+// ============================================================================
+
+enum FaseComercial {
+  LEAD
+  CONTACTO
+  EVALUACION
+  PROPUESTA
+  NEGOCIACION
+  CONTRATO
+  PODERES
+  FIRMADO
+  PERDIDO
+}
+
+enum TipoGestionComercial {
+  LLAMADA
+  WHATSAPP
+  REUNION
+  VIDEOLLAMADA
+  CORREO
+  OTRO
+}
+
+enum EstadoSeguimiento {
+  PENDIENTE
+  EN_GESTION
+  CERRADO
+}
+
+enum FormaPago {
+  CONTADO
+  CUOTAS
+  CUOTALITIS
+  CUOTA_MIXTA
+  PRIMA_EXITO
+}
+
+enum EstadoPropuesta {
+  PENDIENTE
+  ENVIADA
+  ACEPTADA
+  RECHAZADA
+}
+
+enum TipoContrato {
+  PRESTACION_SERVICIOS
+  MANDATO
+  OTRO
+}
+
+enum EstadoDocFirma {
+  PENDIENTE
+  ENVIADO
+  FIRMADO
+}
+
+// Modalidad de cobro ACORDADA (vinculante). Enum cerrado, compartido con el
+// futuro módulo contable.
+enum ModalidadCobro {
+  CUOTALITIS
+  CUOTA_MIXTA
+  PRIMA_EXITO
+  FIJO
+  OTRO
+}
+
+enum EstadoSolicitud {
+  PENDIENTE
+  EN_REVISION
+  ASIGNADA
+  RECHAZADA
+  CANCELADA
+}
+
+// Bitácora de contactos con el prospecto (append-only). Fuente de las alertas
+// sin-seguimiento / tarea-vencida / cita-hoy.
+model SeguimientoComercial {
+  id                String               @id @default(cuid())
+  empresaId         String // desnormalizado, sin FK
+  clienteId         String
+  fechaContacto     DateTime             @default(now())
+  tipoGestion       TipoGestionComercial
+  motivoContacto    String?              @db.Text
+  resultado         String?              @db.Text
+  proximaTarea      String?
+  fechaProximaTarea DateTime?
+  estadoSeguimiento EstadoSeguimiento    @default(PENDIENTE)
+  observaciones     String?              @db.Text
+  registradoPorId   String? // escalar, sin FK
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([clienteId, fechaContacto])
+  @@index([empresaId, fechaProximaTarea])
+  @@index([empresaId, estadoSeguimiento])
+  @@map("seguimientos_comerciales")
+}
+
+// Pipeline del embudo (append-only). La fase ACTUAL = la única fila del cliente
+// con fechaCierreFase NULL. No se guardan columnas de fase en Cliente.
+model FaseComercialHistorial {
+  id                     String        @id @default(cuid())
+  empresaId              String // desnormalizado, sin FK
+  clienteId              String
+  fase                   FaseComercial
+  fechaInicioFase        DateTime      @default(now())
+  fechaCierreFase        DateTime? // NULL = fase actual/abierta
+  motivoPerdida          String?       @db.Text
+  responsableComercialId String? // escalar, sin FK
+  registradoPorId        String? // escalar, sin FK
+  createdAt              DateTime      @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([clienteId, fechaCierreFase])
+  @@index([fase])
+  @@map("fases_comerciales")
+}
+
+// Cotización / propuesta económica (re-cotizable: varias por cliente).
+model Cotizacion {
+  id              String          @id @default(cuid())
+  empresaId       String // desnormalizado, sin FK
+  clienteId       String
+  tipoServicio    String // texto libre (sin FK a Servicio)
+  tipoProcesoId   String?
+  valorCotizado   Decimal         @db.Decimal(14, 2)
+  formaPago       FormaPago
+  porcentajeExito Decimal?        @db.Decimal(5, 2)
+  numeroCuotas    Int?
+  fechaEnvio      DateTime? // NULL = borrador
+  fechaRespuesta  DateTime?
+  estadoPropuesta EstadoPropuesta @default(PENDIENTE)
+  observaciones   String?         @db.Text
+  creadoPorId     String? // escalar, sin FK
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  cliente     Cliente             @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  tipoProceso TipoProceso?        @relation(fields: [tipoProcesoId], references: [id], onDelete: SetNull)
+  contratos   ContratoComercial[]
+
+  @@index([clienteId])
+  @@index([empresaId, estadoPropuesta])
+  @@index([empresaId, fechaEnvio])
+  @@map("cotizaciones")
+}
+
+// Contrato + poderes + titular de cobro acordado. Nombre con sufijo para no
+// chocar con un futuro `Contrato` del módulo contable.
+model ContratoComercial {
+  id                   String         @id @default(cuid())
+  empresaId            String // desnormalizado, sin FK
+  clienteId            String
+  cotizacionId         String?
+  tipoContrato         TipoContrato
+  fechaGeneracion      DateTime       @default(now())
+  fechaEnvio           DateTime?
+  fechaFirma           DateTime?
+  estadoContrato       EstadoDocFirma @default(PENDIENTE)
+  estadoPoder          EstadoDocFirma @default(PENDIENTE)
+  tipoCobroAcordado    ModalidadCobro
+  valorAcordado        Decimal?       @db.Decimal(14, 2)
+  porcentajeAcordado   Decimal?       @db.Decimal(5, 2)
+  documentoContratoUrl String?
+  documentoPoderUrl    String?
+  observaciones        String?        @db.Text
+  registradoPorId      String? // escalar, sin FK
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  cliente            Cliente                     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cotizacion         Cotizacion?                 @relation(fields: [cotizacionId], references: [id], onDelete: SetNull)
+  configuracionCobro ConfiguracionCobro?
+  solicitud          SolicitudAsignacionProceso?
+
+  @@index([clienteId])
+  @@index([empresaId, estadoContrato, fechaEnvio])
+  @@index([empresaId, estadoPoder])
+  @@map("contratos_comerciales")
+}
+
+// Plan de cobro estructurado (1:1 con el contrato; autoridad sobre el titular).
+// Guarda el PLAN, no es un motor de facturación (sin pagos/cuotas/cartera).
+model ConfiguracionCobro {
+  id                    String         @id @default(cuid())
+  empresaId             String // desnormalizado, sin FK
+  contratoId            String         @unique
+  clienteId             String // desnormalizado, sin FK (contratoId es la raíz de cascada)
+  modalidadCobro        ModalidadCobro
+  valorFijo             Decimal?       @db.Decimal(14, 2)
+  porcentajeExito       Decimal?       @db.Decimal(5, 2)
+  numeroCuotas          Int?
+  valorCuota            Decimal?       @db.Decimal(14, 2)
+  fechaPrimerPago       DateTime? // solo fecha de vencimiento (heurística de alerta)
+  condicionesEspeciales String?        @db.Text
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  contrato ContratoComercial @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, fechaPrimerPago])
+  @@index([clienteId])
+  @@map("configuraciones_cobro")
+}
+
+// EL PUENTE: "Solicitud de Asignación de Procesos". Cliente(comercial) →
+// Proceso(legal). Una por contrato firmado; la asignación (solo ADMINISTRADOR)
+// materializa el Proceso. Snapshots inmutables para trazabilidad.
+model SolicitudAsignacionProceso {
+  id                   String          @id @default(cuid())
+  empresaId            String // desnormalizado, sin FK
+  clienteId            String
+  contratoId           String?         @unique
+  tipoProcesoId        String?
+  estado               EstadoSolicitud @default(PENDIENTE)
+  prioridad            Prioridad?      @default(MEDIA)
+  jurisdiccionSugerida Jurisdiccion?
+  rolParteSugerido     RolParte?
+  tituloPropuesto      String?
+  resumenCaso          String?         @db.Text // SNAPSHOT
+  cobroSnapshot        Json? // términos acordados congelados
+  notaComercial        String?         @db.Text
+  tareasDefinidas      String?         @db.Text
+  solicitadoPorId      String? // escalar, sin FK
+  asignadoPorId        String? // escalar, sin FK
+  abogadoAsignadoId    String? // escalar, sin FK (la app valida JURIDICO + misma empresa)
+  procesoId            String?         @unique
+  motivoRechazo        String?         @db.Text
+  fechaSolicitud       DateTime        @default(now())
+  fechaAsignacion      DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  cliente     Cliente            @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  contrato    ContratoComercial? @relation(fields: [contratoId], references: [id], onDelete: SetNull)
+  tipoProceso TipoProceso?       @relation(fields: [tipoProcesoId], references: [id], onDelete: SetNull)
+  proceso     Proceso?           @relation(fields: [procesoId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId, estado])
+  @@index([clienteId])
+  @@index([abogadoAsignadoId, estado])
+  @@map("solicitudes_asignacion_proceso")
+}
+
+// ============================================================================
+// Módulo CONTABLE. Ver openspec/changes/contable-module/. Todo cuelga de
+// Cliente/Proceso; LEE el plan de cobro del comercial (ConfiguracionCobro), no
+// lo reescribe. Ingreso/Cartera se anclan al Cliente (Cascade); las hojas
+// (Egreso/Nomina/ServicioFijo/CuentaBancaria/CajaMenor) cuelgan directo de
+// Empresa (única ruta → seguro errno-150). Saldos DERIVADOS, nunca guardados.
+// Dinero = Decimal(14,2). Los "...Id" escalares no llevan FK (la app valida
+// misma-empresa).
+// ============================================================================
+
+enum TipoCobroIngreso {
+  ANTICIPO
+  CUOTA_INICIAL
+  HONORARIOS
+  PRIMA_EXITO
+  COSTAS
+  ABONO
+  OTRO
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  CONSIGNACION
+  TARJETA
+  OTRO
+}
+
+enum EstadoPagoIngreso {
+  PAGADO
+  PENDIENTE
+  PARCIAL
+}
+
+enum TipoGastoEgreso {
+  GENERAL
+  POR_PROCESO
+}
+
+enum CategoriaEgreso {
+  NOMINA
+  SERVICIOS
+  PAPELERIA
+  CAJA_MENOR
+  COSTAS
+  ARRIENDO
+  IMPUESTOS
+  HONORARIOS_TERCEROS
+  OTRO
+}
+
+enum EstadoGastoEgreso {
+  PAGADO
+  PENDIENTE
+}
+
+enum TipoVinculacion {
+  LABORAL
+  PRESTACION_SERVICIOS
+  OTRO
+}
+
+enum EstadoPagoNomina {
+  PAGADO
+  PENDIENTE
+}
+
+enum EstadoCajaMenor {
+  ACTIVA
+  CERRADA
+}
+
+enum TipoMovCaja {
+  SALIDA
+  REPOSICION
+}
+
+enum CategoriaCajaMenor {
+  TRANSPORTE
+  PAPELERIA
+  MENSAJERIA
+  ALIMENTACION
+  OTRO
+}
+
+enum TipoServicioFijo {
+  AGUA
+  LUZ
+  GAS
+  INTERNET
+  TELEFONO
+  ARRIENDO
+  SOFTWARE
+  MANTENIMIENTO
+  VIGILANCIA
+  OTRO
+}
+
+enum EstadoServicioFijo {
+  PAGADO
+  PENDIENTE
+  VENCIDO
+}
+
+enum TipoCuentaBancaria {
+  AHORROS
+  CORRIENTE
+  CAJA
+}
+
+enum EstadoCuentaBancaria {
+  ACTIVA
+  INACTIVA
+  CONCILIACION_PENDIENTE
+}
+
+enum EstadoCartera {
+  AL_DIA
+  VENCIDO
+  PARCIAL
+  PAGADO
+}
+
+// Dinero recibido (append-only). Resuelve el saldoPendiente que dejó el comercial.
+model Ingreso {
+  id                   String            @id @default(cuid())
+  empresaId            String // desnormalizado, sin FK (Cliente es la raíz)
+  clienteId            String
+  procesoId            String? // escalar, sin FK
+  radicado             String? // snapshot de Proceso.radicado
+  contratoId           String? // escalar, sin FK (contrato comercial)
+  configuracionCobroId String? // escalar, sin FK (plan al que aplica)
+  facturaId            String? // escalar, sin FK (factura que paga; módulo facturacion)
+  cuentaId             String? // escalar, sin FK (bolsa que lo recibió)
+  fechaIngreso         DateTime          @default(now())
+  conceptoPago         String
+  tipoCobro            TipoCobroIngreso
+  valorRecibido        Decimal           @db.Decimal(14, 2)
+  metodoPago           MetodoPago
+  estadoPago           EstadoPagoIngreso @default(PAGADO)
+  numeroComprobante    String?
+  soportePagoUrl       String?
+  observaciones        String?           @db.Text
+  registradoPorId      String? // escalar, sin FK
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, fechaIngreso])
+  @@index([clienteId])
+  @@index([empresaId, procesoId])
+  @@index([empresaId, radicado])
+  @@index([configuracionCobroId])
+  @@index([facturaId])
+  @@index([empresaId, estadoPago])
+  @@map("ingresos")
+}
+
+// Dinero pagado (general o por proceso). Hoja: cuelga de Empresa.
+model Egreso {
+  id               String            @id @default(cuid())
+  empresaId        String
+  tipoGasto        TipoGastoEgreso
+  clienteId        String? // escalar, sin FK
+  procesoId        String? // escalar, sin FK
+  radicado         String? // snapshot
+  cuentaId         String? // escalar, sin FK
+  fechaGasto       DateTime          @default(now())
+  categoriaGasto   CategoriaEgreso
+  subcategoria     String?
+  descripcionGasto String
+  valorGasto       Decimal           @db.Decimal(14, 2)
+  medioPago        MetodoPago
+  estadoGasto      EstadoGastoEgreso @default(PAGADO)
+  responsableId    String? // escalar, sin FK
+  soporteGastoUrl  String?
+  observaciones    String?           @db.Text
+  registradoPorId  String? // escalar, sin FK
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, fechaGasto])
+  @@index([empresaId, categoriaGasto])
+  @@index([empresaId, radicado])
+  @@index([empresaId, procesoId])
+  @@map("egresos")
+}
+
+// Nómina por periodo. Hoja: cuelga de Empresa. empleadoId escalar (Usuario hoy,
+// Empleado futuro) + nombre congelado.
+model Nomina {
+  id                 String           @id @default(cuid())
+  empresaId          String
+  empleadoId         String? // escalar, sin FK (Usuario.id hoy)
+  nombreEmpleado     String // snapshot requerido
+  cargo              String?
+  tipoVinculacion    TipoVinculacion
+  periodo            String // 'YYYY-MM'
+  fechaIngreso       DateTime?
+  salarioHonorarios  Decimal          @db.Decimal(14, 2)
+  auxilioTransporte  Decimal?         @db.Decimal(14, 2)
+  bonificaciones     Decimal?         @db.Decimal(14, 2)
+  descuentos         Decimal?         @db.Decimal(14, 2)
+  valorNetoPagar     Decimal          @db.Decimal(14, 2)
+  fechaPago          DateTime?
+  estadoPago         EstadoPagoNomina @default(PENDIENTE)
+  cuentaId           String? // escalar, sin FK (bolsa pagadora)
+  comprobantePagoUrl String?
+  observaciones      String?          @db.Text
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, periodo])
+  @@index([empresaId, empleadoId])
+  @@map("nominas")
+}
+
+// Caja menor: fondo (cabecera). Hoja de Empresa; raíz de sus movimientos.
+model CajaMenor {
+  id            String          @id @default(cuid())
+  empresaId     String
+  nombre        String
+  montoInicial  Decimal         @db.Decimal(14, 2)
+  responsableId String? // escalar, sin FK
+  estado        EstadoCajaMenor @default(ACTIVA)
+  observaciones String?         @db.Text
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  empresa     Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  movimientos CajaMenorMovimiento[]
+
+  @@index([empresaId])
+  @@map("cajas_menores")
+}
+
+// Movimiento de caja menor. Cuelga de CajaMenor (que a su vez cuelga de Empresa).
+model CajaMenorMovimiento {
+  id              String             @id @default(cuid())
+  empresaId       String // desnormalizado, sin FK
+  cajaId          String
+  fechaMovimiento DateTime           @default(now())
+  tipoMovimiento  TipoMovCaja        @default(SALIDA)
+  concepto        String
+  categoria       CategoriaCajaMenor
+  valor           Decimal            @db.Decimal(14, 2)
+  procesoId       String? // escalar, sin FK
+  radicado        String? // snapshot
+  medioSalida     MetodoPago
+  responsableId   String? // escalar, sin FK
+  soporteUrl      String?
+  observaciones   String?            @db.Text
+  createdAt       DateTime           @default(now())
+
+  caja CajaMenor @relation(fields: [cajaId], references: [id], onDelete: Cascade)
+
+  @@index([cajaId, fechaMovimiento])
+  @@index([empresaId])
+  @@map("caja_menor_movimientos")
+}
+
+// Servicios y gastos fijos recurrentes. Hoja de Empresa.
+model ServicioFijo {
+  id                String             @id @default(cuid())
+  empresaId         String
+  periodo           String // 'YYYY-MM'
+  tipoServicio      TipoServicioFijo
+  proveedor         String
+  valorFacturado    Decimal            @db.Decimal(14, 2)
+  fechaVencimiento  DateTime?
+  fechaPago         DateTime?
+  estadoPago        EstadoServicioFijo @default(PENDIENTE)
+  cuentaId          String? // escalar, sin FK
+  soporteFacturaUrl String?
+  observaciones     String?            @db.Text
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, tipoServicio, proveedor, periodo])
+  @@index([empresaId, periodo])
+  @@index([empresaId, estadoPago, fechaVencimiento])
+  @@map("servicios_fijos")
+}
+
+// Bolsas / cuentas bancarias. Hoja de Empresa. saldoActual DERIVADO.
+model CuentaBancaria {
+  id              String               @id @default(cuid())
+  empresaId       String
+  entidadBancaria String
+  tipoCuenta      TipoCuentaBancaria
+  numeroCuenta    String?
+  nombreBolsa     String
+  saldoInicial    Decimal              @default(0) @db.Decimal(14, 2)
+  estadoCuenta    EstadoCuentaBancaria @default(ACTIVA)
+  responsableId   String? // escalar, sin FK
+  observaciones   String?              @db.Text
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([empresaId, estadoCuenta])
+  @@map("cuentas_bancarias")
+}
+
+// Cartera (CxC): una cabecera por contrato. valorTotalAcordado = SNAPSHOT del
+// plan de cobro; valorPagado/saldoPendiente se DERIVAN de los Ingresos.
+model Cartera {
+  id                   String         @id @default(cuid())
+  empresaId            String // desnormalizado, sin FK (Cliente es la raíz)
+  clienteId            String
+  procesoId            String? // escalar, sin FK
+  contratoId           String?        @unique // escalar (sin FK), una cartera por contrato
+  configuracionCobroId String?        @unique // escalar (sin FK), el plan que sigue
+  valorTotalAcordado   Decimal?       @db.Decimal(14, 2) // snapshot del plan
+  tipoCobro            ModalidadCobro // reusa el enum del comercial
+  fechaProximoPago     DateTime?
+  estadoCartera        EstadoCartera  @default(AL_DIA)
+  responsableId        String? // escalar, sin FK
+  observaciones        String?        @db.Text
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, estadoCartera])
+  @@index([clienteId])
+  @@index([empresaId, fechaProximoPago])
+  @@map("cartera")
+}
+
+// ============================================================================
+// Módulo FACTURACIÓN. Ver openspec/changes/facturacion-module/. La factura formal
+// que el despacho EMITE a su cliente. Cuelga del Cliente (Cascade), como el resto
+// del contable. Los pagos son INGRESOS vinculados (Ingreso.facturaId): una sola
+// fuente de dinero, mismo que alimenta la Cartera. subtotal/IVA/total son
+// snapshots derivados de los items; pagado/saldo/estadoPago se DERIVAN, no se
+// guardan. numero ('FAC-YYYY-NNNN') se asigna al EMITIR (NULL en borrador).
+// ============================================================================
+
+enum EstadoFactura {
+  BORRADOR
+  EMITIDA
+  ANULADA
+}
+
+model Factura {
+  id                   String        @id @default(cuid())
+  empresaId            String // desnormalizado, sin FK (Cliente es la raíz)
+  clienteId            String
+  contratoId           String? // escalar, sin FK (contrato comercial de origen)
+  configuracionCobroId String? // escalar, sin FK (plan de cobro de origen)
+  procesoId            String? // escalar, sin FK
+  radicado             String? // snapshot de Proceso.radicado
+  numero               String? // NULL en borrador; 'FAC-YYYY-NNNN' al emitir
+  fechaEmision         DateTime? // se estampa al emitir
+  fechaVencimiento     DateTime?
+  estado               EstadoFactura @default(BORRADOR)
+  subtotal             Decimal       @default(0) @db.Decimal(14, 2) // Σ items (snapshot)
+  porcentajeIva        Decimal       @default(19) @db.Decimal(5, 2)
+  valorIva             Decimal       @default(0) @db.Decimal(14, 2) // snapshot
+  total                Decimal       @default(0) @db.Decimal(14, 2) // subtotal + IVA (snapshot)
+  observaciones        String?       @db.Text
+  motivoAnulacion      String?       @db.Text
+  registradoPorId      String? // escalar, sin FK
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  cliente Cliente       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  items   FacturaItem[]
+
+  @@unique([empresaId, numero]) // consecutivo por empresa; MySQL permite múltiples NULL (borradores)
+  @@index([empresaId, estado])
+  @@index([clienteId])
+  @@index([empresaId, fechaEmision])
+  @@map("facturas")
+}
+
+// Línea de detalle de la factura. Cuelga de Factura (que cuelga de Cliente).
+model FacturaItem {
+  id            String  @id @default(cuid())
+  empresaId     String // desnormalizado, sin FK
+  facturaId     String
+  descripcion   String
+  cantidad      Int     @default(1)
+  valorUnitario Decimal @db.Decimal(14, 2)
+  total         Decimal @db.Decimal(14, 2) // cantidad * valorUnitario (snapshot)
+  orden         Int     @default(0)
+
+  factura Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  @@index([facturaId])
+  @@map("factura_items")
+}
+
+// ===================== VENTA DE LA PLATAFORMA (admin-comercial-ventas) =====================
+// CRM propio de LEX Control: vendemos Planes a despachos. Distinto del módulo
+// `comercial` (que es el CRM del despacho hacia SUS clientes). Datos a nivel
+// plataforma (sin tenancy por empresa); se acotan por el COMERCIAL asignado.
+// Las refs a Plan/Usuario son escalares SIN FK (validadas en la app, idioma del
+// repo); la única FK real es empresaId -> Empresa (1:1, SetNull) de la empresa
+// creada al ganar. Ver openspec/changes/admin-comercial-ventas/.
+
+model Prospecto {
+  id             String          @id @default(cuid())
+  nombreEmpresa  String
+  nombreContacto String
+  email          String?
+  telefono       String?
+  cargo          String?
+  canalEntrada   CanalEntrada    @default(DIRECTO)
+  estado         EstadoProspecto @default(NUEVO)
+
+  planInteresId String? // escalar sin FK -> Plan (validado en app)
+  comercialId   String? // escalar sin FK -> Usuario COMERCIAL asignado
+
+  // Snapshot del cierre (cuando GANADO):
+  planVendidoId String? // escalar sin FK -> Plan
+  precioVenta   Decimal?  @db.Decimal(10, 2) // negociado; default = Plan.precioMensual
+  fechaCierre   DateTime?
+  empresaId     String?   @unique // FK real -> Empresa creada al ganar
+  empresa       Empresa?  @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+
+  motivoPerdida String? @db.Text
+  notas         String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comision Comision?
+
+  @@index([comercialId, estado])
+  @@index([estado])
+  @@index([canalEntrada])
+  @@map("prospectos")
+}
+
+model Comision {
+  id          String    @id @default(cuid())
+  prospectoId String    @unique // escalar sin FK (1:1 con la venta ganada)
+  prospecto   Prospecto @relation(fields: [prospectoId], references: [id], onDelete: Cascade)
+  comercialId String // escalar sin FK -> Usuario
+
+  baseCalculo Decimal  @db.Decimal(10, 2) // = precioVenta de la venta
+  porcentaje  Decimal? @db.Decimal(5, 2) // % aplicado (snapshot); null si fue monto fijo
+  monto       Decimal  @db.Decimal(10, 2) // comisión final
+
+  estado    EstadoComision @default(PENDIENTE)
+  fechaPago DateTime?
+  notas     String?        @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([comercialId, estado])
+  @@map("comisiones")
 }
