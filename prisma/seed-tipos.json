@@ -1,5 +1,62 @@
 [
   {
+    "nombre": "Acción de tutela",
+    "descripcion": "Mecanismo constitucional para la protección inmediata de derechos fundamentales cuando resulten vulnerados o amenazados (art. 86 C.P.; Decreto 2591/1991). El juez debe fallar dentro de los 10 días hábiles siguientes a la presentación.",
+    "jurisdiccion": "CONSTITUCIONAL",
+    "areaSlugs": ["constitucional"],
+    "esquemaFormulario": [
+      { "key": "entidadAccionada", "label": "Autoridad o particular accionado", "tipo": "texto", "requerido": true },
+      { "key": "derechosFundamentales", "label": "Derechos fundamentales invocados", "tipo": "multiselect", "requerido": true, "opciones": ["Vida", "Salud", "Dignidad humana", "Debido proceso", "Petición", "Igualdad", "Mínimo vital", "Educación", "Trabajo", "Seguridad social", "Libre desarrollo de la personalidad", "Acceso a la administración de justicia", "Otro"] },
+      { "key": "hechos", "label": "Hechos", "tipo": "textoLargo", "requerido": true },
+      { "key": "pretension", "label": "Pretensión / amparo solicitado", "tipo": "textoLargo", "requerido": true },
+      { "key": "existeOtroMedioDefensa", "label": "¿Existe otro medio de defensa judicial?", "tipo": "boolean", "requerido": true },
+      { "key": "perjuicioIrremediable", "label": "¿Se alega perjuicio irremediable?", "tipo": "boolean", "requerido": false },
+      { "key": "medidaProvisional", "label": "¿Se solicita medida provisional?", "tipo": "boolean", "requerido": false },
+      { "key": "juramentoNoTutela", "label": "Juramento de no haber presentado otra tutela por los mismos hechos", "tipo": "boolean", "requerido": true },
+      { "key": "fechaPresentacion", "label": "Fecha de presentación de la tutela", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corren los 10 días hábiles para el fallo." },
+      { "key": "radicadoTutela", "label": "Radicado de la tutela", "tipo": "texto", "requerido": false },
+      { "key": "admitida", "label": "¿Admitieron la tutela?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
+      { "key": "falloPrimera", "label": "Fallo de primera instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"] },
+      { "key": "impugnada", "label": "¿Se impugnó el fallo?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
+      { "key": "falloSegunda", "label": "Fallo de segunda instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"], "mostrarSi": { "campo": "impugnada", "igualA": "SI" } }
+    ],
+    "etapas": [
+      { "key": "radicacion", "nombre": "Radicación y reparto", "orden": 1, "reglas": { "camposRequeridos": ["derechosFundamentales", "entidadAccionada", "hechos", "pretension", "existeOtroMedioDefensa"], "documentosRequeridos": ["demanda.pdf"], "plazoDesdeCampo": "fechaPresentacion", "plazoTipoDias": "habiles", "plazoDias": 10 } },
+      { "key": "admision", "nombre": "Admisión y traslado al accionado", "orden": 2, "reglas": { "camposRequeridos": ["entidadAccionada"], "documentosRequeridos": ["auto_admisorio.pdf"] } },
+      { "key": "falloPrimeraInstancia", "nombre": "Fallo de primera instancia", "orden": 3, "reglas": { "camposRequeridos": ["pretension"], "documentosRequeridos": ["sentencia.pdf"], "plazoDias": 10 } },
+      { "key": "impugnacion", "nombre": "Impugnación", "orden": 4, "disponibleSi": { "campo": "impugnada", "igualA": "SI" }, "reglas": { "documentosRequeridos": ["impugnacion.pdf"], "plazoDias": 3 } },
+      { "key": "falloSegundaInstancia", "nombre": "Fallo de segunda instancia", "orden": 5, "reglas": { "documentosRequeridos": ["sentencia_segunda.pdf"], "plazoDias": 20 } },
+      { "key": "remisionRevision", "nombre": "Remisión a la Corte Constitucional para eventual revisión", "orden": 6, "reglas": { "plazoDias": 10 } },
+      { "key": "terminado", "nombre": "Terminación", "orden": 7, "terminal": true, "resultado": "Tutela resuelta (eventualmente revisada por la Corte Constitucional)." }
+    ]
+  },
+  {
+    "nombre": "Derecho de Petición",
+    "descripcion": "Derecho fundamental a presentar peticiones respetuosas ante autoridades y particulares y obtener pronta resolución (art. 23 C.P.; Ley 1755/2015). Términos: general 15 días hábiles, documentos/información 10, consultas 30.",
+    "jurisdiccion": "CONSTITUCIONAL",
+    "areaSlugs": ["constitucional"],
+    "esquemaFormulario": [
+      { "key": "entidad", "label": "Entidad o particular destinatario", "tipo": "texto", "requerido": true },
+      { "key": "correo", "label": "Correo electrónico de la entidad", "tipo": "texto", "requerido": false },
+      { "key": "tipoPeticion", "label": "Tipo de derecho de petición", "tipo": "select", "requerido": true, "opciones": ["General", "Documental", "Consulta"], "ayuda": "General = 15 días hábiles · Documental = 10 · Consulta = 30." },
+      { "key": "queSolicita", "label": "¿Qué desea solicitar?", "tipo": "multiselect", "requerido": true, "opciones": ["Información", "Copia de documentos", "Certificación", "Historia laboral", "Historia clínica", "Estado de trámite", "Pago pendiente", "Reconocimiento de derecho", "Corrección de información", "Habeas data", "Solicitud laboral", "Salud", "Seguridad social", "Queja", "Reclamo", "Consulta", "Otro"] },
+      { "key": "detalle", "label": "Detalle de la solicitud", "tipo": "textoLargo", "requerido": false },
+      { "key": "requierePoder", "label": "¿Requiere poder?", "tipo": "boolean", "requerido": true },
+      { "key": "envio", "label": "Medio de envío", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"] },
+      { "key": "fechaRadicacion", "label": "Fecha de radicación", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corre el término de respuesta." },
+      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false },
+      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] }
+    ],
+    "etapas": [
+      { "key": "borrador", "nombre": "Elaboración de la petición", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "tipoPeticion", "queSolicita"], "documentosRequeridos": ["peticion.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }] } },
+      { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
+      { "key": "respondida", "nombre": "Respondida", "orden": 2, "terminal": true, "disponibleSi": { "campo": "contestaron", "igualA": "SI" }, "resultado": "La entidad respondió de fondo dentro del término." },
+      { "key": "reiteracion", "nombre": "Reiteración (respuesta parcial)", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "reglas": { "documentosRequeridos": ["reiteracion.pdf"] } },
+      { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": "NO" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela" } },
+      { "key": "terminada", "nombre": "Terminación", "orden": 4, "terminal": true, "resultado": "Petición terminada." }
+    ]
+  },
+  {
     "nombre": "Proceso ejecutivo (singular o mixto)",
     "descripcion": "Cobro forzoso de obligaciones claras, expresas y exigibles que consten en título ejecutivo (arts. 422 y 430 y ss., CGP – Ley 1564/2012).",
     "jurisdiccion": "ORDINARIA_CIVIL",
@@ -578,31 +635,6 @@
       { "key": "audienciaInicial", "nombre": "Audiencia inicial", "orden": 5 },
       { "key": "pruebasAlegatos", "nombre": "Pruebas y alegatos", "orden": 6 },
       { "key": "sentencia", "nombre": "Sentencia", "orden": 7, "terminal": true, "resultado": "Decisión de fondo" }
-    ]
-  },
-  {
-    "nombre": "Acción de tutela",
-    "descripcion": "Protección judicial inmediata de derechos fundamentales (art. 86 Const.; Dec. 2591/1991); fallo en máximo 10 días.",
-    "jurisdiccion": "CONSTITUCIONAL",
-    "areaSlugs": ["constitucional"],
-    "esquemaFormulario": [
-      { "key": "derechosFundamentales", "label": "Derechos fundamentales invocados", "tipo": "multiselect", "requerido": true, "opciones": ["Vida", "Salud", "Dignidad humana", "Debido proceso", "Petición", "Igualdad", "Mínimo vital", "Educación", "Trabajo", "Seguridad social", "Libre desarrollo de la personalidad", "Acceso a la administración de justicia", "Otro"] },
-      { "key": "entidadAccionada", "label": "Autoridad o particular accionado", "tipo": "texto", "requerido": true },
-      { "key": "hechos", "label": "Hechos", "tipo": "textoLargo", "requerido": true },
-      { "key": "pretension", "label": "Pretensión / amparo solicitado", "tipo": "textoLargo", "requerido": true },
-      { "key": "existeOtroMedioDefensa", "label": "¿Existe otro medio de defensa judicial?", "tipo": "boolean", "requerido": true },
-      { "key": "perjuicioIrremediable", "label": "¿Se alega perjuicio irremediable?", "tipo": "boolean", "requerido": false },
-      { "key": "medidaProvisional", "label": "¿Se solicita medida provisional?", "tipo": "boolean", "requerido": false },
-      { "key": "juramentoNoTutela", "label": "Juramento de no haber presentado otra tutela por los mismos hechos", "tipo": "boolean", "requerido": true }
-    ],
-    "etapas": [
-      { "key": "radicacion", "nombre": "Radicación y reparto", "orden": 1, "reglas": { "camposRequeridos": ["derechosFundamentales", "entidadAccionada", "hechos", "pretension", "existeOtroMedioDefensa"] } },
-      { "key": "admision", "nombre": "Admisión y traslado al accionado", "orden": 2, "reglas": { "camposRequeridos": ["entidadAccionada"], "plazoDias": 3 } },
-      { "key": "falloPrimeraInstancia", "nombre": "Fallo de primera instancia", "orden": 3, "reglas": { "camposRequeridos": ["pretension"], "plazoDias": 10 } },
-      { "key": "impugnacion", "nombre": "Impugnación", "orden": 4, "reglas": { "plazoDias": 3 } },
-      { "key": "falloSegundaInstancia", "nombre": "Fallo de segunda instancia", "orden": 5, "reglas": { "plazoDias": 20 } },
-      { "key": "remisionRevision", "nombre": "Remisión a la Corte Constitucional para eventual revisión", "orden": 6, "reglas": { "plazoDias": 10 } },
-      { "key": "terminado", "nombre": "Terminado", "orden": 7, "terminal": true, "resultado": "Decidido / eventualmente revisado" }
     ]
   },
   {
