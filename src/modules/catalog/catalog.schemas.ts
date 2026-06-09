@@ -2,6 +2,12 @@ import { Jurisdiccion } from "@prisma/client";
 import { z } from "zod";
 import { CAMPO_TIPOS } from "../procesos/esquema";
 
+// --- Condición de igualdad sobre otro campo (mostrarSi/requeridoSi/disponibleSi) ---
+const condicionSchema = z.object({
+  campo: z.string().min(1),
+  igualA: z.union([z.string(), z.array(z.string()).min(1)]),
+});
+
 // --- Campo del formulario dinámico ---
 const campoEsquemaSchema = z
   .object({
@@ -11,6 +17,8 @@ const campoEsquemaSchema = z
     requerido: z.boolean().default(false),
     opciones: z.array(z.string()).optional(),
     ayuda: z.string().optional(),
+    mostrarSi: condicionSchema.optional(),
+    requeridoSi: condicionSchema.optional(),
   })
   .refine(
     (c) =>
@@ -24,6 +32,22 @@ const reglasEtapaSchema = z.object({
   camposRequeridos: z.array(z.string()).optional(),
   documentosRequeridos: z.array(z.string()).optional(),
   plazoDias: z.number().int().positive().optional(),
+  // Requeridos condicionales (aplican solo cuando `si` se cumple).
+  requeridosSi: z
+    .array(
+      z.object({
+        si: condicionSchema,
+        camposRequeridos: z.array(z.string()).optional(),
+        documentosRequeridos: z.array(z.string()).optional(),
+      }),
+    )
+    .optional(),
+  // Derivación de vencimiento (extiende plazoDias): fechaLimite solo si hay plazoDesdeCampo.
+  plazoDesdeCampo: z.string().min(1).optional(),
+  plazoTipoDias: z.enum(["habiles", "calendario"]).optional(),
+  plazoDiasPorValorDe: z
+    .object({ campo: z.string().min(1), mapa: z.record(z.number().int().positive()) })
+    .optional(),
 });
 
 const etapaDefSchema = z.object({
@@ -33,6 +57,8 @@ const etapaDefSchema = z.object({
   terminal: z.boolean().optional(),
   resultado: z.string().optional(),
   reglas: reglasEtapaSchema.optional(),
+  disponibleSi: condicionSchema.optional(),
+  accion: z.object({ tipo: z.literal("crearDerivado"), tipoDestinoNombre: z.string().min(1) }).optional(),
 });
 
 export const createTipoProcesoSchema = z
@@ -55,17 +81,30 @@ export const createTipoProcesoSchema = z
     if (new Set(ekeys).size !== ekeys.length) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Hay claves de etapa duplicadas" });
     }
-    // Las reglas de etapa deben referenciar campos existentes.
+    // Toda referencia a un campo (en reglas, condiciones y plazos) debe existir.
     const keySet = new Set(keys);
-    for (const e of data.etapas) {
-      for (const k of e.reglas?.camposRequeridos ?? []) {
-        if (!keySet.has(k)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `La etapa "${e.nombre}" exige un campo inexistente: ${k}`,
-          });
-        }
+    const refCampo = (k: string, contexto: string) => {
+      if (!keySet.has(k)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${contexto} referencia un campo inexistente: ${k}` });
       }
+    };
+
+    // Condiciones a nivel de campo (mostrarSi/requeridoSi).
+    for (const c of data.esquemaFormulario) {
+      if (c.mostrarSi) refCampo(c.mostrarSi.campo, `El campo "${c.label}" (mostrarSi)`);
+      if (c.requeridoSi) refCampo(c.requeridoSi.campo, `El campo "${c.label}" (requeridoSi)`);
+    }
+
+    for (const e of data.etapas) {
+      const et = `La etapa "${e.nombre}"`;
+      for (const k of e.reglas?.camposRequeridos ?? []) refCampo(k, et);
+      for (const r of e.reglas?.requeridosSi ?? []) {
+        refCampo(r.si.campo, `${et} (requeridosSi.si)`);
+        for (const k of r.camposRequeridos ?? []) refCampo(k, `${et} (requeridosSi)`);
+      }
+      if (e.reglas?.plazoDesdeCampo) refCampo(e.reglas.plazoDesdeCampo, `${et} (plazoDesdeCampo)`);
+      if (e.reglas?.plazoDiasPorValorDe) refCampo(e.reglas.plazoDiasPorValorDe.campo, `${et} (plazoDiasPorValorDe)`);
+      if (e.disponibleSi) refCampo(e.disponibleSi.campo, `${et} (disponibleSi)`);
     }
   });
 

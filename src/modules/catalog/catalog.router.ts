@@ -114,6 +114,7 @@ catalogRoutes.post(
     const { empresaId, empresaKey } = destinoCatalogo(req);
     const { areaSlugs, ...data } = req.body;
     const areaIds = await resolverAreas(areaSlugs);
+    await validarAccionesDestino(data.etapas);
 
     try {
       const tipo = await prisma.tipoProceso.create({
@@ -152,6 +153,7 @@ catalogRoutes.patch(
     autorizarEscritura(req, actual.empresaId);
     const { areaSlugs, ...data } = req.body;
     const areaIds = await resolverAreas(areaSlugs);
+    await validarAccionesDestino(data.etapas);
 
     const tipo = await prisma.$transaction(async (tx) => {
       await tx.tipoProcesoArea.deleteMany({ where: { tipoProcesoId: actual.id } });
@@ -317,4 +319,23 @@ async function resolverAreas(slugs: string[]): Promise<string[]> {
     throw new HttpError(400, "Una o más áreas de práctica no existen");
   }
   return areas.map((a) => a.id);
+}
+
+/** Toda acción `crearDerivado` debe apuntar a un tipo de proceso GLOBAL existente. */
+async function validarAccionesDestino(
+  etapas: { accion?: { tipoDestinoNombre?: string } }[],
+): Promise<void> {
+  const destinos = [
+    ...new Set(etapas.flatMap((e) => (e.accion?.tipoDestinoNombre ? [e.accion.tipoDestinoNombre] : []))),
+  ];
+  if (destinos.length === 0) return;
+  const existentes = await prisma.tipoProceso.findMany({
+    where: { empresaId: null, nombre: { in: destinos } },
+    select: { nombre: true },
+  });
+  const set = new Set(existentes.map((t) => t.nombre));
+  const faltan = destinos.filter((n) => !set.has(n));
+  if (faltan.length) {
+    throw new HttpError(422, `La acción crearDerivado apunta a un tipo global inexistente: ${faltan.join(", ")}`);
+  }
 }
