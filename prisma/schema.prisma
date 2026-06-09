@@ -340,6 +340,7 @@ model Proceso {
   estado             EstadoProceso @default(ABIERTO)
   prioridad          Prioridad     @default(MEDIA)
   proximaAudiencia   DateTime?
+  fechaLimite        DateTime? // vencimiento del término de la etapa actual (regla plazo); editable manual
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -362,6 +363,7 @@ model Proceso {
   @@index([estado])
   @@index([radicado])
   @@index([casoRelacionadoId])
+  @@index([empresaId, fechaLimite])
   @@map("tramites")
 }
 
