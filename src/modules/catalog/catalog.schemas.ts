@@ -72,3 +72,16 @@ export const createTipoProcesoSchema = z
 export const updateTipoProcesoSchema = createTipoProcesoSchema;
 
 export const tipoIdParams = z.object({ id: z.string().min(1) });
+
+// --- Plantillas de documento (autollenables por tipo de proceso) ---
+export const createPlantillaSchema = z.object({
+  nombre: z.string().min(1),
+  contenido: z.string().min(1),
+});
+
+export const updatePlantillaSchema = z.object({
+  nombre: z.string().min(1).optional(),
+  contenido: z.string().min(1).optional(),
+});
+
+export const plantillaIdParams = z.object({ plantillaId: z.string().min(1) });

@@ -12,12 +12,17 @@ import {
   validarDatosContraEsquema,
 } from "./esquema";
 import {
+  adjuntarDocumentoSchema,
   createProcesoSchema,
+  documentoIdParams,
+  generarDocumentoSchema,
   moverEtapaSchema,
   procesoIdParams,
+  updateDocumentoSchema,
   updateProcesoSchema,
 } from "./procesos.schemas";
 import { generarCodigoInterno } from "./procesos.service";
+import { construirContexto, renderPlantilla } from "./plantilla";
 
 export const procesoRoutes: Router = Router();
 
@@ -26,6 +31,7 @@ const detalleInclude = {
   partes: { include: { litigante: true } },
   historial: { orderBy: { createdAt: "asc" } },
   responsable: { select: { id: true, nombre: true } },
+  documentos: { orderBy: { createdAt: "desc" } },
 } as const;
 
 /** GET /procesos — procesos del despacho, con filtros y paginación. */
@@ -194,7 +200,10 @@ procesoRoutes.patch(
     const empresaId = empresaIdRequerido(req);
     const proceso = await prisma.proceso.findFirst({
       where: { id: req.params.id, empresaId },
-      include: { tipoProceso: { select: { etapas: true } } },
+      include: {
+        tipoProceso: { select: { etapas: true } },
+        documentos: { select: { nombre: true } },
+      },
     });
     if (!proceso) throw new HttpError(404, "Proceso no encontrado");
     if (proceso.estado === "CERRADO" || proceso.estado === "ARCHIVADO") {
@@ -212,8 +221,19 @@ procesoRoutes.patch(
       const v = datos[k];
       if (v === undefined || v === null || v === "") faltantes.push(k);
     }
-    if (faltantes.length > 0) {
-      throw new HttpError(400, "No puedes avanzar: faltan datos requeridos", { faltantes });
+
+    // Documentos requeridos: presentes en el expediente (adjuntos o generados),
+    // comparando por nombre (insensible a mayúsculas/espacios).
+    const docsPresentes = new Set(proceso.documentos.map((d) => d.nombre.trim().toLowerCase()));
+    const documentosFaltantes = (destino.reglas?.documentosRequeridos ?? []).filter(
+      (nombre) => !docsPresentes.has(nombre.trim().toLowerCase()),
+    );
+
+    if (faltantes.length > 0 || documentosFaltantes.length > 0) {
+      throw new HttpError(400, "No puedes avanzar: faltan requisitos", {
+        faltantes,
+        documentosFaltantes,
+      });
     }
 
     const actualizado = await prisma.$transaction(async (tx) => {
@@ -288,3 +308,117 @@ procesoRoutes.patch(
     res.json(proceso);
   }),
 );
+
+// ===================== DOCUMENTOS DEL EXPEDIENTE =====================
+
+/** GET /procesos/:id/plantillas — plantillas del tipo del proceso (para el selector). */
+procesoRoutes.get(
+  "/:id/plantillas",
+  requireAuth,
+  validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const proceso = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      select: { tipoProcesoId: true },
+    });
+    if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+    const plantillas = await prisma.plantillaDocumento.findMany({
+      where: { tipoProcesoId: proceso.tipoProcesoId },
+      select: { id: true, nombre: true },
+      orderBy: { nombre: "asc" },
+    });
+    res.json(plantillas);
+  }),
+);
+
+/** POST /procesos/:id/documentos — adjunta un archivo (enlace) al expediente. */
+procesoRoutes.post(
+  "/:id/documentos",
+  requireAuth,
+  validate({ params: procesoIdParams, body: adjuntarDocumentoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const proceso = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      select: { id: true },
+    });
+    if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+    const doc = await prisma.documentoProceso.create({
+      data: { procesoId: proceso.id, nombre: req.body.nombre, url: req.body.url },
+    });
+    res.status(201).json(doc);
+  }),
+);
+
+/** POST /procesos/:id/documentos/generar — genera un borrador editable desde una plantilla. */
+procesoRoutes.post(
+  "/:id/documentos/generar",
+  requireAuth,
+  validate({ params: procesoIdParams, body: generarDocumentoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const proceso = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      include: { partes: { include: { litigante: true } } },
+    });
+    if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+
+    // La plantilla debe ser del tipo del proceso (evita usar plantillas ajenas).
+    const plantilla = await prisma.plantillaDocumento.findFirst({
+      where: { id: req.body.plantillaId, tipoProcesoId: proceso.tipoProcesoId },
+    });
+    if (!plantilla) throw new HttpError(404, "Plantilla no encontrada para este tipo de proceso");
+
+    const contenido = renderPlantilla(plantilla.contenido, construirContexto(proceso));
+    const doc = await prisma.documentoProceso.create({
+      data: {
+        procesoId: proceso.id,
+        nombre: req.body.nombre ?? plantilla.nombre,
+        contenido,
+        generadoDePlantilla: plantilla.id,
+      },
+    });
+    res.status(201).json(doc);
+  }),
+);
+
+/** PATCH /procesos/:id/documentos/:docId — edita el borrador (nombre/contenido). */
+procesoRoutes.patch(
+  "/:id/documentos/:docId",
+  requireAuth,
+  validate({ params: documentoIdParams, body: updateDocumentoSchema }),
+  asyncHandler(async (req, res) => {
+    const doc = await cargarDocumento(req);
+    const actualizado = await prisma.documentoProceso.update({
+      where: { id: doc.id },
+      data: {
+        ...(req.body.nombre !== undefined ? { nombre: req.body.nombre } : {}),
+        ...(req.body.contenido !== undefined ? { contenido: req.body.contenido } : {}),
+      },
+    });
+    res.json(actualizado);
+  }),
+);
+
+/** DELETE /procesos/:id/documentos/:docId — elimina un documento del expediente. */
+procesoRoutes.delete(
+  "/:id/documentos/:docId",
+  requireAuth,
+  validate({ params: documentoIdParams }),
+  asyncHandler(async (req, res) => {
+    const doc = await cargarDocumento(req);
+    await prisma.documentoProceso.delete({ where: { id: doc.id } });
+    res.status(204).end();
+  }),
+);
+
+/** Carga un documento verificando que su proceso pertenezca al despacho. */
+async function cargarDocumento(req: import("express").Request) {
+  const empresaId = empresaIdRequerido(req);
+  const doc = await prisma.documentoProceso.findFirst({
+    where: { id: req.params.docId, proceso: { id: req.params.id, empresaId } },
+  });
+  if (!doc) throw new HttpError(404, "Documento no encontrado");
+  return doc;
+}

@@ -10,8 +10,11 @@ import {
 import { HttpError } from "../../middleware/error";
 import { validate } from "../../middleware/validate";
 import {
+  createPlantillaSchema,
   createTipoProcesoSchema,
+  plantillaIdParams,
   tipoIdParams,
+  updatePlantillaSchema,
   updateTipoProcesoSchema,
 } from "./catalog.schemas";
 
@@ -196,7 +199,89 @@ catalogRoutes.delete(
   }),
 );
 
+// ===================== PLANTILLAS DE DOCUMENTO (por tipo) =====================
+
+/** GET /catalogo/tipos-proceso/:id/plantillas — plantillas de un tipo visible. */
+catalogRoutes.get(
+  "/tipos-proceso/:id/plantillas",
+  requireAuth,
+  validate({ params: tipoIdParams }),
+  asyncHandler(async (req, res) => {
+    await cargarTipoVisible(req, req.params.id);
+    const plantillas = await prisma.plantillaDocumento.findMany({
+      where: { tipoProcesoId: req.params.id },
+      orderBy: { nombre: "asc" },
+    });
+    res.json(plantillas);
+  }),
+);
+
+/** POST /catalogo/tipos-proceso/:id/plantillas — crea una plantilla (ADMIN global / esAdminEmpresa propio). */
+catalogRoutes.post(
+  "/tipos-proceso/:id/plantillas",
+  requireAuth,
+  validate({ params: tipoIdParams, body: createPlantillaSchema }),
+  asyncHandler(async (req, res) => {
+    const tipo = await cargarTipoVisible(req, req.params.id);
+    autorizarEscritura(req, tipo.empresaId);
+    const plantilla = await prisma.plantillaDocumento.create({
+      data: { tipoProcesoId: tipo.id, nombre: req.body.nombre, contenido: req.body.contenido },
+    });
+    res.status(201).json(plantilla);
+  }),
+);
+
+/** PATCH /catalogo/plantillas/:plantillaId — edita una plantilla. */
+catalogRoutes.patch(
+  "/plantillas/:plantillaId",
+  requireAuth,
+  validate({ params: plantillaIdParams, body: updatePlantillaSchema }),
+  asyncHandler(async (req, res) => {
+    const plantilla = await cargarPlantillaEditable(req);
+    const actualizada = await prisma.plantillaDocumento.update({
+      where: { id: plantilla.id },
+      data: {
+        ...(req.body.nombre !== undefined ? { nombre: req.body.nombre } : {}),
+        ...(req.body.contenido !== undefined ? { contenido: req.body.contenido } : {}),
+      },
+    });
+    res.json(actualizada);
+  }),
+);
+
+/** DELETE /catalogo/plantillas/:plantillaId — elimina una plantilla. */
+catalogRoutes.delete(
+  "/plantillas/:plantillaId",
+  requireAuth,
+  validate({ params: plantillaIdParams }),
+  asyncHandler(async (req, res) => {
+    const plantilla = await cargarPlantillaEditable(req);
+    await prisma.plantillaDocumento.delete({ where: { id: plantilla.id } });
+    res.status(204).end();
+  }),
+);
+
 // --- Helpers ---
+
+/** Carga un tipo y exige que sea visible para el despacho (404 si no). */
+async function cargarTipoVisible(req: import("express").Request, tipoId: string) {
+  const tipo = await prisma.tipoProceso.findUnique({ where: { id: tipoId } });
+  if (!tipo || !esVisible(tipo, req.empresaId ?? null)) {
+    throw new HttpError(404, "Tipo de proceso no encontrado");
+  }
+  return tipo;
+}
+
+/** Carga una plantilla, verifica visibilidad del tipo y autoriza la escritura. */
+async function cargarPlantillaEditable(req: import("express").Request) {
+  const plantilla = await prisma.plantillaDocumento.findUnique({
+    where: { id: req.params.plantillaId },
+  });
+  if (!plantilla) throw new HttpError(404, "Plantilla no encontrada");
+  const tipo = await cargarTipoVisible(req, plantilla.tipoProcesoId);
+  autorizarEscritura(req, tipo.empresaId);
+  return plantilla;
+}
 
 function esVisible(tipo: { empresaId: string | null }, empresaId: string | null): boolean {
   return tipo.empresaId === null || tipo.empresaId === empresaId;

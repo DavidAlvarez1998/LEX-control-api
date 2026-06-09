@@ -387,9 +387,11 @@ model DocumentoProceso {
   id                  String   @id @default(cuid())
   procesoId           String   @map("tramiteId")
   nombre              String
-  url                 String
+  url                 String? // adjunto: enlace/ruta del archivo (nulo si es borrador generado)
+  contenido           String?  @db.Text // borrador generado desde plantilla (editable; nulo si es adjunto)
   generadoDePlantilla String?
   createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
 
   proceso   Proceso             @relation(fields: [procesoId], references: [id], onDelete: Cascade)
   plantilla PlantillaDocumento? @relation(fields: [generadoDePlantilla], references: [id], onDelete: SetNull)

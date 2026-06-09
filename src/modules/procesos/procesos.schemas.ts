@@ -62,3 +62,31 @@ export const moverEtapaSchema = z.object({
 });
 
 export const procesoIdParams = z.object({ id: z.string().min(1) });
+
+// --- Documentos del proceso ---
+// Adjuntar un archivo externo (enlace) al expediente.
+export const adjuntarDocumentoSchema = z.object({
+  nombre: z.string().min(1),
+  url: z.string().min(1),
+});
+
+// Generar un borrador desde una plantilla del tipo del proceso.
+export const generarDocumentoSchema = z.object({
+  plantillaId: z.string().min(1),
+  nombre: z.string().min(1).optional(), // por defecto, el nombre de la plantilla
+});
+
+// Editar el borrador generado (nombre y/o contenido).
+export const updateDocumentoSchema = z
+  .object({
+    nombre: z.string().min(1).optional(),
+    contenido: z.string().optional(),
+  })
+  .refine((d) => d.nombre !== undefined || d.contenido !== undefined, {
+    message: "Nada que actualizar",
+  });
+
+export const documentoIdParams = z.object({
+  id: z.string().min(1),
+  docId: z.string().min(1),
+});
