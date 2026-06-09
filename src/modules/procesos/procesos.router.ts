@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { EstadoProceso, Prisma } from "@prisma/client";
+import { EstadoProceso, Prisma, RolEmpresa } from "@prisma/client";
 import { prisma } from "../../index";
 import { asyncHandler } from "../../middleware/async";
 import { empresaIdRequerido, requireAuth } from "../../middleware/auth";
@@ -25,6 +25,7 @@ import {
 } from "./procesos.schemas";
 import { generarCodigoInterno } from "./procesos.service";
 import { construirContexto, renderPlantilla } from "./plantilla";
+import { convertirCliente } from "../clientes/clientes.service";
 
 export const procesoRoutes: Router = Router();
 
@@ -33,6 +34,7 @@ const detalleInclude = {
   partes: { include: { litigante: true } },
   historial: { orderBy: { createdAt: "asc" } },
   responsable: { select: { id: true, nombre: true } },
+  cliente: { select: { id: true, nombre: true, estado: true } },
   documentos: { orderBy: { createdAt: "desc" } },
 } as const;
 
@@ -182,7 +184,34 @@ procesoRoutes.post(
       if (!base) throw new HttpError(400, "El caso relacionado no existe en tu despacho");
     }
 
+    // Abogado responsable: el indicado debe ser del despacho. Si no se indica y
+    // quien crea es abogado (JURIDICO), se autoasigna como responsable.
+    if (body.responsableId) {
+      const resp = await prisma.usuario.findFirst({
+        where: { id: body.responsableId, empresaId },
+        select: { id: true },
+      });
+      if (!resp) throw new HttpError(400, "El responsable no pertenece a tu despacho");
+    }
+    const responsableId =
+      body.responsableId ??
+      (req.rolesEmpresa?.includes(RolEmpresa.JURIDICO) ? req.user!.sub : undefined);
+
     const proceso = await prisma.$transaction(async (tx) => {
+      // Cliente (CRM) dueño del caso: cargar el existente (mismo despacho) o
+      // crear el nuevo, y enlazar su Litigante (find-or-create + estado=CLIENTE).
+      let clienteVinculado: { clienteId: string; litiganteId: string } | null = null;
+      if (body.cliente) {
+        const clienteRow = body.cliente.clienteId
+          ? await tx.cliente.findFirst({
+              where: { id: body.cliente.clienteId, empresaId },
+            })
+          : await tx.cliente.create({ data: { ...body.cliente.nuevo!, empresaId } });
+        if (!clienteRow) throw new HttpError(400, "El cliente no pertenece a tu despacho");
+        const litiganteId = await convertirCliente(tx, clienteRow);
+        clienteVinculado = { clienteId: clienteRow.id, litiganteId };
+      }
+
       // codigoInterno secuencial por empresa y año (el @@unique respalda la carrera).
       const codigoInterno = await generarCodigoInterno(tx, empresaId);
 
@@ -199,13 +228,28 @@ procesoRoutes.post(
           cuantiaValor: body.cuantiaValor != null ? new Prisma.Decimal(body.cuantiaValor) : null,
           despachoJuzgado: body.despachoJuzgado,
           casoRelacionadoId: body.casoRelacionadoId,
+          clienteId: clienteVinculado?.clienteId,
           creadoPorId: req.user!.sub,
+          responsableId,
           titulo: body.titulo,
           datos: body.datos as Prisma.InputJsonValue,
           etapaActual: entrada.key,
           historial: { create: { etapaKey: entrada.key, usuarioId: req.user!.sub } },
         },
       });
+
+      // Nuestro cliente entra como parte del proceso (esNuestroCliente=true).
+      if (clienteVinculado && body.cliente) {
+        await tx.parteProceso.create({
+          data: {
+            procesoId: creado.id,
+            litiganteId: clienteVinculado.litiganteId,
+            rol: body.cliente.rol,
+            rolEtiqueta: body.cliente.rolEtiqueta,
+            esNuestroCliente: true,
+          },
+        });
+      }
 
       for (const p of body.partes) {
         let litiganteId = p.litiganteId;

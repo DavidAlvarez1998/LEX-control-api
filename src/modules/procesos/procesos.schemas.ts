@@ -30,6 +30,31 @@ const parteSchema = z
     message: "Cada parte requiere litiganteId o litigante",
   });
 
+// El cliente (CRM) dueño del caso: o se referencia uno existente (`clienteId`)
+// o se crea uno nuevo inline (`nuevo`). `rol` es el rol procesal que juega
+// nuestro cliente (DEMANDANTE, ACCIONANTE…). El backend lo materializa como
+// una ParteProceso con esNuestroCliente=true y enlaza Cliente↔Litigante.
+const procesoClienteSchema = z
+  .object({
+    clienteId: z.string().min(1).optional(),
+    nuevo: z
+      .object({
+        nombre: z.string().min(1),
+        tipoPersona: z.nativeEnum(TipoPersona).optional(),
+        tipoDocumento: z.nativeEnum(TipoDocumento).optional(),
+        numeroDocumento: z.string().optional(),
+        telefono: z.string().optional(),
+        email: z.string().email().optional(),
+        ciudad: z.string().optional(),
+      })
+      .optional(),
+    rol: z.nativeEnum(RolParte),
+    rolEtiqueta: z.string().optional(),
+  })
+  .refine((c) => (c.clienteId != null) !== (c.nuevo != null), {
+    message: "El cliente requiere clienteId o nuevo (exactamente uno)",
+  });
+
 export const createProcesoSchema = z.object({
   tipoProcesoId: z.string().min(1),
   titulo: z.string().min(1),
@@ -40,6 +65,10 @@ export const createProcesoSchema = z.object({
   cuantiaTipo: z.nativeEnum(CuantiaTipo).optional(),
   cuantiaValor: z.union([z.number(), z.string()]).optional(),
   casoRelacionadoId: z.string().min(1).optional(),
+  // Cliente dueño del caso + abogado responsable. Opcionales en el esquema
+  // (no rompen tests/puente comercial); la UI los exige al crear manualmente.
+  cliente: procesoClienteSchema.optional(),
+  responsableId: z.string().min(1).optional(),
   partes: z.array(parteSchema).default([]),
 });
 

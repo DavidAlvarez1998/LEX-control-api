@@ -14,7 +14,8 @@ vi.mock("../src/index", () => ({
       create: vi.fn(),
       update: vi.fn(),
     },
-    litigante: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+    litigante: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), upsert: vi.fn() },
+    cliente: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     parteProceso: { create: vi.fn() },
     etapaProceso: { create: vi.fn() },
     plantillaDocumento: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
@@ -110,6 +111,95 @@ describe("POST /procesos — validación del formulario dinámico", () => {
       .set(auth(token))
       .send({ tipoProcesoId: "tt1", titulo: "Caso", datos: { valor: "100" } });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /procesos — cliente dueño y abogado responsable", () => {
+  const datosOk = { tipoProcesoId: "tt1", titulo: "Caso", datos: { valor: "100" } };
+
+  // Prepara el happy-path: tipo válido + transacción que ejecuta el callback.
+  function mockCreateOk() {
+    tipoProceso.findUnique.mockResolvedValue(tipoCivil);
+    proceso.count.mockResolvedValue(0);
+    proceso.create.mockImplementation(({ data }: { data: Record<string, unknown> }) => ({ id: "tr1", ...data }));
+    proceso.findUnique.mockResolvedValue({ id: "tr1" });
+    m.parteProceso.create.mockResolvedValue({});
+    m.cliente.update.mockResolvedValue({});
+    m.$transaction.mockImplementation(async (cb: (tx: typeof m) => unknown) => cb(m));
+  }
+
+  it("vincula un cliente existente y lo agrega como parte esNuestroCliente (201)", async () => {
+    mockCreateOk();
+    m.cliente.findFirst.mockResolvedValue({
+      id: "cli1", empresaId: "emp1", litiganteId: "lit1", nombre: "Juan",
+      tipoPersona: "NATURAL", tipoDocumento: null, numeroDocumento: null, email: null, telefono: null,
+    });
+    const res = await request(app)
+      .post("/procesos")
+      .set(auth(token))
+      .send({ ...datosOk, cliente: { clienteId: "cli1", rol: "DEMANDANTE" } });
+    expect(res.status).toBe(201);
+    expect(proceso.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ clienteId: "cli1" }) }),
+    );
+    expect(m.parteProceso.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ litiganteId: "lit1", rol: "DEMANDANTE", esNuestroCliente: true }),
+      }),
+    );
+  });
+
+  it("crea un cliente nuevo inline y lo vincula al proceso (201)", async () => {
+    mockCreateOk();
+    m.cliente.create.mockResolvedValue({
+      id: "cliN", empresaId: "emp1", litiganteId: null, nombre: "Nuevo",
+      tipoPersona: "NATURAL", tipoDocumento: null, numeroDocumento: null, email: null, telefono: null,
+    });
+    m.litigante.create.mockResolvedValue({ id: "litN" });
+    const res = await request(app)
+      .post("/procesos")
+      .set(auth(token))
+      .send({ ...datosOk, cliente: { nuevo: { nombre: "Nuevo" }, rol: "ACCIONANTE" } });
+    expect(res.status).toBe(201);
+    expect(m.cliente.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ nombre: "Nuevo", empresaId: "emp1" }) }),
+    );
+    expect(proceso.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ clienteId: "cliN" }) }),
+    );
+  });
+
+  it("400 si el cliente referenciado es de otro despacho", async () => {
+    mockCreateOk();
+    m.cliente.findFirst.mockResolvedValue(null);
+    const res = await request(app)
+      .post("/procesos")
+      .set(auth(token))
+      .send({ ...datosOk, cliente: { clienteId: "ajeno", rol: "DEMANDANTE" } });
+    expect(res.status).toBe(400);
+  });
+
+  it("400 si el responsable no es del despacho", async () => {
+    tipoProceso.findUnique.mockResolvedValue(tipoCivil);
+    usuario.findFirst.mockResolvedValue(null);
+    const res = await request(app)
+      .post("/procesos")
+      .set(auth(token))
+      .send({ ...datosOk, responsableId: "ajeno" });
+    expect(res.status).toBe(400);
+  });
+
+  it("autoasigna al creador como responsable cuando es abogado (JURIDICO)", async () => {
+    mockCreateOk();
+    usuario.findUnique.mockResolvedValue({
+      activo: true, activationToken: null, tokenVersion: 0, empresaId: "emp1",
+      esAdminEmpresa: false, rolesEmpresa: [{ rolEmpresa: "JURIDICO" }],
+    });
+    const res = await request(app).post("/procesos").set(auth(token)).send(datosOk);
+    expect(res.status).toBe(201);
+    expect(proceso.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ responsableId: "u1" }) }),
+    );
   });
 });
 

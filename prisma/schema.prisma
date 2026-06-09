@@ -338,6 +338,7 @@ model Proceso {
   cuantiaValor       Decimal?      @db.Decimal(14, 2)
   despachoJuzgado    String?
   casoRelacionadoId  String? // enlaza una tutela a su caso base
+  clienteId          String? // cliente (CRM) al que pertenece el caso; se setea al crear
   creadoPorId        String?
   responsableId      String?
   titulo             String
@@ -352,6 +353,7 @@ model Proceso {
 
   empresa            Empresa                     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   tipoProceso        TipoProceso                 @relation(fields: [tipoProcesoId], references: [id], onDelete: Restrict)
+  cliente            Cliente?                    @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   creadoPor          Usuario?                    @relation("ProcesosCreados", fields: [creadoPorId], references: [id], onDelete: SetNull)
   responsable        Usuario?                    @relation("ProcesosResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
   casoRelacionado    Proceso?                    @relation("CasoRelacionado", fields: [casoRelacionadoId], references: [id], onDelete: SetNull)
@@ -369,6 +371,7 @@ model Proceso {
   @@index([estado])
   @@index([radicado])
   @@index([casoRelacionadoId])
+  @@index([clienteId])
   @@index([empresaId, fechaLimite])
   @@map("tramites")
 }
@@ -742,6 +745,9 @@ model Cliente {
 
   // Módulo facturación: facturas emitidas al cliente.
   facturas Factura[]
+
+  // Módulo jurídico: procesos (casos) cuyo dueño es este cliente.
+  procesos Proceso[]
 
   @@index([empresaId])
   @@index([estado])
