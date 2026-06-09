@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Jurisdiccion, Prisma, TipoAreaPractica } from "@prisma/client";
 import { prisma } from "./index";
+import { PLANTILLAS_SEED } from "./modules/procesos/plantillas-seed";
 
 // Áreas de práctica reconocidas por el Estado colombiano (Ley 270/1996,
 // Acuerdo 201/1997). Las inactivas quedan en catálogo pero ocultas en el picker.
@@ -107,6 +108,36 @@ async function main() {
   }
 
   console.log(`✔ Tipos: ${creados} creados, ${actualizados} actualizados`);
+
+  // Plantillas de documento iniciales (idempotentes por tipo + nombre, ya que
+  // PlantillaDocumento no tiene unique compuesto).
+  let plCreadas = 0;
+  let plActualizadas = 0;
+  for (const p of PLANTILLAS_SEED) {
+    const tipo = await prisma.tipoProceso.findUnique({
+      where: { empresaKey_nombre: { empresaKey: "", nombre: p.tipoNombre } },
+      select: { id: true },
+    });
+    if (!tipo) {
+      console.warn(`⚠ Plantilla "${p.nombre}": tipo "${p.tipoNombre}" no existe — se omite`);
+      continue;
+    }
+    const existe = await prisma.plantillaDocumento.findFirst({
+      where: { tipoProcesoId: tipo.id, nombre: p.nombre },
+      select: { id: true },
+    });
+    if (existe) {
+      await prisma.plantillaDocumento.update({ where: { id: existe.id }, data: { contenido: p.contenido } });
+      plActualizadas++;
+    } else {
+      await prisma.plantillaDocumento.create({
+        data: { tipoProcesoId: tipo.id, nombre: p.nombre, contenido: p.contenido },
+      });
+      plCreadas++;
+    }
+  }
+  console.log(`✔ Plantillas: ${plCreadas} creadas, ${plActualizadas} actualizadas`);
+
   console.log(
     `\nÁreas: ${await prisma.areaPractica.count()} · Tipos globales: ${await prisma.tipoProceso.count({ where: { empresaId: null } })}`,
   );
