@@ -5,7 +5,7 @@ vi.mock("../src/index", () => ({
   prisma: {
     usuario: { findUnique: vi.fn(), findFirst: vi.fn() },
     areaPractica: { findMany: vi.fn() },
-    tipoProceso: { findUnique: vi.fn(), findMany: vi.fn() },
+    tipoProceso: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
     proceso: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -309,5 +309,120 @@ describe("plantillas — CRUD por tipo (autorización)", () => {
       .set(auth(token))
       .send({ nombre: "X", contenido: "y" });
     expect(res.status).toBe(403);
+  });
+});
+
+// ===================== FASE 3: motor de vencimientos + ramas + derivar =====================
+
+// Etapas estilo derecho de petición para los tests de Fase 3.
+const etapasDdP = [
+  { key: "borrador", nombre: "Borrador", orden: 0 },
+  {
+    key: "radicada",
+    nombre: "Radicada",
+    orden: 1,
+    reglas: {
+      plazoDesdeCampo: "fechaRadicacion",
+      plazoTipoDias: "habiles",
+      plazoDiasPorValorDe: { campo: "tipoPeticion", mapa: { General: 15, Documental: 10, Consulta: 30 } },
+      requeridosSi: [{ si: { campo: "requierePoder", igualA: "true" }, documentosRequeridos: ["poder.pdf"] }],
+    },
+  },
+  { key: "respondida", nombre: "Respondida", orden: 2, terminal: true, disponibleSi: { campo: "contestaron", igualA: "SI" } },
+  { key: "escala_tutela", nombre: "Escala a tutela", orden: 3, disponibleSi: { campo: "contestaron", igualA: "NO" }, accion: { tipo: "crearDerivado", tipoDestinoNombre: "Acción de Tutela" } },
+];
+
+describe("PATCH /procesos/:id/etapa — ramas condicionales + plazo (Fase 3)", () => {
+  it("422 cuando la etapa destino no está disponible (disponibleSi no se cumple)", async () => {
+    proceso.findFirst.mockResolvedValue({
+      id: "tr1", estado: "EN_PROCESO", etapaActual: "radicada",
+      datos: { contestaron: "SI" }, documentos: [],
+      tipoProceso: { etapas: etapasDdP },
+    });
+    const res = await request(app).patch("/procesos/tr1/etapa").set(auth(token)).send({ etapaKey: "escala_tutela" });
+    expect(res.status).toBe(422);
+  });
+
+  it("400 cuando un requerido condicional (requeridosSi) falta", async () => {
+    proceso.findFirst.mockResolvedValue({
+      id: "tr1", estado: "ABIERTO", etapaActual: "borrador",
+      datos: { fechaRadicacion: "2026-02-02", tipoPeticion: "Documental", requierePoder: true },
+      documentos: [], // falta poder.pdf
+      tipoProceso: { etapas: etapasDdP },
+    });
+    const res = await request(app).patch("/procesos/tr1/etapa").set(auth(token)).send({ etapaKey: "radicada" });
+    expect(res.status).toBe(400);
+    expect(res.body.error.issues.documentosFaltantes).toContain("poder.pdf");
+  });
+
+  it("deriva fechaLimite = radicación + 10 días hábiles (DdP documental)", async () => {
+    proceso.findFirst.mockResolvedValue({
+      id: "tr1", estado: "ABIERTO", etapaActual: "borrador",
+      datos: { fechaRadicacion: "2026-02-02", tipoPeticion: "Documental", requierePoder: false },
+      documentos: [],
+      tipoProceso: { etapas: etapasDdP },
+    });
+    m.$transaction.mockImplementation(async (cb: (tx: typeof m) => unknown) => cb(m));
+    m.etapaProceso.create.mockResolvedValue({});
+    proceso.update.mockResolvedValue({ id: "tr1", etapaActual: "radicada" });
+
+    const res = await request(app).patch("/procesos/tr1/etapa").set(auth(token)).send({ etapaKey: "radicada" });
+    expect(res.status).toBe(200);
+    const fechaLimite = proceso.update.mock.calls[0][0].data.fechaLimite as Date;
+    expect(fechaLimite.toISOString().slice(0, 10)).toBe("2026-02-16");
+  });
+});
+
+describe("POST /procesos/:id/derivar — escalar a tutela (Fase 3)", () => {
+  const tutela = { id: "tt-tutela", empresaId: null, esquemaVersion: 1, jurisdiccion: "CONSTITUCIONAL", nombre: "Acción de Tutela", etapas: [{ key: "presentada", nombre: "Presentada", orden: 0 }] };
+  const ddpEnEscala = { id: "tr1", titulo: "DdP ante DIAN", etapaActual: "escala_tutela", tipoProceso: { etapas: etapasDdP } };
+
+  it("201 crea el derivado ligado por casoRelacionadoId", async () => {
+    proceso.findFirst.mockResolvedValueOnce(ddpEnEscala).mockResolvedValueOnce(null); // proceso, luego "sin derivado previo"
+    tipoProceso.findFirst.mockResolvedValue(tutela);
+    proceso.count.mockResolvedValue(0);
+    m.$transaction.mockImplementation(async (cb: (tx: typeof m) => unknown) => cb(m));
+    proceso.create.mockResolvedValue({ id: "deriv1" });
+    proceso.findUnique.mockResolvedValue({ id: "deriv1", casoRelacionadoId: "tr1" });
+
+    const res = await request(app).post("/procesos/tr1/derivar").set(auth(token));
+    expect(res.status).toBe(201);
+    expect(proceso.create.mock.calls[0][0].data).toMatchObject({ casoRelacionadoId: "tr1", tipoProcesoId: "tt-tutela" });
+  });
+
+  it("409 si ya existe un derivado de ese tipo (idempotente)", async () => {
+    proceso.findFirst.mockResolvedValueOnce(ddpEnEscala).mockResolvedValueOnce({ id: "deriv1", codigoInterno: "TUT-2026-0001" });
+    tipoProceso.findFirst.mockResolvedValue(tutela);
+    const res = await request(app).post("/procesos/tr1/derivar").set(auth(token));
+    expect(res.status).toBe(409);
+    expect(res.body.error.issues.procesoId).toBe("deriv1");
+  });
+
+  it("400 si la etapa actual no define acción de derivación", async () => {
+    proceso.findFirst.mockResolvedValueOnce({ id: "tr1", titulo: "X", etapaActual: "borrador", tipoProceso: { etapas: etapasDdP } });
+    const res = await request(app).post("/procesos/tr1/derivar").set(auth(token));
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /procesos/vencimientos — semáforo (Fase 3)", () => {
+  it("clasifica en vencido / por_vencer / al_dia y aísla por despacho", async () => {
+    const ahora = new Date();
+    const hoy = Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate());
+    const dia = 86_400_000;
+    proceso.findMany.mockResolvedValue([
+      { id: "v", codigoInterno: "A", titulo: "vencido", fechaLimite: new Date(hoy - 5 * dia) },
+      { id: "p", codigoInterno: "B", titulo: "por vencer", fechaLimite: new Date(hoy + dia) },
+      { id: "a", codigoInterno: "C", titulo: "lejano", fechaLimite: new Date(hoy + 60 * dia) },
+      { id: "n", codigoInterno: "D", titulo: "sin plazo", fechaLimite: null },
+    ]);
+    const res = await request(app).get("/procesos/vencimientos").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body.vencido.map((x: { id: string }) => x.id)).toEqual(["v"]);
+    expect(res.body.por_vencer.map((x: { id: string }) => x.id)).toEqual(["p"]);
+    expect(res.body.al_dia.map((x: { id: string }) => x.id).sort()).toEqual(["a", "n"]);
+    expect(proceso.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ empresaId: "emp1" }) }),
+    );
   });
 });

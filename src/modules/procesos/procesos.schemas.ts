@@ -52,6 +52,7 @@ export const updateProcesoSchema = z.object({
   cuantiaTipo: z.nativeEnum(CuantiaTipo).nullable().optional(),
   cuantiaValor: z.union([z.number(), z.string()]).nullable().optional(),
   proximaAudiencia: z.string().nullable().optional(),
+  fechaLimite: z.string().nullable().optional(), // override manual del vencimiento
   estado: z.nativeEnum(EstadoProceso).optional(),
   prioridad: z.nativeEnum(Prioridad).optional(),
 });

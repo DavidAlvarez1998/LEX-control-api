@@ -111,3 +111,38 @@ export function sumarDiasHabiles(desde: Date, n: number): Date {
   }
   return d;
 }
+
+/** Subconjunto de ReglasEtapa relevante para el vencimiento (evita acoplar a esquema.ts). */
+type PlazoRegla = {
+  plazoDesdeCampo?: string;
+  plazoTipoDias?: "habiles" | "calendario";
+  plazoDias?: number;
+  plazoDiasPorValorDe?: { campo: string; mapa: Record<string, number> };
+};
+
+/**
+ * Deriva la fecha límite de una etapa a partir de sus reglas y los `datos` del
+ * proceso. Devuelve null si no hay regla de plazo (`plazoDesdeCampo` ausente),
+ * si la fecha origen está vacía, o si el término no resuelve a un número. El
+ * término es `plazoDiasPorValorDe.mapa[datos[campo]]` si está, si no `plazoDias`.
+ */
+export function derivarFechaLimite(
+  reglas: PlazoRegla | undefined,
+  datos: Record<string, unknown>,
+): Date | null {
+  if (!reglas?.plazoDesdeCampo) return null;
+  const fuente = datos[reglas.plazoDesdeCampo];
+  if (fuente == null || fuente === "") return null;
+  const desde = new Date(`${String(fuente).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(desde.getTime())) return null;
+
+  let dias = reglas.plazoDias;
+  if (reglas.plazoDiasPorValorDe) {
+    dias = reglas.plazoDiasPorValorDe.mapa[String(datos[reglas.plazoDiasPorValorDe.campo] ?? "")];
+  }
+  if (dias == null || !Number.isFinite(dias)) return null;
+
+  return reglas.plazoTipoDias === "habiles"
+    ? sumarDiasHabiles(desde, dias)
+    : sumarDiasCalendario(desde, dias);
+}

@@ -9,8 +9,10 @@ import {
   type CampoEsquema,
   type EtapaDef,
   etapaEntrada,
+  evaluarCondicion,
   validarDatosContraEsquema,
 } from "./esquema";
+import { derivarFechaLimite, sumarDiasHabiles } from "./diasHabiles";
 import {
   adjuntarDocumentoSchema,
   createProcesoSchema,
@@ -83,6 +85,50 @@ procesoRoutes.get(
         prioridad: t.prioridad,
         proximaAudiencia: t.proximaAudiencia,
       })),
+    });
+  }),
+);
+
+/**
+ * GET /procesos/vencimientos — procesos abiertos del despacho clasificados por
+ * estado del vencimiento (semáforo): vencido / por_vencer (≤ 3 días hábiles) /
+ * al_dia (incluye los que no tienen fechaLimite). Se declara ANTES de `/:id`
+ * para que no lo capture esa ruta paramétrica.
+ */
+procesoRoutes.get(
+  "/vencimientos",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const procesos = await prisma.proceso.findMany({
+      where: { empresaId, estado: { notIn: ["CERRADO", "ARCHIVADO"] } },
+      select: {
+        id: true,
+        codigoInterno: true,
+        radicado: true,
+        titulo: true,
+        etapaActual: true,
+        estado: true,
+        fechaLimite: true,
+      },
+      orderBy: { fechaLimite: { sort: "asc", nulls: "last" } },
+    });
+
+    // Hoy a medianoche UTC; "por vencer" = vence dentro de 3 días hábiles.
+    const ahora = new Date();
+    const hoy = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()));
+    const limitePorVencer = sumarDiasHabiles(hoy, 3);
+    const semaforo = (f: Date | null): "vencido" | "por_vencer" | "al_dia" => {
+      if (!f) return "al_dia";
+      if (f < hoy) return "vencido";
+      return f <= limitePorVencer ? "por_vencer" : "al_dia";
+    };
+    const items = procesos.map((p) => ({ ...p, semaforo: semaforo(p.fechaLimite) }));
+
+    res.json({
+      vencido: items.filter((i) => i.semaforo === "vencido"),
+      por_vencer: items.filter((i) => i.semaforo === "por_vencer"),
+      al_dia: items.filter((i) => i.semaforo === "al_dia"),
     });
   }),
 );
@@ -214,18 +260,41 @@ procesoRoutes.patch(
     const destino = etapas.find((e) => e.key === req.body.etapaKey);
     if (!destino) throw new HttpError(400, "Etapa inválida para este tipo de proceso");
 
-    // Reglas de la etapa destino: campos requeridos presentes en `datos`.
     const datos = proceso.datos as Record<string, unknown>;
-    const faltantes: string[] = [];
-    for (const k of destino.reglas?.camposRequeridos ?? []) {
-      const v = datos[k];
-      if (v === undefined || v === null || v === "") faltantes.push(k);
+
+    // Ramificación por valor: la etapa destino solo se ofrece si su `disponibleSi`
+    // se cumple con los datos actuales (p. ej. "escala_tutela" solo si contestaron=NO).
+    if (destino.disponibleSi && !evaluarCondicion(destino.disponibleSi, datos)) {
+      throw new HttpError(422, "Esa etapa no está disponible con los datos actuales del proceso", {
+        condicion: destino.disponibleSi,
+      });
     }
 
-    // Documentos requeridos: presentes en el expediente (adjuntos o generados),
-    // comparando por nombre (insensible a mayúsculas/espacios).
+    // Requisitos de la etapa destino: campos y documentos requeridos, incluyendo
+    // los condicionales (`requeridosSi`) cuya condición se cumple ahora.
+    const reglas = destino.reglas;
+    const camposReq = [
+      ...(reglas?.camposRequeridos ?? []),
+      ...(reglas?.requeridosSi ?? [])
+        .filter((r) => evaluarCondicion(r.si, datos))
+        .flatMap((r) => r.camposRequeridos ?? []),
+    ];
+    const docsReq = [
+      ...(reglas?.documentosRequeridos ?? []),
+      ...(reglas?.requeridosSi ?? [])
+        .filter((r) => evaluarCondicion(r.si, datos))
+        .flatMap((r) => r.documentosRequeridos ?? []),
+    ];
+
+    const faltantes = [...new Set(camposReq)].filter((k) => {
+      const v = datos[k];
+      return v === undefined || v === null || v === "";
+    });
+
+    // Documentos presentes en el expediente (adjuntos o generados), por nombre
+    // (insensible a mayúsculas/espacios).
     const docsPresentes = new Set(proceso.documentos.map((d) => d.nombre.trim().toLowerCase()));
-    const documentosFaltantes = (destino.reglas?.documentosRequeridos ?? []).filter(
+    const documentosFaltantes = [...new Set(docsReq)].filter(
       (nombre) => !docsPresentes.has(nombre.trim().toLowerCase()),
     );
 
@@ -236,6 +305,13 @@ procesoRoutes.patch(
       });
     }
 
+    // Vencimiento: si la etapa destino define un plazo y es una transición real
+    // (cambia de etapa), se deriva fechaLimite. No se recalcula al re-entrar a la
+    // misma etapa, para no pisar un override manual.
+    const esTransicion = destino.key !== proceso.etapaActual;
+    const nuevaFechaLimite =
+      esTransicion && reglas?.plazoDesdeCampo ? derivarFechaLimite(reglas, datos) : undefined;
+
     const actualizado = await prisma.$transaction(async (tx) => {
       await tx.etapaProceso.create({
         data: { procesoId: proceso.id, etapaKey: destino.key, nota: req.body.nota, usuarioId: req.user!.sub },
@@ -245,11 +321,81 @@ procesoRoutes.patch(
         data: {
           etapaActual: destino.key,
           estado: destino.terminal ? "CERRADO" : "EN_PROCESO",
+          ...(nuevaFechaLimite !== undefined ? { fechaLimite: nuevaFechaLimite } : {}),
         },
         include: detalleInclude,
       });
     });
     res.json(actualizado);
+  }),
+);
+
+/**
+ * POST /procesos/:id/derivar — ejecuta la acción `crearDerivado` de la etapa
+ * actual: crea un proceso del tipo destino (global) ligado a este como caso base
+ * (`casoRelacionadoId`). Idempotente: un solo derivado por (caso base, tipo) → 409.
+ */
+procesoRoutes.post(
+  "/:id/derivar",
+  requireAuth,
+  validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const proceso = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      include: { tipoProceso: { select: { etapas: true } } },
+    });
+    if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+
+    const etapas = proceso.tipoProceso.etapas as unknown as EtapaDef[];
+    const accion = etapas.find((e) => e.key === proceso.etapaActual)?.accion;
+    if (!accion || accion.tipo !== "crearDerivado") {
+      throw new HttpError(400, "La etapa actual no define una acción de derivación");
+    }
+
+    // El destino debe ser un tipo de proceso GLOBAL existente.
+    const tipoDestino = await prisma.tipoProceso.findFirst({
+      where: { empresaId: null, nombre: accion.tipoDestinoNombre },
+    });
+    if (!tipoDestino) {
+      throw new HttpError(422, `No existe el tipo global "${accion.tipoDestinoNombre}"`);
+    }
+
+    // Idempotencia: un único derivado por (caso base, tipo destino).
+    const existente = await prisma.proceso.findFirst({
+      where: { empresaId, casoRelacionadoId: proceso.id, tipoProcesoId: tipoDestino.id },
+      select: { id: true, codigoInterno: true },
+    });
+    if (existente) {
+      throw new HttpError(409, "Ya existe un proceso derivado de este tipo", {
+        procesoId: existente.id,
+        codigoInterno: existente.codigoInterno,
+      });
+    }
+
+    const entrada = etapaEntrada(tipoDestino.etapas as unknown as EtapaDef[]);
+    if (!entrada) throw new HttpError(400, "El tipo destino no define etapas");
+
+    const derivado = await prisma.$transaction(async (tx) => {
+      const codigoInterno = await generarCodigoInterno(tx, empresaId);
+      const creado = await tx.proceso.create({
+        data: {
+          codigoInterno,
+          empresaId,
+          tipoProcesoId: tipoDestino.id,
+          tipoEsquemaVersion: tipoDestino.esquemaVersion,
+          jurisdiccion: tipoDestino.jurisdiccion,
+          casoRelacionadoId: proceso.id,
+          creadoPorId: req.user!.sub,
+          titulo: `${tipoDestino.nombre} — ${proceso.titulo}`,
+          datos: {},
+          etapaActual: entrada.key,
+          historial: { create: { etapaKey: entrada.key, usuarioId: req.user!.sub } },
+        },
+      });
+      return tx.proceso.findUnique({ where: { id: creado.id }, include: detalleInclude });
+    });
+    res.status(201).json(derivado);
   }),
 );
 
@@ -288,6 +434,9 @@ procesoRoutes.patch(
         : {}),
       ...(body.proximaAudiencia !== undefined
         ? { proximaAudiencia: body.proximaAudiencia ? new Date(body.proximaAudiencia) : null }
+        : {}),
+      ...(body.fechaLimite !== undefined
+        ? { fechaLimite: body.fechaLimite ? new Date(body.fechaLimite) : null }
         : {}),
       ...(body.estado !== undefined ? { estado: body.estado } : {}),
       ...(body.prioridad !== undefined ? { prioridad: body.prioridad } : {}),
