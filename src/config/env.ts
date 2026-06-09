@@ -27,6 +27,19 @@ export const env = {
   // En prod se setean CLIENT_URL / ADMIN_URL (ej. https://app.tudominio.com).
   clientUrl: process.env.CLIENT_URL ?? "http://localhost:3001",
   adminUrl: process.env.ADMIN_URL ?? "http://localhost:3000",
+
+  // Integraciones con sistemas estatales (Fase A: Corte Constitucional vía API
+  // pública Socrata de datos.gov.co). El `datasetId` debe apuntar al dataset real
+  // de la relatoría; `appToken` es opcional (sube los límites de rate de Socrata).
+  // Ver openspec/specs/integraciones-estatales/spec.md.
+  integraciones: {
+    corteConstitucional: {
+      baseUrl: (process.env.CORTE_CONST_API_URL ?? "https://www.datos.gov.co").replace(/\/+$/, ""),
+      datasetId: process.env.CORTE_CONST_DATASET ?? "9kfd-kup7",
+      appToken: process.env.SOCRATA_APP_TOKEN, // opcional
+      timeoutMs: Number(process.env.INTEGRACIONES_TIMEOUT_MS ?? 15_000),
+    },
+  },
 };
 
 export const isProd = env.nodeEnv === "production";
