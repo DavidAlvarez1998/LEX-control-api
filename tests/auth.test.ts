@@ -49,6 +49,7 @@ async function activeAdmin() {
     password: await bcrypt.hash("secret", 10),
     rol: "ADMIN",
     activo: true,
+    rolesEmpresa: [],
   };
 }
 
@@ -136,12 +137,14 @@ describe("POST /auth/login", () => {
       activo: true,
       esAdminEmpresa: false,
       empresa: { nombre: "Acme", activo: true },
+      rolesEmpresa: [{ rolEmpresa: "JURIDICO" }, { rolEmpresa: "COMERCIAL" }],
     });
     const res = await request(app)
       .post("/auth/login")
       .send({ email: "user@empresa.com", password: "secret" });
     expect(res.status).toBe(200);
     expect(res.body.user).toMatchObject({ rol: "USUARIO", empresa: "Acme" });
+    expect(res.body.user.roles).toEqual(["JURIDICO", "COMERCIAL"]);
   });
 
   it("401 si el portal (audience) no coincide con el rol", async () => {

@@ -9,15 +9,19 @@ vi.mock("../src/index", () => {
   const prisma: any = {
     usuario: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
       updateMany: vi.fn(),
     },
     usuarioRolEmpresa: {
       count: vi.fn(),
       create: vi.fn(),
       findUnique: vi.fn(),
+      findMany: vi.fn(),
       deleteMany: vi.fn(),
+      groupBy: vi.fn(),
     },
     suscripcion: { findUnique: vi.fn() },
     modulo: { findMany: vi.fn() },
@@ -36,6 +40,8 @@ const usuario = prisma.usuario as unknown as Record<
   string,
   ReturnType<typeof vi.fn>
 >;
+// Alias al cliente Prisma mockeado para tocar otras tablas (roles, cupos).
+const p = prisma as any;
 
 // Tokens: el JWT solo lleva { sub, rol }; esAdminEmpresa/empresaId los resuelve
 // `requireAuth` por BD (ver el mock de findUnique).
@@ -63,7 +69,6 @@ beforeEach(() => {
   });
   // Defaults para la puerta de cupos: suscripción ACTIVA con cupos amplios, 0
   // sillas usadas → assertSeatAvailable pasa. (Tests de cupo agotado lo pisan.)
-  const p = prisma as any;
   p.modulo.findMany.mockResolvedValue([]);
   p.suscripcion.findUnique.mockResolvedValue({
     estado: "ACTIVA",
@@ -81,6 +86,11 @@ beforeEach(() => {
   });
   p.usuarioRolEmpresa.count.mockResolvedValue(0);
   p.usuarioRolEmpresa.create.mockResolvedValue({});
+  p.usuarioRolEmpresa.findMany.mockResolvedValue([]);
+  p.usuarioRolEmpresa.deleteMany.mockResolvedValue({ count: 0 });
+  p.usuarioRolEmpresa.groupBy.mockResolvedValue([]);
+  p.usuario.findFirst.mockResolvedValue({ id: "u1" });
+  p.usuario.update.mockResolvedValue({});
   p.$queryRaw.mockResolvedValue([]);
 });
 
@@ -113,11 +123,17 @@ describe("GET /mi-empresa/usuarios (autorización)", () => {
 });
 
 describe("GET /mi-empresa/usuarios (listado scoped)", () => {
-  it("200: solo la propia empresa, con estado y sin filtrar activationToken", async () => {
+  it("200: solo la propia empresa, con estado, roles y sin filtrar activationToken", async () => {
     usuario.findMany.mockResolvedValue([
-      { id: "u1", activo: true, activationToken: "hash", empresaId: "eA" },
-      { id: "u2", activo: true, activationToken: null, empresaId: "eA" },
-      { id: "u3", activo: false, activationToken: null, empresaId: "eA" },
+      {
+        id: "u1",
+        activo: true,
+        activationToken: "hash",
+        empresaId: "eA",
+        rolesEmpresa: [{ rolEmpresa: "JURIDICO" }, { rolEmpresa: "COMERCIAL" }],
+      },
+      { id: "u2", activo: true, activationToken: null, empresaId: "eA", rolesEmpresa: [] },
+      { id: "u3", activo: false, activationToken: null, empresaId: "eA", rolesEmpresa: [] },
     ]);
     const res = await request(app)
       .get("/mi-empresa/usuarios")
@@ -129,7 +145,9 @@ describe("GET /mi-empresa/usuarios (listado scoped)", () => {
       "ACTIVO",
       "INACTIVO",
     ]);
+    expect(res.body[0].roles).toEqual(["JURIDICO", "COMERCIAL"]);
     expect(res.body[0]).not.toHaveProperty("activationToken");
+    expect(res.body[0]).not.toHaveProperty("rolesEmpresa");
     // El listado se acota a la empresa del token, nunca a un id del cliente.
     expect(usuario.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { empresaId: "eA" } }),
@@ -157,11 +175,20 @@ describe("POST /mi-empresa/usuarios", () => {
     const res = await request(app)
       .post("/mi-empresa/usuarios")
       .set(auth(adminEmpresaToken))
-      .send({ email: "a@b.com" });
+      .send({ email: "a@b.com", roles: ["JURIDICO"] });
     expect(res.status).toBe(400);
   });
 
-  it("201: crea con rol USUARIO y empresaId del token, y devuelve el link", async () => {
+  it("400 si no se envían roles (al menos uno)", async () => {
+    const res = await request(app)
+      .post("/mi-empresa/usuarios")
+      .set(auth(adminEmpresaToken))
+      .send({ email: "a@b.com", nombre: "Ana", roles: [] });
+    expect(res.status).toBe(400);
+    expect(usuario.create).not.toHaveBeenCalled();
+  });
+
+  it("201: crea con varios roles, rol USUARIO y empresaId del token", async () => {
     usuario.create.mockResolvedValue({
       id: "u1",
       email: "a@b.com",
@@ -171,21 +198,30 @@ describe("POST /mi-empresa/usuarios", () => {
     const res = await request(app)
       .post("/mi-empresa/usuarios")
       .set(auth(adminEmpresaToken))
-      .send({ email: "a@b.com", nombre: "Ana", esAdminEmpresa: true });
+      .send({ email: "a@b.com", nombre: "Ana", roles: ["JURIDICO", "COMERCIAL"] });
 
     expect(res.status).toBe(201);
-    expect(res.body.user).toMatchObject({ id: "u1" });
+    expect(res.body.user).toMatchObject({ id: "u1", roles: ["JURIDICO", "COMERCIAL"] });
     expect(res.body.activationUrl).toContain("/activar?token=");
     expect(res.body.activationUrl).toContain("localhost:3001"); // portal cliente
+    // Sin ADMINISTRADOR ⇒ no es admin de empresa.
     expect(usuario.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          rol: "USUARIO",
-          empresaId: "eA",
-          esAdminEmpresa: true,
-        }),
+        data: expect.objectContaining({ rol: "USUARIO", empresaId: "eA", esAdminEmpresa: false }),
       }),
     );
+    // Una silla por cada rol.
+    expect(p.usuarioRolEmpresa.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("ADMINISTRADOR en roles ⇒ esAdminEmpresa true (espejo)", async () => {
+    usuario.create.mockResolvedValue({ id: "u1", rol: "USUARIO" });
+    await request(app)
+      .post("/mi-empresa/usuarios")
+      .set(auth(adminEmpresaToken))
+      .send({ email: "a@b.com", nombre: "Ana", roles: ["ADMINISTRADOR"] });
+
+    expect(usuario.create.mock.calls[0][0].data.esAdminEmpresa).toBe(true);
   });
 
   it("ignora rol y empresaId del body (sin escalada ni cruce de empresa)", async () => {
@@ -193,11 +229,34 @@ describe("POST /mi-empresa/usuarios", () => {
     await request(app)
       .post("/mi-empresa/usuarios")
       .set(auth(adminEmpresaToken))
-      .send({ email: "a@b.com", nombre: "Ana", rol: "ADMIN", empresaId: "eB" });
+      .send({ email: "a@b.com", nombre: "Ana", roles: ["JURIDICO"], rol: "ADMIN", empresaId: "eB" });
 
     const data = usuario.create.mock.calls[0][0].data;
     expect(data.rol).toBe("USUARIO");
     expect(data.empresaId).toBe("eA");
+  });
+
+  it("409 sin cupo para un rol (plan no lo incluye) y no crea el usuario", async () => {
+    // Plan sin silla COMERCIAL (límite 0) ⇒ assertSeatAvailable lanza 409.
+    p.suscripcion.findUnique.mockResolvedValue({
+      estado: "ACTIVA",
+      plan: {
+        modulos: [],
+        cuotas: [
+          { rolEmpresa: "ADMINISTRADOR", limite: 1 },
+          { rolEmpresa: "JURIDICO", limite: 1 },
+        ],
+      },
+      modulos: [],
+      cuotas: [],
+    });
+    const res = await request(app)
+      .post("/mi-empresa/usuarios")
+      .set(auth(adminEmpresaToken))
+      .send({ email: "a@b.com", nombre: "Ana", roles: ["COMERCIAL"] });
+
+    expect(res.status).toBe(409);
+    expect(usuario.create).not.toHaveBeenCalled();
   });
 
   it("409 si el correo ya existe (P2002)", async () => {
@@ -205,7 +264,7 @@ describe("POST /mi-empresa/usuarios", () => {
     const res = await request(app)
       .post("/mi-empresa/usuarios")
       .set(auth(adminEmpresaToken))
-      .send({ email: "dup@b.com", nombre: "Ana" });
+      .send({ email: "dup@b.com", nombre: "Ana", roles: ["JURIDICO"] });
     expect(res.status).toBe(409);
   });
 });
@@ -283,5 +342,131 @@ describe("POST /mi-empresa/usuarios/:id/activation (reenviar enlace)", () => {
       .post("/mi-empresa/usuarios/ajeno/activation")
       .set(auth(adminEmpresaToken));
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /mi-empresa/usuarios/:id (reconciliar roles)", () => {
+  it("añade un rol nuevo (con cupo) sin tocar los existentes", async () => {
+    p.usuario.findFirst.mockResolvedValue({ id: "u1" });
+    p.usuarioRolEmpresa.findMany.mockResolvedValue([{ rolEmpresa: "JURIDICO" }]);
+    const res = await request(app)
+      .patch("/mi-empresa/usuarios/u1")
+      .set(auth(adminEmpresaToken))
+      .send({ roles: ["JURIDICO", "COMERCIAL"] });
+
+    expect(res.status).toBe(200);
+    // Solo crea el que faltaba (COMERCIAL); no re-crea JURIDICO ni borra nada.
+    expect(p.usuarioRolEmpresa.create).toHaveBeenCalledTimes(1);
+    expect(p.usuarioRolEmpresa.create.mock.calls[0][0].data.rolEmpresa).toBe("COMERCIAL");
+    expect(p.usuarioRolEmpresa.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("quita un rol y sincroniza esAdminEmpresa (ADMINISTRADOR fuera ⇒ false)", async () => {
+    p.usuario.findFirst.mockResolvedValue({ id: "u1" });
+    p.usuarioRolEmpresa.findMany.mockResolvedValue([
+      { rolEmpresa: "ADMINISTRADOR" },
+      { rolEmpresa: "JURIDICO" },
+    ]);
+    const res = await request(app)
+      .patch("/mi-empresa/usuarios/u1")
+      .set(auth(adminEmpresaToken))
+      .send({ roles: ["JURIDICO"] });
+
+    expect(res.status).toBe(200);
+    expect(p.usuarioRolEmpresa.deleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { usuarioId: "u1", rolEmpresa: { in: ["ADMINISTRADOR"] } },
+      }),
+    );
+    expect(p.usuario.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { esAdminEmpresa: false } }),
+    );
+  });
+
+  it("400 si el admin intenta quitarse su propio rol ADMINISTRADOR", async () => {
+    const res = await request(app)
+      .patch("/mi-empresa/usuarios/admin-emp")
+      .set(auth(adminEmpresaToken))
+      .send({ roles: ["JURIDICO"] });
+
+    expect(res.status).toBe(400);
+    expect(p.usuarioRolEmpresa.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("409 al añadir un rol sin cupo, sin cambios parciales", async () => {
+    p.usuario.findFirst.mockResolvedValue({ id: "u1" });
+    p.usuarioRolEmpresa.findMany.mockResolvedValue([{ rolEmpresa: "JURIDICO" }]);
+    // CONTABLE lleno: cap 1 y 1 usada.
+    p.suscripcion.findUnique.mockResolvedValue({
+      estado: "ACTIVA",
+      plan: { modulos: [], cuotas: [{ rolEmpresa: "CONTABLE", limite: 1 }] },
+      modulos: [],
+      cuotas: [],
+    });
+    p.usuarioRolEmpresa.count.mockResolvedValue(1);
+
+    const res = await request(app)
+      .patch("/mi-empresa/usuarios/u1")
+      .set(auth(adminEmpresaToken))
+      .send({ roles: ["JURIDICO", "CONTABLE"] });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("404 si el usuario es de otra empresa", async () => {
+    p.usuario.findFirst.mockResolvedValue(null);
+    const res = await request(app)
+      .patch("/mi-empresa/usuarios/ajeno")
+      .set(auth(adminEmpresaToken))
+      .send({ roles: ["JURIDICO"] });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("GET /mi-empresa/cupos", () => {
+  it("devuelve cap (null=ilimitado, 0=no incluido) y usados por rol", async () => {
+    p.suscripcion.findUnique.mockResolvedValue({
+      estado: "ACTIVA",
+      plan: {
+        modulos: [],
+        cuotas: [
+          { rolEmpresa: "ADMINISTRADOR", limite: 1 },
+          { rolEmpresa: "JURIDICO", limite: null }, // ilimitado
+          { rolEmpresa: "COMERCIAL", limite: 1 },
+          // CONTABLE ausente ⇒ cap 0 (no incluido)
+        ],
+      },
+      modulos: [],
+      cuotas: [],
+    });
+    p.usuarioRolEmpresa.groupBy.mockResolvedValue([
+      { rolEmpresa: "COMERCIAL", _count: { rolEmpresa: 1 } },
+    ]);
+
+    const res = await request(app)
+      .get("/mi-empresa/cupos")
+      .set(auth(adminEmpresaToken));
+
+    expect(res.status).toBe(200);
+    const byRol = Object.fromEntries(
+      res.body.map((c: { rol: string }) => [c.rol, c]),
+    );
+    expect(byRol.JURIDICO).toMatchObject({ cap: null, usados: 0 });
+    expect(byRol.COMERCIAL).toMatchObject({ cap: 1, usados: 1 });
+    expect(byRol.CONTABLE).toMatchObject({ cap: 0, usados: 0 });
+  });
+
+  it("403 a un USUARIO que no es admin de empresa", async () => {
+    usuario.findUnique.mockResolvedValue({
+      activo: true,
+      activationToken: null,
+      tokenVersion: 0,
+      empresaId: "eA",
+      esAdminEmpresa: false,
+    });
+    const res = await request(app)
+      .get("/mi-empresa/cupos")
+      .set(auth(clienteToken));
+    expect(res.status).toBe(403);
   });
 });

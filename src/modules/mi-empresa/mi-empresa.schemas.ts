@@ -1,20 +1,34 @@
+import { RolEmpresa } from "@prisma/client";
 import { z } from "zod";
 
-/** Crear un miembro del equipo desde el portal del cliente. El rol y la empresa
- *  NO se aceptan del body: el servidor fuerza `rol=USUARIO` y `empresaId` del
- *  token (sin escalada a ADMIN ni cruce entre empresas). La contraseña la define
- *  el propio miembro vía link de activación. `esAdminEmpresa` permite crear otro
- *  administrador de la empresa. */
+/** Lista de roles de empresa: no vacía y sin duplicados. */
+const rolesArray = z
+  .array(z.nativeEnum(RolEmpresa))
+  .min(1, "Selecciona al menos un rol")
+  .transform((arr) => [...new Set(arr)]);
+
+/** Crear un miembro del equipo desde el portal del cliente. El rol de plataforma
+ *  y la empresa NO se aceptan del body: el servidor fuerza `rol=USUARIO` y
+ *  `empresaId` del token (sin escalada a ADMIN ni cruce entre empresas). La
+ *  contraseña la define el propio miembro vía link de activación. `roles` son los
+ *  RolEmpresa (sillas) que ocupará; incluir ADMINISTRADOR lo hace admin de la
+ *  empresa (espejo de `esAdminEmpresa`). */
 export const createMiembroSchema = z.object({
   email: z.string().trim().email("Correo inválido"),
   nombre: z.string().trim().min(1, "El nombre es obligatorio"),
-  esAdminEmpresa: z.boolean().optional(),
+  roles: rolesArray,
 });
 
-/** Activar/desactivar a un miembro del equipo. */
-export const updateMiembroSchema = z.object({
-  activo: z.boolean(),
-});
+/** Actualizar un miembro: activar/desactivar y/o reconciliar su conjunto de
+ *  roles. Debe traer al menos uno de los dos. */
+export const updateMiembroSchema = z
+  .object({
+    activo: z.boolean().optional(),
+    roles: rolesArray.optional(),
+  })
+  .refine((d) => d.activo !== undefined || d.roles !== undefined, {
+    message: "Nada que actualizar (envía `activo` y/o `roles`)",
+  });
 
 export const miembroIdParams = z.object({ id: z.string().min(1) });
 

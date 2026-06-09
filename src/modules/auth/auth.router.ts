@@ -25,7 +25,10 @@ authRoutes.post(
 
     const usuario = await prisma.usuario.findUnique({
       where: { email },
-      include: { empresa: { select: { nombre: true, activo: true } } },
+      include: {
+        empresa: { select: { nombre: true, activo: true } },
+        rolesEmpresa: { select: { rolEmpresa: true } },
+      },
     });
     if (!usuario || !usuario.activo) throw invalidas;
     // Cuenta pendiente (reset emitido o sin activar): la contraseña vieja ya no
@@ -60,6 +63,8 @@ authRoutes.post(
         rol: usuario.rol,
         // Para el portal: distingue al admin de la empresa del usuario común.
         esAdminEmpresa: usuario.esAdminEmpresa,
+        // Roles de empresa del usuario: el portal decide qué módulos mostrar.
+        roles: usuario.rolesEmpresa.map((r) => r.rolEmpresa),
         // Nombre de la empresa del usuario (null para ADMIN de plataforma).
         empresa: usuario.empresa?.nombre ?? null,
       },
