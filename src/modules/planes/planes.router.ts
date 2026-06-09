@@ -74,10 +74,12 @@ planRoutes.put(
   }),
 );
 
-/** GET /planes — catálogo de planes con sus módulos y cupos. */
+/** GET /planes — catálogo de planes con sus módulos y cupos.
+ *  ADMIN gestiona el catálogo; COMERCIAL lo lee para elegir el plan de interés
+ *  / vendido de un prospecto. */
 planRoutes.get(
   "/",
-  requireAuth, requireRole(Rol.ADMIN),
+  requireAuth, requireRole(Rol.ADMIN, Rol.COMERCIAL),
   asyncHandler(async (_req, res) => {
     const planes = await prisma.plan.findMany({ orderBy: { orden: "asc" }, include: incl });
     res.json(planes.map(shape));

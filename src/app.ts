@@ -15,7 +15,7 @@ import { planRoutes } from "./modules/planes/planes.router";
 import { servicioRoutes } from "./modules/servicios/servicios.router";
 import { procesoRoutes } from "./modules/procesos/procesos.router";
 import { usuarioRoutes } from "./modules/usuarios/usuarios.router";
-import { comisionRoutes, prospectoRoutes } from "./modules/ventas/ventas.router";
+import { agendaRoutes, comisionRoutes, equipoComercialRoutes, prospectoRoutes, seguimientoRoutes } from "./modules/ventas/ventas.router";
 
 /**
  * Builds the Express application: CORS for the configured frontend origins,
@@ -46,6 +46,11 @@ export function createApp(): Express {
   // Venta de la plataforma (CRM propio): prospectos + comisiones.
   app.use("/prospectos", prospectoRoutes);
   app.use("/comisiones", comisionRoutes);
+  // Agenda (pendientes por comercial) + seguimientos sueltos por id.
+  app.use("/agenda", agendaRoutes);
+  app.use("/seguimientos", seguimientoRoutes);
+  // Resumen del equipo comercial (vista ADMIN).
+  app.use("/equipo-comercial", equipoComercialRoutes);
   // Módulo de procesos legales (Colombia).
   app.use("/catalogo", catalogRoutes);
   app.use("/litigantes", litiganteRoutes);

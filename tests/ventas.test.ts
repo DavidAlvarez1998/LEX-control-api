@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/index", () => {
   const prisma: any = {
-    usuario: { findUnique: vi.fn(), findFirst: vi.fn() },
-    prospecto: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+    usuario: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
+    prospecto: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), groupBy: vi.fn() },
+    seguimientoProspecto: { updateMany: vi.fn(), groupBy: vi.fn() },
     comision: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     plan: { findUnique: vi.fn() },
     empresa: { create: vi.fn() },
@@ -89,6 +90,21 @@ describe("prospectos — alcance por rol", () => {
     const arg = p.prospecto.updateMany.mock.calls[0][0];
     expect(arg.data.comercialId).toBeUndefined();
     expect(arg.data.cargo).toBe("CEO");
+  });
+
+  it("ADMIN no puede reasignar el comercial de un prospecto ya GANADO (409)", async () => {
+    p.prospecto.findFirst.mockResolvedValue({ id: "pr1", estado: "GANADO", comercialId: "com1" });
+    const res = await request(app).patch("/prospectos/pr1").set(auth(adminTok)).send({ comercialId: "otro" });
+    expect(res.status).toBe(409);
+    expect(p.prospecto.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("ADMIN sí puede editar otros campos de un prospecto GANADO sin tocar el comercial", async () => {
+    p.prospecto.findFirst.mockResolvedValue({ id: "pr1", estado: "GANADO", comercialId: "com1" });
+    p.prospecto.updateMany.mockResolvedValue({ count: 1 });
+    p.prospecto.findUnique.mockResolvedValue({ id: "pr1" });
+    const res = await request(app).patch("/prospectos/pr1").set(auth(adminTok)).send({ cargo: "CEO" });
+    expect(res.status).toBe(200);
   });
 });
 
@@ -177,5 +193,41 @@ describe("comisiones", () => {
     const arg = p.comision.update.mock.calls[0][0];
     expect(arg.data.estado).toBe("PAGADA");
     expect(arg.data.fechaPago).toBeInstanceOf(Date);
+  });
+
+  it("ADMIN edita monto, % (null=fijo) y notas", async () => {
+    p.comision.findUnique.mockResolvedValue({ id: "co1" });
+    p.comision.update.mockResolvedValue({ id: "co1" });
+    const res = await request(app).patch("/comisiones/co1").set(auth(adminTok)).send({ monto: 50000, porcentaje: null, notas: "ajuste" });
+    expect(res.status).toBe(200);
+    const arg = p.comision.update.mock.calls[0][0];
+    expect(arg.data.monto).toBe(50000);
+    expect(arg.data.porcentaje).toBeNull();
+    expect(arg.data.notas).toBe("ajuste");
+  });
+});
+
+describe("equipo-comercial — resumen", () => {
+  it("los pendientes en agenda NO cuentan las canceladas", async () => {
+    p.usuario.findMany.mockResolvedValue([
+      { id: "com1", nombre: "Ana", email: "a@x.co", activo: true, porcentajeComision: 10 },
+    ]);
+    p.prospecto.groupBy.mockResolvedValue([
+      { comercialId: "com1", estado: "GANADO", _count: { _all: 2 } },
+      { comercialId: "com1", estado: "NUEVO", _count: { _all: 3 } },
+    ]);
+    p.seguimientoProspecto.groupBy.mockResolvedValue([{ comercialId: "com1", _count: { _all: 4 } }]);
+
+    const res = await request(app).get("/equipo-comercial").set(auth(adminTok));
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({ prospectos: 5, ganados: 2, pendientesAgenda: 4 });
+    // La consulta de pendientes excluye las canceladas (canceladaEn: null).
+    const arg = p.seguimientoProspecto.groupBy.mock.calls[0][0];
+    expect(arg.where).toMatchObject({ completada: false, canceladaEn: null });
+  });
+
+  it("403 si un COMERCIAL intenta ver el equipo", async () => {
+    const res = await request(app).get("/equipo-comercial").set(auth(comTok));
+    expect(res.status).toBe(403);
   });
 });

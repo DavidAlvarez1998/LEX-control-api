@@ -1416,6 +1416,7 @@ model Prospecto {
   telefono       String?
   cargo          String?
   canalEntrada   CanalEntrada    @default(DIRECTO)
+  referidoPor    String? // nombre de quién lo refirió (cuando canalEntrada = REFERIDO)
   estado         EstadoProspecto @default(NUEVO)
 
   planInteresId String? // escalar sin FK -> Plan (validado en app)
@@ -1434,12 +1435,40 @@ model Prospecto {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  comision Comision?
+  comision     Comision?
+  seguimientos SeguimientoProspecto[]
 
   @@index([comercialId, estado])
   @@index([estado])
   @@index([canalEntrada])
   @@map("prospectos")
+}
+
+// Actividad de venta sobre un Prospecto: nace agendada (pendiente -> agenda del
+// comercial) y al completarse pasa a ser parte del timeline de seguimiento.
+// Ver openspec/changes/admin-comercial-agenda/.
+model SeguimientoProspecto {
+  id              String               @id @default(cuid())
+  prospectoId     String
+  comercialId     String? // escalar sin FK -> Usuario (dueño = agenda)
+  tipo            TipoGestionComercial @default(LLAMADA)
+  titulo          String?
+  nota            String?              @db.Text
+  resultado       String?              @db.Text
+  fechaProgramada DateTime?
+  completada      Boolean              @default(false)
+  fechaCompletada DateTime?
+  canceladaEn     DateTime? // si está set -> cancelada (con motivoCancelacion)
+  motivoCancelacion String?            @db.Text
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  prospecto Prospecto @relation(fields: [prospectoId], references: [id], onDelete: Cascade)
+
+  @@index([prospectoId, createdAt])
+  @@index([comercialId, fechaProgramada])
+  @@index([comercialId, completada])
+  @@map("seguimientos_prospecto")
 }
 
 model Comision {
