@@ -408,11 +408,21 @@ procesoRoutes.patch(
     const empresaId = empresaIdRequerido(req);
     const existe = await prisma.proceso.findFirst({
       where: { id: req.params.id, empresaId },
-      select: { id: true },
+      select: { id: true, tipoProceso: { select: { esquemaFormulario: true } } },
     });
     if (!existe) throw new HttpError(404, "Proceso no encontrado");
 
     const body = req.body as import("zod").infer<typeof updateProcesoSchema>;
+
+    // Editar el formulario dinámico: se valida contra el esquema del tipo, pero
+    // se permite guardar incompleto (los requeridos se exigen al avanzar etapa).
+    if (body.datos !== undefined) {
+      const esquema = existe.tipoProceso.esquemaFormulario as unknown as CampoEsquema[];
+      const { ok, errores, faltantes } = validarDatosContraEsquema(esquema, body.datos, {
+        exigirRequeridos: false,
+      });
+      if (!ok) throw new HttpError(400, "Datos del formulario inválidos", { faltantes, errores });
+    }
 
     // El responsable debe ser un usuario del mismo despacho.
     if (body.responsableId) {
@@ -438,6 +448,7 @@ procesoRoutes.patch(
       ...(body.fechaLimite !== undefined
         ? { fechaLimite: body.fechaLimite ? new Date(body.fechaLimite) : null }
         : {}),
+      ...(body.datos !== undefined ? { datos: body.datos as Prisma.InputJsonValue } : {}),
       ...(body.estado !== undefined ? { estado: body.estado } : {}),
       ...(body.prioridad !== undefined ? { prioridad: body.prioridad } : {}),
       ...(body.responsableId !== undefined

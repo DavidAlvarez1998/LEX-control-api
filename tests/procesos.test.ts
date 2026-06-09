@@ -426,3 +426,30 @@ describe("GET /procesos/vencimientos — semáforo (Fase 3)", () => {
     );
   });
 });
+
+describe("PATCH /procesos/:id — editar datos del formulario (gap datos)", () => {
+  const esquemaDdP = [
+    { key: "entidad", label: "Entidad", tipo: "texto", requerido: true },
+    { key: "tipoPeticion", label: "Tipo", tipo: "select", requerido: true, opciones: ["General", "Documental"] },
+  ];
+
+  it("200 guarda datos parciales (no exige requeridos al editar borrador)", async () => {
+    proceso.findFirst.mockResolvedValue({ id: "tr1", tipoProceso: { esquemaFormulario: esquemaDdP } });
+    proceso.update.mockResolvedValue({ id: "tr1" });
+    const res = await request(app).patch("/procesos/tr1").set(auth(token)).send({ datos: { entidad: "DIAN" } });
+    expect(res.status).toBe(200);
+    expect(proceso.update.mock.calls[0][0].data.datos).toEqual({ entidad: "DIAN" });
+  });
+
+  it("400 si datos trae una clave desconocida", async () => {
+    proceso.findFirst.mockResolvedValue({ id: "tr1", tipoProceso: { esquemaFormulario: esquemaDdP } });
+    const res = await request(app).patch("/procesos/tr1").set(auth(token)).send({ datos: { basura: "x" } });
+    expect(res.status).toBe(400);
+  });
+
+  it("400 si un select trae una opción inválida", async () => {
+    proceso.findFirst.mockResolvedValue({ id: "tr1", tipoProceso: { esquemaFormulario: esquemaDdP } });
+    const res = await request(app).patch("/procesos/tr1").set(auth(token)).send({ datos: { tipoPeticion: "Zzz" } });
+    expect(res.status).toBe(400);
+  });
+});

@@ -53,6 +53,7 @@ export const updateProcesoSchema = z.object({
   cuantiaValor: z.union([z.number(), z.string()]).nullable().optional(),
   proximaAudiencia: z.string().nullable().optional(),
   fechaLimite: z.string().nullable().optional(), // override manual del vencimiento
+  datos: z.record(z.unknown()).optional(), // editar el formulario dinámico (validado contra el esquema)
   estado: z.nativeEnum(EstadoProceso).optional(),
   prioridad: z.nativeEnum(Prioridad).optional(),
 });

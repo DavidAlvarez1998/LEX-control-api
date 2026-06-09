@@ -100,7 +100,9 @@ function vacio(v: unknown): boolean {
 export function validarDatosContraEsquema(
   esquema: CampoEsquema[],
   datos: Record<string, unknown>,
+  opts: { exigirRequeridos?: boolean } = {},
 ): { ok: boolean; faltantes: string[]; errores: string[] } {
+  const exigirRequeridos = opts.exigirRequeridos ?? true;
   const faltantes: string[] = [];
   const errores: string[] = [];
   const keys = new Set(esquema.map((c) => c.key));
@@ -116,7 +118,9 @@ export function validarDatosContraEsquema(
     if (!campoVisible(campo, datos)) continue;
 
     const v = datos[campo.key];
-    if (campoEfectivamenteRequerido(campo, datos) && campo.tipo !== "boolean" && vacio(v)) {
+    // Al editar un borrador se permite guardar incompleto (exigirRequeridos=false);
+    // los requeridos se exigen igual al avanzar de etapa.
+    if (exigirRequeridos && campoEfectivamenteRequerido(campo, datos) && campo.tipo !== "boolean" && vacio(v)) {
       faltantes.push(campo.label);
       continue;
     }
