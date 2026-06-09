@@ -28,6 +28,25 @@ export const env = {
   clientUrl: process.env.CLIENT_URL ?? "http://localhost:3001",
   adminUrl: process.env.ADMIN_URL ?? "http://localhost:3000",
 
+  // API documental externa (tecnovapp): microservicio que almacena y sirve los
+  // archivos (PDFs, imágenes) del sistema. Guardamos solo el `path` relativo que
+  // devuelve (NO la URL completa: así un cambio de dominio no rompe registros
+  // viejos); el binario vive allá. Ver openspec/roadmap-docs/API-DOCUMENTOS-INTEGRACION.md.
+  documentos: {
+    // Base URL sin barra final (se concatena con /api/documento y /documentos).
+    // El entorno demo del microservicio NO está operativo: usamos PRODUCCIÓN y
+    // aislamos nuestros datos de prueba bajo la carpeta raíz `demo-lex-control`.
+    apiUrl: (
+      process.env.DOCUMENTOS_API_URL ?? "https://documentos.tecnovapp.com.co"
+    ).replace(/\/+$/, ""),
+    // Carpeta raíz {EMPRESA} bajo la que se agrupan TODOS los archivos de la
+    // plataforma en el microservicio. Las subcarpetas ({CARPETA}) las decide
+    // cada módulo en código (p. ej. "contratos").
+    empresa: process.env.DOCUMENTOS_EMPRESA ?? "demo-lex-control",
+    // Timeout de subida (ms): un archivo puede tardar más que una request normal.
+    timeoutMs: Number(process.env.DOCUMENTOS_TIMEOUT_MS ?? 30_000),
+  },
+
   // Integraciones con sistemas estatales (Fase A: Corte Constitucional vía API
   // pública Socrata de datos.gov.co). El `datasetId` debe apuntar al dataset real
   // de la relatoría; `appToken` es opcional (sube los límites de rate de Socrata).

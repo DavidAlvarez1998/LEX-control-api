@@ -33,7 +33,7 @@ const usuarios = prisma.usuario as unknown as {
 };
 
 /** Token raw y su hash sha256 tal como los guardaría el backend. */
-import { hashActivationToken } from "../src/modules/auth/auth.service";
+import { hashActivationToken, signToken } from "../src/modules/auth/auth.service";
 const RAW_TOKEN = "a".repeat(64);
 const pendingUser = (expires: Date) => ({
   id: "u1",
@@ -163,6 +163,44 @@ describe("POST /auth/login", () => {
       .send({ email: "admin@lex.com", password: "secret", audience: "ADMIN" });
     expect(res.status).toBe(200);
     expect(typeof res.body.token).toBe("string");
+  });
+});
+
+describe("GET /auth/me", () => {
+  it("401 sin token", async () => {
+    const res = await request(app).get("/auth/me");
+    expect(res.status).toBe(401);
+  });
+
+  it("200 devuelve el usuario FRESCO (roles actuales de BD)", async () => {
+    // Un mismo objeto sirve a requireAuth (activo/tv/empresa.activo/rolesEmpresa)
+    // y al handler /me (id/nombre/email/rol/esAdminEmpresa/empresa.nombre/roles).
+    usuarios.findUnique.mockResolvedValue({
+      id: "u2",
+      nombre: "Cliente",
+      email: "user@empresa.com",
+      rol: "USUARIO",
+      activo: true,
+      activationToken: null,
+      tokenVersion: 0,
+      empresaId: "e1",
+      esAdminEmpresa: false,
+      empresa: { nombre: "Acme", activo: true },
+      rolesEmpresa: [{ rolEmpresa: "CONTABLE" }],
+    });
+    const token = signToken({ sub: "u2", rol: "USUARIO", tv: 0 });
+    const res = await request(app)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: "u2",
+      email: "user@empresa.com",
+      rol: "USUARIO",
+      esAdminEmpresa: false,
+      empresa: "Acme",
+    });
+    expect(res.body.roles).toEqual(["CONTABLE"]);
   });
 });
 

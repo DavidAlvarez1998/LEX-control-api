@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../../index";
 import { asyncHandler } from "../../middleware/async";
 import { HttpError } from "../../middleware/error";
+import { requireAuth } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { loginSchema, setPasswordSchema } from "./auth.schemas";
 import {
@@ -68,6 +69,39 @@ authRoutes.post(
         // Nombre de la empresa del usuario (null para ADMIN de plataforma).
         empresa: usuario.empresa?.nombre ?? null,
       },
+    });
+  }),
+);
+
+/**
+ * GET /auth/me — devuelve el usuario autenticado con sus datos FRESCOS de BD
+ * (rol de plataforma, esAdminEmpresa, roles de empresa, empresa). El portal lo
+ * usa para refrescar la sesión cacheada: cuando un admin de empresa cambia los
+ * roles de un usuario, su sidebar y porteros se actualizan sin re-login. La
+ * forma del `user` coincide con la de /auth/login.
+ */
+authRoutes.get(
+  "/me",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: req.user!.sub },
+      include: {
+        empresa: { select: { nombre: true } },
+        rolesEmpresa: { select: { rolEmpresa: true } },
+      },
+    });
+    // requireAuth ya validó la cuenta; si desapareció entre medias, 401.
+    if (!usuario) throw new HttpError(401, "Token inválido o expirado");
+
+    res.json({
+      id: usuario.id,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      rol: usuario.rol,
+      esAdminEmpresa: usuario.esAdminEmpresa,
+      roles: usuario.rolesEmpresa.map((r) => r.rolEmpresa),
+      empresa: usuario.empresa?.nombre ?? null,
     });
   }),
 );

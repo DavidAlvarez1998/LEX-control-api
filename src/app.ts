@@ -7,6 +7,7 @@ import { catalogRoutes } from "./modules/catalog/catalog.router";
 import { clienteRoutes } from "./modules/clientes/clientes.router";
 import { comercialRoutes } from "./modules/comercial/comercial.router";
 import { contableRoutes } from "./modules/contable/contable.router";
+import { contratoRoutes } from "./modules/contratos/contratos.router";
 import { empresaRoutes } from "./modules/empresas/empresas.router";
 import { facturacionRoutes } from "./modules/facturacion/facturacion.router";
 import { litiganteRoutes } from "./modules/litigantes/litigantes.router";
@@ -43,6 +44,8 @@ export function createApp(): Express {
   app.use("/clientes", clienteRoutes);
   app.use("/comercial", comercialRoutes);
   app.use("/contable", contableRoutes);
+  // Módulo de contratos (RRHH del personal): despacho + comerciales de plataforma.
+  app.use("/contratos", contratoRoutes);
   app.use("/facturacion", facturacionRoutes);
   // Venta de la plataforma (CRM propio): prospectos + comisiones.
   app.use("/prospectos", prospectoRoutes);

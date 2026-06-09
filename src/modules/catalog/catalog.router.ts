@@ -10,10 +10,13 @@ import {
 import { HttpError } from "../../middleware/error";
 import { validate } from "../../middleware/validate";
 import {
+  areaIdParams,
+  createAreaSchema,
   createPlantillaSchema,
   createTipoProcesoSchema,
   plantillaIdParams,
   tipoIdParams,
+  updateAreaSchema,
   updatePlantillaSchema,
   updateTipoProcesoSchema,
 } from "./catalog.schemas";
@@ -38,16 +41,79 @@ function serializeTipo(t: TipoConAreas) {
   };
 }
 
-/** GET /catalogo/areas — áreas de práctica activas. */
+/**
+ * GET /catalogo/areas — áreas de práctica. Por defecto solo activas (lo que
+ * consumen los despachos). Un ADMIN puede pedir TODAS con `?incluirInactivas=1`
+ * para gestionarlas; a cualquier otro rol se le ignora ese parámetro.
+ */
 catalogRoutes.get(
   "/areas",
   requireAuth,
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const verTodas = req.user?.rol === Rol.ADMIN && req.query.incluirInactivas != null;
     const areas = await prisma.areaPractica.findMany({
-      where: { activo: true },
+      where: verTodas ? {} : { activo: true },
       orderBy: [{ orden: "asc" }, { nombre: "asc" }],
     });
     res.json(areas);
+  }),
+);
+
+/** POST /catalogo/areas — crea un área de práctica (solo ADMIN). */
+catalogRoutes.post(
+  "/areas",
+  requireAuth,
+  requireRole(Rol.ADMIN),
+  validate({ body: createAreaSchema }),
+  asyncHandler(async (req, res) => {
+    const { nombre, jurisdiccion, tipo, activo, orden } = req.body;
+    const slug = await slugAreaUnico(nombre);
+    const ordenFinal = orden ?? (await siguienteOrdenArea());
+    const area = await prisma.areaPractica.create({
+      data: { slug, nombre, jurisdiccion, tipo, activo, orden: ordenFinal },
+    });
+    res.status(201).json(area);
+  }),
+);
+
+/** PATCH /catalogo/areas/:id — edita un área (solo ADMIN). El slug es estable. */
+catalogRoutes.patch(
+  "/areas/:id",
+  requireAuth,
+  requireRole(Rol.ADMIN),
+  validate({ params: areaIdParams, body: updateAreaSchema }),
+  asyncHandler(async (req, res) => {
+    const existe = await prisma.areaPractica.findUnique({ where: { id: req.params.id } });
+    if (!existe) throw new HttpError(404, "Área de práctica no encontrada");
+    const area = await prisma.areaPractica.update({
+      where: { id: req.params.id },
+      data: req.body,
+    });
+    res.json(area);
+  }),
+);
+
+/**
+ * DELETE /catalogo/areas/:id — elimina un área (solo ADMIN). Se rechaza si tiene
+ * tipos de proceso asociados: en ese caso se debe DESACTIVAR (activo:false), no
+ * borrar, para no romper la taxonomía de los tipos existentes.
+ */
+catalogRoutes.delete(
+  "/areas/:id",
+  requireAuth,
+  requireRole(Rol.ADMIN),
+  validate({ params: areaIdParams }),
+  asyncHandler(async (req, res) => {
+    const area = await prisma.areaPractica.findUnique({
+      where: { id: req.params.id },
+      include: { _count: { select: { tipos: true } } },
+    });
+    if (!area) throw new HttpError(404, "Área de práctica no encontrada");
+    if (area._count.tipos > 0) {
+      throw new HttpError(409, "El área tiene tipos de proceso asociados; desactívala en vez de eliminarla");
+    }
+    await prisma.areaPractica.delete({ where: { id: req.params.id } });
+    res.status(204).end();
   }),
 );
 
@@ -319,6 +385,28 @@ async function resolverAreas(slugs: string[]): Promise<string[]> {
     throw new HttpError(400, "Una o más áreas de práctica no existen");
   }
   return areas.map((a) => a.id);
+}
+
+/** Deriva un slug estable a partir del nombre y le garantiza unicidad (-2, -3…). */
+async function slugAreaUnico(nombre: string): Promise<string> {
+  const base =
+    nombre
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "area";
+  let slug = base;
+  for (let i = 2; await prisma.areaPractica.findUnique({ where: { slug } }); i++) {
+    slug = `${base}-${i}`;
+  }
+  return slug;
+}
+
+/** Próximo `orden` (al final de la lista) para un área nueva sin orden explícito. */
+async function siguienteOrdenArea(): Promise<number> {
+  const max = await prisma.areaPractica.aggregate({ _max: { orden: true } });
+  return (max._max.orden ?? 0) + 1;
 }
 
 /** Toda acción `crearDerivado` debe apuntar a un tipo de proceso GLOBAL existente. */

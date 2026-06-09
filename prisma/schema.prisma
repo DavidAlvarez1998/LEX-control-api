@@ -79,6 +79,9 @@ model Empresa {
   cuentasBancarias CuentaBancaria[]
   cajasMenores     CajaMenor[]
 
+  // Módulo de contratos: contratos del personal de este despacho.
+  contratos Contrato[]
+
   @@map("empresas")
 }
 
@@ -124,6 +127,9 @@ model Usuario {
   // es responsable comercial.
   rolesEmpresa      UsuarioRolEmpresa[]
   clientesComercial Cliente[]
+
+  // Módulo de contratos: contratos de esta persona (despacho o comercial admin).
+  contratos Contrato[]
 
   @@index([empresaId])
   @@map("usuarios")
@@ -1492,4 +1498,111 @@ model Comision {
 
   @@index([comercialId, estado])
   @@map("comisiones")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Módulo de Contratos (RRHH del personal). Gestiona el ciclo contractual de las
+// personas que trabajan para la plataforma o un despacho. Un Contrato cuelga de
+// un `Usuario` GENÉRICO (opcional) para servir a dos ámbitos con un solo modelo:
+//   • Personal de despacho → empresaId = la empresa; lo gestiona su admin.
+//   • Comercial de plataforma → empresaId = null; lo gestiona el ADMIN global.
+//   • Externo sin login → sin usuarioId; el admin captura los datos a mano.
+// Se permite HISTORIAL: una persona puede tener varios contratos en el tiempo,
+// con uno en estado ACTIVO. Los archivos viven en la API documental externa
+// (tecnovapp); aquí solo se guarda el `path`. Ver MÓDULO CONTRATOS.docx.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum EstadoContrato {
+  ACTIVO
+  FINALIZADO
+  SUSPENDIDO
+}
+
+// Categoría del documento adjunto, según los grupos del doc (sección 2).
+enum CategoriaDocumento {
+  PERSONAL // cédula, hoja de vida, certificados
+  PROFESIONAL // tarjeta profesional, idoneidad, licencias
+  CONTRACTUAL // contrato firmado, otrosí, anexos
+  FINANCIERO // RUT, certificación bancaria, soportes de pago
+  LEGAL // confidencialidad, manuales, políticas
+}
+
+model Contrato {
+  id String @id @default(cuid())
+
+  // Vínculo flexible. usuarioId: SetNull conserva el contrato si se borra al
+  // usuario (preferir desactivar). empresaId null = personal de la plataforma
+  // (comerciales del admin); Cascade lo borra junto a su despacho.
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  empresaId String?
+  empresa   Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  // A. Datos del contratado
+  nombreCompleto  String
+  tipoDocumento   TipoDocumento?
+  numeroDocumento String?
+  fechaNacimiento DateTime?
+  direccion       String?
+  telefono        String?
+  email           String?
+
+  // B. Información laboral / contractual. Campos libres (String) donde el doc
+  // permite "otro → digitar"; el estado sí es enum cerrado.
+  tipoColaborador String? // Abogado / Dependiente / Contador / Comercial / otro
+  cargo           String?
+  tipoContrato    String? // Prestación de servicios / Laboral / Freelance / otro
+  fechaInicio     DateTime?
+  fechaFin        DateTime?
+  duracionValor   Int?
+  duracionUnidad  String? // DIA / MES / AÑO
+  estado          EstadoContrato @default(ACTIVO)
+
+  // C. Información económica (luego conecta con el módulo Contable).
+  honorarios     Decimal? @db.Decimal(12, 2)
+  formaPago      String? // Mensual / Por caso / Comisión
+  diaPago        Int? // día del mes en que se paga
+  bonificaciones String?
+  descuentos     String?
+  cuentaBancaria String?
+
+  // D. Funciones y responsabilidades.
+  descripcionCargo String? @db.Text
+  funciones        String? @db.Text
+  area             String? // jurídica / contable / comercial / administrativa / otro
+  supervisor       String?
+
+  // E. Control y seguimiento.
+  horario       String?
+  modalidad     String? // Presencial / Remoto / Híbrido
+  observaciones String? @db.Text
+
+  // F. Información legal.
+  clausulas       String? @db.Text // confidencialidad / no competencia / etc.
+  tipoTerminacion String?
+  penalidades     String? @db.Text
+
+  documentos DocumentoContrato[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([usuarioId])
+  @@index([empresaId])
+  @@index([estado])
+  @@map("contratos")
+}
+
+model DocumentoContrato {
+  id         String             @id @default(cuid())
+  contratoId String
+  contrato   Contrato           @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  categoria  CategoriaDocumento
+  nombre     String // etiqueta legible: "Cédula", "Hoja de vida", "Contrato firmado"…
+  path       String // ruta devuelta por la API documental (NO la URL completa)
+  tipo       String? // mime informativo
+  createdAt  DateTime           @default(now())
+
+  @@index([contratoId])
+  @@map("documentos_contrato")
 }

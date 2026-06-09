@@ -1,4 +1,4 @@
-import { Jurisdiccion } from "@prisma/client";
+import { Jurisdiccion, TipoAreaPractica } from "@prisma/client";
 import { z } from "zod";
 import { CAMPO_TIPOS } from "../procesos/esquema";
 
@@ -124,3 +124,22 @@ export const updatePlantillaSchema = z.object({
 });
 
 export const plantillaIdParams = z.object({ plantillaId: z.string().min(1) });
+
+// --- Áreas de práctica (catálogo global; solo ADMIN gestiona) ---
+export const createAreaSchema = z.object({
+  nombre: z.string().min(1),
+  jurisdiccion: z.nativeEnum(Jurisdiccion),
+  tipo: z.nativeEnum(TipoAreaPractica).default("PRACTICA"),
+  activo: z.boolean().default(true),
+  orden: z.number().int().optional(),
+});
+
+export const updateAreaSchema = z.object({
+  nombre: z.string().min(1).optional(),
+  jurisdiccion: z.nativeEnum(Jurisdiccion).optional(),
+  tipo: z.nativeEnum(TipoAreaPractica).optional(),
+  activo: z.boolean().optional(),
+  orden: z.number().int().optional(),
+});
+
+export const areaIdParams = z.object({ id: z.string().min(1) });
