@@ -12,12 +12,14 @@ import { validate } from "../../middleware/validate";
 import {
   createCajaSchema, createCarteraSchema, createCuentaSchema, createEgresoSchema,
   createIngresoSchema, createMovimientoSchema, createNominaSchema, createServicioFijoSchema,
+  createServicioFijoRecurrenteSchema, generarServiciosFijosSchema,
   idParams, reporteQuery, updateCajaSchema, updateCuentaSchema, updateEgresoSchema,
-  updateNominaSchema, updateServicioFijoSchema,
+  updateNominaSchema, updateServicioFijoSchema, updateServicioFijoRecurrenteSchema,
 } from "./contable.schemas";
 
+import { conSaldo, n } from "./cartera.service";
+
 export const contableRoutes: Router = Router();
-const n = (d: Prisma.Decimal | null | undefined) => Number(d ?? 0);
 
 // --- validadores same-empresa (las FK son escalares sin constraint en BD) ---
 async function assertCliente(empresaId: string, clienteId: string) {
@@ -175,13 +177,21 @@ contableRoutes.patch("/cajas/:id", requireAuth, requirePermiso("contable.cajamen
   }));
 
 // ===================== SERVICIOS FIJOS =====================
+// `vencido` es DERIVADO en lectura (fechaVencimiento < ahora y no PAGADO), nunca
+// guardado: un servicio pendiente cuya fecha ya pasó surge como vencido sin tocar
+// el estadoPago. Ver spec contable-serviciosfijos.
 contableRoutes.get("/servicios-fijos", requireAuth, requirePermiso("contable.serviciofijo.ver"),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
     const { periodo } = req.query as Record<string, string | undefined>;
-    res.json(await prisma.servicioFijo.findMany({
+    const filas = await prisma.servicioFijo.findMany({
       where: { empresaId, ...(periodo ? { periodo } : {}) }, orderBy: { periodo: "desc" },
-    }));
+    });
+    const ahora = new Date();
+    res.json(filas.map((s) => ({
+      ...s,
+      vencido: s.estadoPago !== "PAGADO" && s.fechaVencimiento != null && s.fechaVencimiento < ahora,
+    })));
   }));
 
 contableRoutes.post("/servicios-fijos", requireAuth, requirePermiso("contable.serviciofijo.crear"),
@@ -207,11 +217,90 @@ contableRoutes.patch("/servicios-fijos/:id", requireAuth, requirePermiso("contab
     res.json(await prisma.servicioFijo.findUnique({ where: { id: req.params.id } }));
   }));
 
+// ===================== SERVICIOS FIJOS RECURRENTES (plantillas) =====================
+// Calcula la fecha de vencimiento de un periodo 'YYYY-MM' para un día de pago,
+// recortando al último día del mes (p. ej. día 31 en febrero → 28/29). UTC para
+// no depender de la zona horaria del servidor.
+function fechaVencimientoDe(periodo: string, diaPago: number): Date {
+  const [y, m] = periodo.split("-").map(Number); // m: 1..12
+  const ultimoDia = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m - 1, Math.min(diaPago, ultimoDia)));
+}
+
+contableRoutes.get("/servicios-fijos-recurrentes", requireAuth, requirePermiso("contable.serviciofijo.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    res.json(await prisma.servicioFijoRecurrente.findMany({
+      where: { empresaId }, orderBy: [{ activo: "desc" }, { proveedor: "asc" }],
+    }));
+  }));
+
+contableRoutes.post("/servicios-fijos-recurrentes", requireAuth, requirePermiso("contable.serviciofijo.crear"),
+  validate({ body: createServicioFijoRecurrenteSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    if (req.body.cuentaId) await assertCuenta(empresaId, req.body.cuentaId);
+    try {
+      res.status(201).json(await prisma.servicioFijoRecurrente.create({ data: { ...req.body, empresaId } }));
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")
+        throw new HttpError(409, "Ya existe una plantilla para ese tipo de servicio y proveedor");
+      throw err;
+    }
+  }));
+
+contableRoutes.patch("/servicios-fijos-recurrentes/:id", requireAuth, requirePermiso("contable.serviciofijo.editar"),
+  validate({ params: idParams, body: updateServicioFijoRecurrenteSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    if (req.body.cuentaId) await assertCuenta(empresaId, req.body.cuentaId);
+    const { count } = await prisma.servicioFijoRecurrente.updateMany({ where: { id: req.params.id, empresaId }, data: req.body });
+    if (count === 0) throw new HttpError(404, "Plantilla no encontrada");
+    res.json(await prisma.servicioFijoRecurrente.findUnique({ where: { id: req.params.id } }));
+  }));
+
+// Genera/causa las instancias ServicioFijo de un periodo desde las plantillas
+// activas. MENSUAL aplica a todo periodo; ANUAL solo si el mes del periodo ==
+// mesPago. Idempotente: no duplica (respeta @@unique tipo+proveedor+periodo).
+contableRoutes.post("/servicios-fijos-recurrentes/generar", requireAuth, requirePermiso("contable.serviciofijo.crear"),
+  validate({ body: generarServiciosFijosSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { periodo } = req.body as { periodo: string };
+    const mes = Number(periodo.split("-")[1]); // 1..12
+    const plantillas = await prisma.servicioFijoRecurrente.findMany({ where: { empresaId, activo: true } });
+    const aplican = plantillas.filter((p) => p.frecuencia === "MENSUAL" || p.mesPago === mes);
+    const data = aplican.map((p) => ({
+      empresaId, periodo, tipoServicio: p.tipoServicio, proveedor: p.proveedor,
+      valorFacturado: p.valorEstimado, fechaVencimiento: fechaVencimientoDe(periodo, p.diaPago),
+      estadoPago: "PENDIENTE" as const, cuentaId: p.cuentaId, recurrenteId: p.id,
+    }));
+    const { count } = data.length
+      ? await prisma.servicioFijo.createMany({ data, skipDuplicates: true })
+      : { count: 0 };
+    res.json({ periodo, candidatas: aplican.length, generadas: count, omitidas: aplican.length - count });
+  }));
+
 // ===================== CUENTAS / BOLSAS =====================
 contableRoutes.get("/cuentas", requireAuth, requirePermiso("contable.cuenta.ver"),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
-    res.json(await prisma.cuentaBancaria.findMany({ where: { empresaId }, orderBy: { createdAt: "desc" } }));
+    const cuentas = await prisma.cuentaBancaria.findMany({ where: { empresaId }, orderBy: { createdAt: "desc" } });
+    // saldoActual derivado en lote (un groupBy por libro, evita N+1).
+    const [ing, egr, sf, nom] = await Promise.all([
+      prisma.ingreso.groupBy({ by: ["cuentaId"], _sum: { valorRecibido: true }, where: { empresaId, cuentaId: { not: null }, estadoPago: { in: ["PAGADO", "PARCIAL"] } } }),
+      prisma.egreso.groupBy({ by: ["cuentaId"], _sum: { valorGasto: true }, where: { empresaId, cuentaId: { not: null }, estadoGasto: "PAGADO" } }),
+      prisma.servicioFijo.groupBy({ by: ["cuentaId"], _sum: { valorFacturado: true }, where: { empresaId, cuentaId: { not: null }, estadoPago: "PAGADO" } }),
+      prisma.nomina.groupBy({ by: ["cuentaId"], _sum: { valorNetoPagar: true }, where: { empresaId, cuentaId: { not: null }, estadoPago: "PAGADO" } }),
+    ]);
+    const sumBy = (rows: { cuentaId: string | null; _sum: Record<string, unknown> }[], field: string) =>
+      new Map(rows.map((r) => [r.cuentaId, n(r._sum[field] as never)]));
+    const mIng = sumBy(ing, "valorRecibido"), mEgr = sumBy(egr, "valorGasto"),
+      mSf = sumBy(sf, "valorFacturado"), mNom = sumBy(nom, "valorNetoPagar");
+    res.json(cuentas.map((c) => ({
+      ...c,
+      saldoActual: n(c.saldoInicial) + (mIng.get(c.id) ?? 0) - (mEgr.get(c.id) ?? 0) - (mSf.get(c.id) ?? 0) - (mNom.get(c.id) ?? 0),
+    })));
   }));
 
 contableRoutes.post("/cuentas", requireAuth, requirePermiso("contable.cuenta.crear"),
@@ -221,18 +310,23 @@ contableRoutes.post("/cuentas", requireAuth, requirePermiso("contable.cuenta.cre
     res.status(201).json(await prisma.cuentaBancaria.create({ data: { ...req.body, empresaId } }));
   }));
 
-/** GET cuenta con saldoActual DERIVADO (saldoInicial + ingresos PAGADO - egresos PAGADO). */
+/** GET cuenta con saldoActual DERIVADO (saldoInicial + ingresos PAGADO - todos los
+ *  egresos PAGADO que salen de la bolsa: egresos + servicios fijos + nómina). */
 contableRoutes.get("/cuentas/:id", requireAuth, requirePermiso("contable.cuenta.ver"),
   validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
     const cuenta = await prisma.cuentaBancaria.findFirst({ where: { id: req.params.id, empresaId } });
     if (!cuenta) throw new HttpError(404, "Cuenta no encontrada");
-    const [ing, egr] = await Promise.all([
+    const [ing, egr, sf, nom] = await Promise.all([
       prisma.ingreso.aggregate({ _sum: { valorRecibido: true }, where: { empresaId, cuentaId: cuenta.id, estadoPago: { in: ["PAGADO", "PARCIAL"] } } }),
       prisma.egreso.aggregate({ _sum: { valorGasto: true }, where: { empresaId, cuentaId: cuenta.id, estadoGasto: "PAGADO" } }),
+      prisma.servicioFijo.aggregate({ _sum: { valorFacturado: true }, where: { empresaId, cuentaId: cuenta.id, estadoPago: "PAGADO" } }),
+      prisma.nomina.aggregate({ _sum: { valorNetoPagar: true }, where: { empresaId, cuentaId: cuenta.id, estadoPago: "PAGADO" } }),
     ]);
-    res.json({ ...cuenta, saldoActual: n(cuenta.saldoInicial) + n(ing._sum.valorRecibido) - n(egr._sum.valorGasto) });
+    const saldoActual = n(cuenta.saldoInicial) + n(ing._sum.valorRecibido)
+      - n(egr._sum.valorGasto) - n(sf._sum.valorFacturado) - n(nom._sum.valorNetoPagar);
+    res.json({ ...cuenta, saldoActual });
   }));
 
 contableRoutes.patch("/cuentas/:id", requireAuth, requirePermiso("contable.cuenta.editar"),
@@ -242,6 +336,28 @@ contableRoutes.patch("/cuentas/:id", requireAuth, requirePermiso("contable.cuent
     const { count } = await prisma.cuentaBancaria.updateMany({ where: { id: req.params.id, empresaId }, data: req.body });
     if (count === 0) throw new HttpError(404, "Cuenta no encontrada");
     res.json(await prisma.cuentaBancaria.findUnique({ where: { id: req.params.id } }));
+  }));
+
+// Borrar bolsa. `cuentaId` es escalar SIN FK (la BD no lo bloquea), así que la
+// app aplica el Restrict: no se borra si la referencia algún movimiento. La baja
+// blanda es estadoCuenta = INACTIVA. Ver spec contable-cuentas.
+contableRoutes.delete("/cuentas/:id", requireAuth, requirePermiso("contable.cuenta.editar"),
+  validate({ params: idParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const cuenta = await prisma.cuentaBancaria.findFirst({ where: { id: req.params.id, empresaId }, select: { id: true } });
+    if (!cuenta) throw new HttpError(404, "Cuenta no encontrada");
+    const [ing, egr, nom, sf, rec] = await Promise.all([
+      prisma.ingreso.count({ where: { empresaId, cuentaId: cuenta.id } }),
+      prisma.egreso.count({ where: { empresaId, cuentaId: cuenta.id } }),
+      prisma.nomina.count({ where: { empresaId, cuentaId: cuenta.id } }),
+      prisma.servicioFijo.count({ where: { empresaId, cuentaId: cuenta.id } }),
+      prisma.servicioFijoRecurrente.count({ where: { empresaId, cuentaId: cuenta.id } }),
+    ]);
+    if (ing + egr + nom + sf + rec > 0)
+      throw new HttpError(409, "No se puede borrar: la cuenta tiene movimientos asociados. Desactívala (estado INACTIVA) en su lugar.");
+    await prisma.cuentaBancaria.delete({ where: { id: cuenta.id } });
+    res.status(204).end();
   }));
 
 // ===================== CARTERA =====================
@@ -261,21 +377,6 @@ function totalDesdePlan(config: any, contrato: any): number | null {
   }
   return contrato.valorAcordado != null ? n(contrato.valorAcordado) : null;
 }
-
-/** valorPagado DERIVADO: por configuracionCobroId si existe, si no por (cliente, proceso). */
-async function valorPagado(c: { empresaId: string; configuracionCobroId: string | null; clienteId: string; procesoId: string | null }) {
-  const where = c.configuracionCobroId
-    ? { empresaId: c.empresaId, configuracionCobroId: c.configuracionCobroId, estadoPago: { in: ["PAGADO", "PARCIAL"] as never } }
-    : { empresaId: c.empresaId, clienteId: c.clienteId, ...(c.procesoId ? { procesoId: c.procesoId } : {}), estadoPago: { in: ["PAGADO", "PARCIAL"] as never } };
-  const agg = await prisma.ingreso.aggregate({ _sum: { valorRecibido: true }, where });
-  return n(agg._sum.valorRecibido);
-}
-
-const conSaldo = async (cartera: any) => {
-  const pagado = await valorPagado(cartera);
-  const total = cartera.valorTotalAcordado != null ? n(cartera.valorTotalAcordado) : null;
-  return { ...cartera, valorPagado: pagado, saldoPendiente: total != null ? total - pagado : null };
-};
 
 contableRoutes.get("/cartera", requireAuth, requirePermiso("contable.cartera.ver"),
   asyncHandler(async (req, res) => {

@@ -20,6 +20,10 @@ vi.mock("../src/index", () => ({
     etapaProceso: { create: vi.fn() },
     plantillaDocumento: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     documentoProceso: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    // requirePermiso: puerta de módulo (modulo/suscripcion) + RBAC (permiso.roles).
+    permiso: { findUnique: vi.fn() },
+    modulo: { findMany: vi.fn() },
+    suscripcion: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -37,6 +41,7 @@ const proceso = m.proceso;
 const areaPractica = m.areaPractica;
 const plantillaDocumento = m.plantillaDocumento;
 const documentoProceso = m.documentoProceso;
+const permiso = m.permiso;
 
 const token = signToken({ sub: "u1", rol: "USUARIO" });
 const adminToken = signToken({ sub: "a1", rol: "ADMIN" });
@@ -44,13 +49,26 @@ const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // requireAuth: el portador es un USUARIO del despacho "emp1".
+  // requireAuth: el portador es un USUARIO JURIDICO del despacho "emp1".
   usuario.findUnique.mockResolvedValue({
     activo: true,
     activationToken: null,
     tokenVersion: 0,
     empresaId: "emp1",
     esAdminEmpresa: false,
+    rolesEmpresa: [{ rolEmpresa: "JURIDICO" }],
+  });
+  // requirePermiso: módulo judicial (baseline) habilitado + RBAC concede a JURIDICO.
+  m.modulo.findMany.mockResolvedValue([{ clave: "judicial" }]);
+  m.suscripcion.findUnique.mockResolvedValue({
+    estado: "ACTIVA",
+    plan: { modulos: [], cuotas: [] },
+    modulos: [],
+    cuotas: [],
+  });
+  permiso.findUnique.mockResolvedValue({
+    modulo: { clave: "judicial" },
+    roles: [{ rolEmpresa: "JURIDICO" }],
   });
 });
 
@@ -541,5 +559,39 @@ describe("PATCH /procesos/:id — editar datos del formulario (gap datos)", () =
     proceso.findFirst.mockResolvedValue({ id: "tr1", tipoProceso: { esquemaFormulario: esquemaDdP } });
     const res = await request(app).patch("/procesos/tr1").set(auth(token)).send({ datos: { tipoPeticion: "Zzz" } });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("RBAC — COMERCIAL solo lectura, acotado a sus clientes", () => {
+  // Un COMERCIAL (sin JURIDICO ni admin de empresa) del despacho "emp1".
+  const comercial = {
+    activo: true, activationToken: null, tokenVersion: 0,
+    empresaId: "emp1", esAdminEmpresa: false,
+    rolesEmpresa: [{ rolEmpresa: "COMERCIAL" }],
+  };
+
+  it("GET / 200 y acota a sus clientes (responsable o responsableComercial)", async () => {
+    usuario.findUnique.mockResolvedValue(comercial);
+    permiso.findUnique.mockResolvedValue({ modulo: { clave: "judicial" }, roles: [{ rolEmpresa: "JURIDICO" }, { rolEmpresa: "COMERCIAL" }] });
+    proceso.count.mockResolvedValue(0);
+    proceso.findMany.mockResolvedValue([]);
+    const res = await request(app).get("/procesos").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(proceso.findMany.mock.calls[0][0].where).toHaveProperty("OR");
+  });
+
+  it("POST / 403 (no puede crear procesos)", async () => {
+    usuario.findUnique.mockResolvedValue(comercial);
+    permiso.findUnique.mockResolvedValue({ modulo: { clave: "judicial" }, roles: [{ rolEmpresa: "JURIDICO" }] });
+    const res = await request(app).post("/procesos").set(auth(token)).send({ titulo: "x", tipoProcesoId: "tt1" });
+    expect(res.status).toBe(403);
+    expect(proceso.create).not.toHaveBeenCalled();
+  });
+
+  it("PATCH /:id/etapa 403 (no puede mover etapas)", async () => {
+    usuario.findUnique.mockResolvedValue(comercial);
+    permiso.findUnique.mockResolvedValue({ modulo: { clave: "judicial" }, roles: [{ rolEmpresa: "JURIDICO" }] });
+    const res = await request(app).patch("/procesos/tr1/etapa").set(auth(token)).send({ etapaKey: "fallo" });
+    expect(res.status).toBe(403);
   });
 });

@@ -61,7 +61,12 @@ async function assertSameEmpresa(
   }
 }
 
-/** GET /clientes — lista del despacho (filtro opcional ?estado=). */
+/**
+ * GET /clientes — lista del despacho.
+ * Filtros opcionales: `?estado=`. Con `?mios=true` solo los del usuario actual:
+ * los que lleva comercialmente (responsableComercial) o de los que es abogado
+ * responsable en algún proceso — la unión, no un muro de visibilidad.
+ */
 clienteRoutes.get(
   "/",
   requireAuth,
@@ -70,8 +75,21 @@ clienteRoutes.get(
     const empresaId = empresaIdRequerido(req);
     const estado =
       typeof req.query.estado === "string" ? req.query.estado : undefined;
+    const mios = req.query.mios === "true";
+    const usuarioId = req.user!.sub;
     const clientes = await prisma.cliente.findMany({
-      where: { empresaId, ...(estado ? { estado: estado as never } : {}) },
+      where: {
+        empresaId,
+        ...(estado ? { estado: estado as never } : {}),
+        ...(mios
+          ? {
+              OR: [
+                { responsableComercialId: usuarioId },
+                { procesos: { some: { responsableId: usuarioId } } },
+              ],
+            }
+          : {}),
+      },
       orderBy: { fechaIngreso: "desc" },
     });
     res.json(clientes);

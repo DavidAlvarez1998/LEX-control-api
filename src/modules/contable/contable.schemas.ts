@@ -117,6 +117,39 @@ export const createServicioFijoSchema = z.object({
 });
 export const updateServicioFijoSchema = createServicioFijoSchema.partial();
 
+// --- Servicios fijos recurrentes (plantilla) ---
+const frecuenciaServicioFijo = z.enum(["MENSUAL", "ANUAL"]);
+export const createServicioFijoRecurrenteSchema = z
+  .object({
+    tipoServicio: tipoServicioFijo,
+    proveedor: z.string().trim().min(1),
+    valorEstimado: dinero,
+    frecuencia: frecuenciaServicioFijo.optional(), // default MENSUAL
+    diaPago: z.number().int().min(1).max(31),
+    mesPago: z.number().int().min(1).max(12).optional(),
+    cuentaId: z.string().min(1).optional(),
+    activo: z.boolean().optional(),
+    observaciones: z.string().trim().min(1).optional(),
+  })
+  // ANUAL exige mesPago; MENSUAL lo ignora.
+  .refine((d) => d.frecuencia !== "ANUAL" || d.mesPago != null, {
+    message: "mesPago es obligatorio cuando la frecuencia es ANUAL",
+    path: ["mesPago"],
+  });
+export const updateServicioFijoRecurrenteSchema = z
+  .object({
+    tipoServicio: tipoServicioFijo.optional(),
+    proveedor: z.string().trim().min(1).optional(),
+    valorEstimado: dinero.optional(),
+    frecuencia: frecuenciaServicioFijo.optional(),
+    diaPago: z.number().int().min(1).max(31).optional(),
+    mesPago: z.number().int().min(1).max(12).nullable().optional(),
+    cuentaId: z.string().min(1).nullable().optional(),
+    activo: z.boolean().optional(),
+    observaciones: z.string().trim().min(1).nullable().optional(),
+  });
+export const generarServiciosFijosSchema = z.object({ periodo });
+
 // --- Cuentas / bolsas ---
 export const createCuentaSchema = z.object({
   entidadBancaria: z.string().trim().min(1),

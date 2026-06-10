@@ -16,18 +16,52 @@ export const idParams = z.object({ id: z.string().min(1) });
 const dinero = z.number().nonnegative();
 const porcentaje = z.number().min(0).max(100);
 
-// --- Seguimiento ---
+// --- Seguimiento (también sirve de ítem de AGENDA: titulo + comercialId dueño) ---
 export const createSeguimientoSchema = z.object({
   clienteId: z.string().min(1),
   tipoGestion,
+  titulo: z.string().trim().min(1).optional(),
   motivoContacto: z.string().trim().min(1).optional(),
   resultado: z.string().trim().min(1).optional(),
   proximaTarea: z.string().trim().min(1).optional(),
   fechaProximaTarea: z.coerce.date().optional(),
   estadoSeguimiento: estadoSeguimiento.optional(),
   observaciones: z.string().trim().min(1).optional(),
+  comercialId: z.string().min(1).optional(), // dueño; solo el ADMIN puede fijar otro
 });
 export const updateSeguimientoSchema = createSeguimientoSchema.omit({ clienteId: true }).partial();
+
+// --- Agenda (calendario del comercial sobre los seguimientos con fechaProximaTarea) ---
+export const agendaQuery = z.object({
+  desde: z.coerce.date().optional(),
+  hasta: z.coerce.date().optional(),
+  comercialId: z.string().min(1).optional(), // solo el ADMIN filtra por otro
+  incluirCompletadas: z.coerce.boolean().optional(),
+});
+export const completarSeguimientoSchema = z.object({
+  resultado: z.string().trim().min(1).optional(),
+  fechaCompletada: z.coerce.date().optional(),
+});
+export const cancelarSeguimientoSchema = z.object({
+  motivo: z.string().trim().min(1),
+});
+
+// --- Comisión interna del despacho (MANUAL; la registra el ADMINISTRADOR) ---
+const estadoComision = z.enum(["PENDIENTE", "PAGADA", "ANULADA"]);
+export const createComisionSchema = z.object({
+  clienteId: z.string().min(1),
+  comercialId: z.string().min(1),
+  contratoId: z.string().min(1).optional(),
+  baseCalculo: dinero,
+  porcentaje: porcentaje.optional(),
+  monto: dinero,
+  estado: estadoComision.optional(),
+  fechaPago: z.coerce.date().optional(),
+  notas: z.string().trim().min(1).optional(),
+});
+export const updateComisionSchema = createComisionSchema
+  .omit({ clienteId: true, comercialId: true })
+  .partial();
 
 // --- Fase (mover) ---
 export const moverFaseSchema = z.object({

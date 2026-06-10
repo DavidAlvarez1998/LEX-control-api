@@ -12,8 +12,12 @@ import { convertirCliente, findOrCreateLitiganteByDoc } from "../clientes/client
 import { type EtapaDef, etapaEntrada } from "../procesos/esquema";
 import { generarCodigoInterno } from "../procesos/procesos.service";
 import {
+  agendaQuery,
   asignarSolicitudSchema,
+  cancelarSeguimientoSchema,
+  completarSeguimientoSchema,
   configCobroSchema,
+  createComisionSchema,
   createContratoSchema,
   createCotizacionSchema,
   createSeguimientoSchema,
@@ -21,10 +25,12 @@ import {
   idParams,
   moverFaseSchema,
   rechazarSolicitudSchema,
+  updateComisionSchema,
   updateContratoSchema,
   updateCotizacionSchema,
   updateSeguimientoSchema,
 } from "./comercial.schemas";
+import { conSaldo } from "../contable/cartera.service";
 
 export const comercialRoutes: Router = Router();
 
@@ -64,8 +70,10 @@ comercialRoutes.post(
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
     await assertCliente(empresaId, req.body.clienteId);
+    // Dueño (agenda): por defecto el usuario actual; solo el admin de empresa puede fijar otro.
+    const comercialId = req.esAdminEmpresa && req.body.comercialId ? req.body.comercialId : req.user!.sub;
     const seguimiento = await prisma.seguimientoComercial.create({
-      data: { ...req.body, empresaId, registradoPorId: req.user!.sub },
+      data: { ...req.body, comercialId, empresaId, registradoPorId: req.user!.sub },
     });
     res.status(201).json(seguimiento);
   }),
@@ -78,9 +86,107 @@ comercialRoutes.patch(
   validate({ params: idParams, body: updateSeguimientoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
+    const data = { ...req.body };
+    if (!req.esAdminEmpresa) delete data.comercialId; // solo el admin reasigna dueño
     const { count } = await prisma.seguimientoComercial.updateMany({
       where: { id: req.params.id, empresaId },
-      data: req.body,
+      data,
+    });
+    if (count === 0) throw new HttpError(404, "Seguimiento no encontrado");
+    res.json(await prisma.seguimientoComercial.findUnique({ where: { id: req.params.id } }));
+  }),
+);
+
+// ===================== AGENDA (calendario del comercial) =====================
+const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const endOfDay = (d: Date) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
+
+// Resumen del cliente para pintar el calendario (nombre + teléfono para WhatsApp).
+const CLIENTE_RESUMEN = { id: true, nombre: true, telefono: true } as const;
+
+comercialRoutes.get(
+  "/agenda",
+  requireAuth,
+  requirePermiso("comercial.seguimiento.ver"),
+  validate({ query: agendaQuery }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const q = agendaQuery.parse(req.query);
+    const hoy = new Date();
+    const desde = startOfDay(q.desde ?? hoy);
+    const hasta = endOfDay(q.hasta ?? q.desde ?? hoy);
+    // Dueño: el comercial (no-admin) siempre el suyo; el admin de empresa puede filtrar por uno.
+    const comercialId = req.esAdminEmpresa ? q.comercialId : req.user!.sub;
+    const dueño = comercialId ? { comercialId } : {};
+    const enrich = { cliente: { select: CLIENTE_RESUMEN } };
+    const pendiente = { completada: false, canceladaEn: null };
+
+    const items = await prisma.seguimientoComercial.findMany({
+      where: { empresaId, ...dueño, ...(q.incluirCompletadas ? {} : pendiente), fechaProximaTarea: { gte: desde, lte: hasta } },
+      orderBy: { fechaProximaTarea: "asc" },
+      include: enrich,
+    });
+
+    // Vencidas: pendientes con fecha anterior al rango (solo si el rango arranca hoy o después).
+    const verVencidas = desde >= startOfDay(hoy);
+    const vencidas = verVencidas
+      ? await prisma.seguimientoComercial.findMany({
+          where: { empresaId, ...dueño, ...pendiente, fechaProximaTarea: { lt: desde, not: null } },
+          orderBy: { fechaProximaTarea: "asc" },
+          include: enrich,
+        })
+      : [];
+
+    res.json({ desde, hasta, items, vencidas });
+  }),
+);
+
+comercialRoutes.post(
+  "/seguimientos/:id/completar",
+  requireAuth,
+  requirePermiso("comercial.seguimiento.editar"),
+  validate({ params: idParams, body: completarSeguimientoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { count } = await prisma.seguimientoComercial.updateMany({
+      where: { id: req.params.id, empresaId },
+      data: {
+        completada: true,
+        fechaCompletada: req.body.fechaCompletada ?? new Date(),
+        ...(req.body.resultado ? { resultado: req.body.resultado } : {}),
+      },
+    });
+    if (count === 0) throw new HttpError(404, "Seguimiento no encontrado");
+    res.json(await prisma.seguimientoComercial.findUnique({ where: { id: req.params.id } }));
+  }),
+);
+
+comercialRoutes.post(
+  "/seguimientos/:id/cancelar",
+  requireAuth,
+  requirePermiso("comercial.seguimiento.editar"),
+  validate({ params: idParams, body: cancelarSeguimientoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { count } = await prisma.seguimientoComercial.updateMany({
+      where: { id: req.params.id, empresaId },
+      data: { canceladaEn: new Date(), motivoCancelacion: req.body.motivo, completada: false, fechaCompletada: null },
+    });
+    if (count === 0) throw new HttpError(404, "Seguimiento no encontrado");
+    res.json(await prisma.seguimientoComercial.findUnique({ where: { id: req.params.id } }));
+  }),
+);
+
+comercialRoutes.post(
+  "/seguimientos/:id/reabrir",
+  requireAuth,
+  requirePermiso("comercial.seguimiento.editar"),
+  validate({ params: idParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { count } = await prisma.seguimientoComercial.updateMany({
+      where: { id: req.params.id, empresaId },
+      data: { completada: false, fechaCompletada: null, canceladaEn: null, motivoCancelacion: null },
     });
     if (count === 0) throw new HttpError(404, "Seguimiento no encontrado");
     res.json(await prisma.seguimientoComercial.findUnique({ where: { id: req.params.id } }));
@@ -555,5 +661,80 @@ comercialRoutes.post(
     });
     if (count === 0) throw new HttpError(409, "La solicitud no existe o ya fue resuelta");
     res.json(await prisma.solicitudAsignacionProceso.findUnique({ where: { id: req.params.id } }));
+  }),
+);
+
+// ===================== CARTERA (resumen de cobro en la ficha) =====================
+/** GET /comercial/clientes/:id/cartera — resumen de cobro del cliente (solo lectura).
+ *  Bajo el módulo comercial (NO exige el módulo contable); reusa la derivación de saldos. */
+comercialRoutes.get(
+  "/clientes/:id/cartera",
+  requireAuth,
+  requirePermiso("comercial.cobro.ver"),
+  validate({ params: idParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    await assertCliente(empresaId, req.params.id);
+    const filas = await prisma.cartera.findMany({
+      where: { empresaId, clienteId: req.params.id },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(await Promise.all(filas.map(conSaldo)));
+  }),
+);
+
+// ===================== COMISIONES (internas del despacho, MANUAL) =====================
+/** GET /comercial/comisiones — el ADMINISTRADOR ve todas (filtros opcionales);
+ *  el COMERCIAL solo las suyas (acotado por comercialId = su id). */
+comercialRoutes.get(
+  "/comisiones",
+  requireAuth,
+  requirePermiso("comercial.comision.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { clienteId, comercialId, estado } = req.query as Record<string, string | undefined>;
+    // Acotamiento por fila (RBAC no lo expresa): un no-admin solo ve lo suyo.
+    const dueño = req.esAdminEmpresa ? (comercialId ? { comercialId } : {}) : { comercialId: req.user!.sub };
+    const comisiones = await prisma.comisionDespacho.findMany({
+      where: { empresaId, ...dueño, ...(clienteId ? { clienteId } : {}), ...(estado ? { estado: estado as never } : {}) },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(comisiones);
+  }),
+);
+
+/** POST /comercial/comisiones — (solo ADMINISTRADOR vía RBAC). */
+comercialRoutes.post(
+  "/comisiones",
+  requireAuth,
+  requirePermiso("comercial.comision.crear"),
+  validate({ body: createComisionSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    await assertCliente(empresaId, req.body.clienteId);
+    // El comercial debe ser un usuario de la empresa.
+    const u = await prisma.usuario.findFirst({ where: { id: req.body.comercialId, empresaId }, select: { id: true } });
+    if (!u) throw new HttpError(400, "El comercial no pertenece a tu empresa");
+    const comision = await prisma.comisionDespacho.create({
+      data: { ...req.body, empresaId, registradoPorId: req.user!.sub },
+    });
+    res.status(201).json(comision);
+  }),
+);
+
+/** PATCH /comercial/comisiones/:id — (solo ADMINISTRADOR vía RBAC). */
+comercialRoutes.patch(
+  "/comisiones/:id",
+  requireAuth,
+  requirePermiso("comercial.comision.editar"),
+  validate({ params: idParams, body: updateComisionSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const { count } = await prisma.comisionDespacho.updateMany({
+      where: { id: req.params.id, empresaId },
+      data: req.body,
+    });
+    if (count === 0) throw new HttpError(404, "Comisión no encontrada");
+    res.json(await prisma.comisionDespacho.findUnique({ where: { id: req.params.id } }));
   }),
 );

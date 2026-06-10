@@ -31,9 +31,15 @@ const PERMISOS: { clave: string; nombre: string; modulo: string }[] = [
 // Matriz RBAC por defecto: qué rol concede cada permiso (ADMINISTRADOR igual lo
 // corta por short-circuit, pero se siembra explícito).
 const RBAC: Record<string, RolEmpresa[]> = {
-  "cliente.ver": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL],
-  "cliente.crear": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL],
-  "cliente.editar": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL],
+  // CONTABLE incluido (solo lectura): facturar exige elegir un cliente (la vista
+  // /facturacion carga el listado para el desplegable).
+  // JURIDICO incluido (ver/crear/editar): el abogado ve TODA la cartera del
+  // despacho (cobertura + chequeo de conflictos de interés, estándar Clio/MyCase)
+  // y puede registrar/editar clientes. `convertir` (paso del embudo comercial)
+  // sigue siendo ADMINISTRADOR + COMERCIAL.
+  "cliente.ver": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL, RolEmpresa.CONTABLE, RolEmpresa.JURIDICO],
+  "cliente.crear": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL, RolEmpresa.JURIDICO],
+  "cliente.editar": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL, RolEmpresa.JURIDICO],
   "cliente.convertir": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL],
 };
 
@@ -59,6 +65,11 @@ const COMERCIAL: { clave: string; nombre: string; soloAdmin?: boolean }[] = [
   { clave: "comercial.solicitud.asignar", nombre: "Asignar proceso a abogado", soloAdmin: true },
   { clave: "comercial.solicitud.rechazar", nombre: "Rechazar solicitud", soloAdmin: true },
   { clave: "comercial.alertas.ver", nombre: "Ver alertas comerciales" },
+  // Comisiones internas del despacho (MANUAL): el ADMINISTRADOR las registra/edita;
+  // el COMERCIAL solo VE (acotado a sí mismo en el router). Ver comercial-rol-portal.
+  { clave: "comercial.comision.ver", nombre: "Ver comisiones del despacho" },
+  { clave: "comercial.comision.crear", nombre: "Registrar comisión", soloAdmin: true },
+  { clave: "comercial.comision.editar", nombre: "Editar comisión", soloAdmin: true },
 ];
 for (const c of COMERCIAL) {
   PERMISOS.push({ clave: c.clave, nombre: c.nombre, modulo: "comercial" });
@@ -107,6 +118,20 @@ const FACTURACION: { clave: string; nombre: string }[] = [
 for (const f of FACTURACION) {
   PERMISOS.push({ clave: f.clave, nombre: f.nombre, modulo: "contable" });
   RBAC[f.clave] = [RolEmpresa.ADMINISTRADOR, RolEmpresa.CONTABLE];
+}
+
+// --- Procesos (módulo "judicial", baseline → siempre habilitado; solo aplica la
+//     puerta RBAC). Lectura: JURIDICO + COMERCIAL (para ver el caso de su cliente) +
+//     ADMINISTRADOR. Escritura: solo JURIDICO + ADMINISTRADOR. Ver comercial-rol-portal. ---
+const JUDICIAL: { clave: string; nombre: string; editar?: boolean }[] = [
+  { clave: "proceso.ver", nombre: "Ver procesos" },
+  { clave: "proceso.editar", nombre: "Editar procesos", editar: true },
+];
+for (const j of JUDICIAL) {
+  PERMISOS.push({ clave: j.clave, nombre: j.nombre, modulo: "judicial" });
+  RBAC[j.clave] = j.editar
+    ? [RolEmpresa.JURIDICO, RolEmpresa.ADMINISTRADOR]
+    : [RolEmpresa.JURIDICO, RolEmpresa.COMERCIAL, RolEmpresa.ADMINISTRADOR];
 }
 
 // --- Planes (precioMensual COP congelado; bufete_pro = valor COP de 1 SMMLV 2025).
@@ -221,8 +246,16 @@ async function main() {
     });
   }
 
+  // 7) BACKFILL — agenda comercial: el dueño de un seguimiento previo = quien lo
+  //    registró. Solo toca filas sin comercialId (idempotente). Ver comercial-rol-portal.
+  const seguimientosBackfilled = await prisma.$executeRaw`
+    UPDATE seguimientos_comerciales
+    SET comercialId = registradoPorId
+    WHERE comercialId IS NULL AND registradoPorId IS NOT NULL`;
+
   console.log(
     JSON.stringify({
+      seguimientosBackfilled,
       modulos: await prisma.modulo.count(),
       permisos: await prisma.permiso.count(),
       rolEmpresaPermisos: await prisma.rolEmpresaPermiso.count(),

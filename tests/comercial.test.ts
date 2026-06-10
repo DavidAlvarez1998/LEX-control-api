@@ -3,13 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/index", () => {
   const prisma: any = {
-    usuario: { findUnique: vi.fn() },
+    usuario: { findUnique: vi.fn(), findFirst: vi.fn() },
     cliente: { findFirst: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), findMany: vi.fn() },
     solicitudAsignacionProceso: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     usuarioRolEmpresa: { findFirst: vi.fn() },
     proceso: { create: vi.fn(), count: vi.fn() },
     parteProceso: { create: vi.fn() },
     seguimientoComercial: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
+    comisionDespacho: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
+    cartera: { findMany: vi.fn() },
+    ingreso: { aggregate: vi.fn() },
     faseComercialHistorial: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
     cotizacion: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
     contratoComercial: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
@@ -261,5 +264,92 @@ describe("puente: solicitud de asignación", () => {
     expect(p.solicitudAsignacionProceso.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ estado: "RECHAZADA" }) }),
     );
+  });
+});
+
+// El cuenta por defecto es admin de empresa; para los casos "solo comercial"
+// se re-mockea usuario.findUnique con un COMERCIAL no-admin.
+const comercialNoAdmin = { ...cuenta, esAdminEmpresa: false, rolesEmpresa: [{ rolEmpresa: "COMERCIAL" }] };
+
+describe("comisiones internas del despacho", () => {
+  it("GET acota al propio comercial cuando NO es admin de empresa", async () => {
+    p.usuario.findUnique.mockResolvedValue(comercialNoAdmin);
+    p.comisionDespacho.findMany.mockResolvedValue([]);
+    const res = await request(app).get("/comercial/comisiones").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(p.comisionDespacho.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ empresaId: "eA", comercialId: "cli1" }) }),
+    );
+  });
+
+  it("GET admin ve todas (sin filtro por comercialId)", async () => {
+    p.comisionDespacho.findMany.mockResolvedValue([]);
+    const res = await request(app).get("/comercial/comisiones").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(p.comisionDespacho.findMany.mock.calls[0][0].where.comercialId).toBeUndefined();
+  });
+
+  it("403 si un COMERCIAL no-admin intenta crear", async () => {
+    p.usuario.findUnique.mockResolvedValue(comercialNoAdmin);
+    p.permiso.findUnique.mockResolvedValue({ modulo: { clave: "comercial" }, roles: [{ rolEmpresa: "ADMINISTRADOR" }] });
+    const res = await request(app).post("/comercial/comisiones").set(auth(token))
+      .send({ clienteId: "c1", comercialId: "cli1", baseCalculo: 1000000, monto: 100000 });
+    expect(res.status).toBe(403);
+    expect(p.comisionDespacho.create).not.toHaveBeenCalled();
+  });
+
+  it("201 admin crea (fuerza empresaId + registradoPorId)", async () => {
+    p.cliente.findFirst.mockResolvedValue({ id: "c1" });
+    p.usuario.findFirst.mockResolvedValue({ id: "cli1" });
+    p.comisionDespacho.create.mockResolvedValue({ id: "cm1" });
+    const res = await request(app).post("/comercial/comisiones").set(auth(token))
+      .send({ clienteId: "c1", comercialId: "cli1", baseCalculo: 1000000, monto: 100000 });
+    expect(res.status).toBe(201);
+    expect(p.comisionDespacho.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ empresaId: "eA", registradoPorId: "cli1" }) }),
+    );
+  });
+});
+
+describe("cartera (resumen de cobro en la ficha)", () => {
+  it("200 devuelve saldo derivado (total - pagado)", async () => {
+    p.cliente.findFirst.mockResolvedValue({ id: "c1" });
+    p.cartera.findMany.mockResolvedValue([
+      { id: "k1", valorTotalAcordado: 1000000, configuracionCobroId: "cc1", clienteId: "c1", procesoId: null, empresaId: "eA" },
+    ]);
+    p.ingreso.aggregate.mockResolvedValue({ _sum: { valorRecibido: 400000 } });
+    const res = await request(app).get("/comercial/clientes/c1/cartera").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({ valorPagado: 400000, saldoPendiente: 600000 });
+  });
+});
+
+describe("agenda comercial", () => {
+  it("200 acota al comercial propio (no admin)", async () => {
+    p.usuario.findUnique.mockResolvedValue(comercialNoAdmin);
+    p.seguimientoComercial.findMany.mockResolvedValue([]);
+    const res = await request(app).get("/comercial/agenda?desde=2026-06-01&hasta=2026-06-30").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(p.seguimientoComercial.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ comercialId: "cli1" }) }),
+    );
+  });
+
+  it("completar marca completada + resultado", async () => {
+    p.seguimientoComercial.updateMany.mockResolvedValue({ count: 1 });
+    p.seguimientoComercial.findUnique.mockResolvedValue({ id: "s1", completada: true });
+    const res = await request(app).post("/comercial/seguimientos/s1/completar").set(auth(token))
+      .send({ resultado: "Habló con el cliente" });
+    expect(res.status).toBe(200);
+    expect(p.seguimientoComercial.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ completada: true, resultado: "Habló con el cliente" }) }),
+    );
+  });
+
+  it("404 al cancelar un seguimiento inexistente", async () => {
+    p.seguimientoComercial.updateMany.mockResolvedValue({ count: 0 });
+    const res = await request(app).post("/comercial/seguimientos/nope/cancelar").set(auth(token))
+      .send({ motivo: "ya no aplica" });
+    expect(res.status).toBe(404);
   });
 });

@@ -73,11 +73,12 @@ model Empresa {
 
   // Contable: tablas "hoja" sin ancla en Cliente cuelgan directo de Empresa
   // (única ruta de cascada → seguro errno-150). Ver openspec/changes/contable-module/.
-  egresos          Egreso[]
-  nominas          Nomina[]
-  serviciosFijos   ServicioFijo[]
-  cuentasBancarias CuentaBancaria[]
-  cajasMenores     CajaMenor[]
+  egresos                   Egreso[]
+  nominas                   Nomina[]
+  serviciosFijos            ServicioFijo[]
+  serviciosFijosRecurrentes ServicioFijoRecurrente[]
+  cuentasBancarias          CuentaBancaria[]
+  cajasMenores              CajaMenor[]
 
   // Módulo de contratos: contratos del personal de este despacho.
   contratos Contrato[]
@@ -738,6 +739,7 @@ model Cliente {
   cotizaciones         Cotizacion[]
   contratosComerciales ContratoComercial[]
   solicitudesProceso   SolicitudAsignacionProceso[]
+  comisionesDespacho   ComisionDespacho[]
 
   // Módulo contable: ingresos y cartera se anclan al Cliente.
   ingresos Ingreso[]
@@ -838,7 +840,9 @@ enum EstadoSolicitud {
 }
 
 // Bitácora de contactos con el prospecto (append-only). Fuente de las alertas
-// sin-seguimiento / tarea-vencida / cita-hoy.
+// sin-seguimiento / tarea-vencida / cita-hoy. Además sirve de AGENDA del comercial:
+// un seguimiento con `fechaProximaTarea` es un ítem agendado (completar/cancelar/
+// reabrir), con `comercialId` como dueño. Ver openspec/changes/comercial-rol-portal/.
 model SeguimientoComercial {
   id                String               @id @default(cuid())
   empresaId         String // desnormalizado, sin FK
@@ -852,6 +856,13 @@ model SeguimientoComercial {
   estadoSeguimiento EstadoSeguimiento    @default(PENDIENTE)
   observaciones     String?              @db.Text
   registradoPorId   String? // escalar, sin FK
+  // Agenda: dueño (escalar sin FK; backfill = registradoPorId), título y estado de la cita.
+  comercialId       String?
+  titulo            String?
+  completada        Boolean              @default(false)
+  fechaCompletada   DateTime?
+  canceladaEn       DateTime?
+  motivoCancelacion String?              @db.Text
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 
@@ -860,7 +871,41 @@ model SeguimientoComercial {
   @@index([clienteId, fechaContacto])
   @@index([empresaId, fechaProximaTarea])
   @@index([empresaId, estadoSeguimiento])
+  @@index([empresaId, comercialId, fechaProximaTarea])
   @@map("seguimientos_comerciales")
+}
+
+enum EstadoComisionDespacho {
+  PENDIENTE
+  PAGADA
+  ANULADA
+}
+
+// Comisión INTERNA del despacho a su comercial por un cliente cerrado. MANUAL: la
+// registra el ADMINISTRADOR de la empresa; el COMERCIAL solo ve las suyas. Distinta
+// de `Comision` (plataforma: LEX→despacho). Ver openspec/changes/comercial-rol-portal/.
+model ComisionDespacho {
+  id              String                 @id @default(cuid())
+  empresaId       String // desnormalizado, sin FK
+  clienteId       String
+  comercialId     String // escalar sin FK -> Usuario (quien cerró)
+  contratoId      String? // escalar sin FK -> ContratoComercial (origen, opcional)
+  baseCalculo     Decimal                @db.Decimal(14, 2)
+  porcentaje      Decimal?               @db.Decimal(5, 2) // null = monto fijo
+  monto           Decimal                @db.Decimal(14, 2)
+  estado          EstadoComisionDespacho @default(PENDIENTE)
+  fechaPago       DateTime?
+  notas           String?                @db.Text
+  registradoPorId String? // escalar sin FK (auditoría: el ADMIN que la registró)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, estado])
+  @@index([comercialId, estado])
+  @@index([clienteId])
+  @@map("comisiones_despacho")
 }
 
 // Pipeline del embudo (append-only). La fase ACTUAL = la única fila del cliente
@@ -1115,6 +1160,11 @@ enum EstadoServicioFijo {
   VENCIDO
 }
 
+enum FrecuenciaServicioFijo {
+  MENSUAL
+  ANUAL
+}
+
 enum TipoCuentaBancaria {
   AHORROS
   CORRIENTE
@@ -1289,6 +1339,7 @@ model ServicioFijo {
   fechaPago         DateTime?
   estadoPago        EstadoServicioFijo @default(PENDIENTE)
   cuentaId          String? // escalar, sin FK
+  recurrenteId      String? // escalar, sin FK: plantilla que generó esta instancia
   soporteFacturaUrl String?
   observaciones     String?            @db.Text
   createdAt         DateTime           @default(now())
@@ -1299,7 +1350,33 @@ model ServicioFijo {
   @@unique([empresaId, tipoServicio, proveedor, periodo])
   @@index([empresaId, periodo])
   @@index([empresaId, estadoPago, fechaVencimiento])
+  @@index([empresaId, recurrenteId])
   @@map("servicios_fijos")
+}
+
+// Plantilla de servicio fijo RECURRENTE. Hoja de Empresa. Define la regla una
+// vez (frecuencia + día/mes de pago) y desde aquí se GENERAN/causan las
+// instancias `ServicioFijo` por periodo con su fechaVencimiento calculada.
+model ServicioFijoRecurrente {
+  id            String                 @id @default(cuid())
+  empresaId     String
+  tipoServicio  TipoServicioFijo
+  proveedor     String
+  valorEstimado Decimal                @db.Decimal(14, 2)
+  frecuencia    FrecuenciaServicioFijo @default(MENSUAL)
+  diaPago       Int // 1..31 — día del mes en que vence
+  mesPago       Int? // 1..12 — solo ANUAL: mes en que vence cada año
+  cuentaId      String? // escalar, sin FK: bolsa pagadora por defecto
+  activo        Boolean                @default(true)
+  observaciones String?                @db.Text
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, tipoServicio, proveedor])
+  @@index([empresaId, activo])
+  @@map("servicios_fijos_recurrentes")
 }
 
 // Bolsas / cuentas bancarias. Hoja de Empresa. saldoActual DERIVADO.

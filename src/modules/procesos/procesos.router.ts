@@ -2,7 +2,7 @@ import { Router } from "express";
 import { EstadoProceso, Prisma, RolEmpresa } from "@prisma/client";
 import { prisma } from "../../index";
 import { asyncHandler } from "../../middleware/async";
-import { empresaIdRequerido, requireAuth } from "../../middleware/auth";
+import { empresaIdRequerido, requireAuth, requirePermiso } from "../../middleware/auth";
 import { HttpError } from "../../middleware/error";
 import { validate } from "../../middleware/validate";
 import {
@@ -38,10 +38,21 @@ const detalleInclude = {
   documentos: { orderBy: { createdAt: "desc" } },
 } as const;
 
+/** Un COMERCIAL (sin JURIDICO ni admin de empresa) solo ve los procesos de SUS clientes:
+ *  donde es responsable o responsable comercial del cliente. Mismo criterio que /clientes?mios. */
+function soloMisClientes(req: import("express").Request): Prisma.ProcesoWhereInput | null {
+  const roles = req.rolesEmpresa ?? [];
+  const restringido = !req.esAdminEmpresa && roles.includes(RolEmpresa.COMERCIAL) && !roles.includes(RolEmpresa.JURIDICO);
+  if (!restringido) return null;
+  const uid = req.user!.sub;
+  return { OR: [{ responsableId: uid }, { cliente: { responsableComercialId: uid } }] };
+}
+
 /** GET /procesos — procesos del despacho, con filtros y paginación. */
 procesoRoutes.get(
   "/",
   requireAuth,
+  requirePermiso("proceso.ver"),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
     const page = Math.max(1, Number(req.query.page) || 1);
@@ -59,6 +70,8 @@ procesoRoutes.get(
         ? { partes: { some: { litiganteId: String(req.query.litiganteId) } } }
         : {}),
     };
+    const scope = soloMisClientes(req);
+    if (scope) Object.assign(where, scope);
 
     const [total, procesos] = await Promise.all([
       prisma.proceso.count({ where }),
@@ -100,10 +113,12 @@ procesoRoutes.get(
 procesoRoutes.get(
   "/vencimientos",
   requireAuth,
+  requirePermiso("proceso.ver"),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
+    const scope = soloMisClientes(req);
     const procesos = await prisma.proceso.findMany({
-      where: { empresaId, estado: { notIn: ["CERRADO", "ARCHIVADO"] } },
+      where: { empresaId, estado: { notIn: ["CERRADO", "ARCHIVADO"] }, ...(scope ?? {}) },
       select: {
         id: true,
         codigoInterno: true,
@@ -139,6 +154,7 @@ procesoRoutes.get(
 procesoRoutes.get(
   "/:id",
   requireAuth,
+  requirePermiso("proceso.ver"),
   validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -155,6 +171,7 @@ procesoRoutes.get(
 procesoRoutes.post(
   "/",
   requireAuth,
+  requirePermiso("proceso.editar"),
   validate({ body: createProcesoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -285,6 +302,7 @@ procesoRoutes.post(
 procesoRoutes.patch(
   "/:id/etapa",
   requireAuth,
+  requirePermiso("proceso.editar"),
   validate({ params: procesoIdParams, body: moverEtapaSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -382,6 +400,7 @@ procesoRoutes.patch(
 procesoRoutes.post(
   "/:id/derivar",
   requireAuth,
+  requirePermiso("proceso.editar"),
   validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -447,6 +466,7 @@ procesoRoutes.post(
 procesoRoutes.patch(
   "/:id",
   requireAuth,
+  requirePermiso("proceso.editar"),
   validate({ params: procesoIdParams, body: updateProcesoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -519,6 +539,7 @@ procesoRoutes.patch(
 procesoRoutes.get(
   "/:id/plantillas",
   requireAuth,
+  requirePermiso("proceso.ver"),
   validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -540,6 +561,7 @@ procesoRoutes.get(
 procesoRoutes.post(
   "/:id/documentos",
   requireAuth,
+  requirePermiso("proceso.editar"),
   validate({ params: procesoIdParams, body: adjuntarDocumentoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -559,6 +581,7 @@ procesoRoutes.post(
 procesoRoutes.post(
   "/:id/documentos/generar",
   requireAuth,
+  requirePermiso("proceso.editar"),
   validate({ params: procesoIdParams, body: generarDocumentoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -591,6 +614,7 @@ procesoRoutes.post(
 procesoRoutes.patch(
   "/:id/documentos/:docId",
   requireAuth,
+  requirePermiso("proceso.editar"),
   validate({ params: documentoIdParams, body: updateDocumentoSchema }),
   asyncHandler(async (req, res) => {
     const doc = await cargarDocumento(req);
@@ -609,6 +633,7 @@ procesoRoutes.patch(
 procesoRoutes.delete(
   "/:id/documentos/:docId",
   requireAuth,
+  requirePermiso("proceso.editar"),
   validate({ params: documentoIdParams }),
   asyncHandler(async (req, res) => {
     const doc = await cargarDocumento(req);
