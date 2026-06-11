@@ -295,6 +295,10 @@ model TipoProceso {
   empresaKey        String // empresaId ?? "" (sentinela del unique)
   origenId          String? // si el despacho clonó un tipo global
   activo            Boolean      @default(true)
+  // ¿Va ante un juez? true (default) → proceso judicial: lleva radicado de 23
+  // dígitos, despacho/juzgado y cuantía. false → trámite ante una entidad (p. ej.
+  // Derecho de Petición): la UI oculta esos "datos judiciales".
+  esJudicial        Boolean      @default(true)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

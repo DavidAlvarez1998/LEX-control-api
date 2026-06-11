@@ -34,6 +34,7 @@
     "nombre": "Derecho de Petición",
     "descripcion": "Derecho fundamental a presentar peticiones respetuosas ante autoridades y particulares y obtener pronta resolución (art. 23 C.P.; Ley 1755/2015). Términos: general 15 días hábiles, documentos/información 10, consultas 30.",
     "jurisdiccion": "CONSTITUCIONAL",
+    "esJudicial": false,
     "areaSlugs": ["constitucional"],
     "esquemaFormulario": [
       { "key": "entidad", "label": "Entidad o particular destinatario", "tipo": "texto", "requerido": true },
@@ -45,14 +46,25 @@
       { "key": "envio", "label": "Medio de envío", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"] },
       { "key": "fechaRadicacion", "label": "Fecha de radicación", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corre el término de respuesta." },
       { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false },
-      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] }
+      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] },
+
+      { "key": "fechaRespuesta", "label": "Fecha de la respuesta", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
+      { "key": "numeroRespuesta", "label": "N.º de oficio/radicado de la respuesta", "tipo": "texto", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
+      { "key": "respuestaDeFondo", "label": "¿Resolvió de fondo lo solicitado?", "tipo": "select", "requerido": false, "opciones": ["Sí", "No"], "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
+      { "key": "observacionesRespuesta", "label": "Observaciones de la respuesta", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
+
+      { "key": "fechaRespuestaParcial", "label": "Fecha de la respuesta parcial", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "requeridoSi": { "campo": "contestaron", "igualA": "PARCIAL" } },
+      { "key": "queFalto", "label": "¿Qué quedó sin responder?", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "requeridoSi": { "campo": "contestaron", "igualA": "PARCIAL" } },
+      { "key": "fechaReiteracion", "label": "Fecha de reiteración / insistencia", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "PARCIAL" } },
+
+      { "key": "observacionNoRespuesta", "label": "Observación del incumplimiento", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "NO" } }
     ],
     "etapas": [
-      { "key": "borrador", "nombre": "Elaboración de la petición", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "tipoPeticion", "queSolicita"], "documentosRequeridos": ["peticion.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }] } },
-      { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
-      { "key": "respondida", "nombre": "Respondida", "orden": 2, "terminal": true, "disponibleSi": { "campo": "contestaron", "igualA": "SI" }, "resultado": "La entidad respondió de fondo dentro del término." },
-      { "key": "reiteracion", "nombre": "Reiteración (respuesta parcial)", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "reglas": { "documentosRequeridos": ["reiteracion.pdf"] } },
-      { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": "NO" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela" } },
+      { "key": "borrador", "nombre": "Elaboración de la petición", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "tipoPeticion", "queSolicita"] } },
+      { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "documentosRequeridos": ["peticion.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
+      { "key": "respondida", "nombre": "Respondida", "orden": 2, "terminal": true, "disponibleSi": { "campo": "contestaron", "igualA": "SI" }, "reglas": { "camposRequeridos": ["fechaRespuesta", "respuestaDeFondo"] }, "resultado": "La entidad respondió de fondo dentro del término." },
+      { "key": "reiteracion", "nombre": "Reiteración (respuesta parcial)", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "reglas": { "camposRequeridos": ["fechaRespuestaParcial", "queFalto"], "documentosRequeridos": ["reiteracion.pdf"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Derecho de Petición", "copiarDatos": ["entidad", "correo", "tipoPeticion", "queSolicita", "detalle", "requierePoder"], "copiarCliente": true } },
+      { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": "NO" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela", "copiarCliente": true } },
       { "key": "terminada", "nombre": "Terminación", "orden": 4, "terminal": true, "resultado": "Petición terminada." }
     ]
   },

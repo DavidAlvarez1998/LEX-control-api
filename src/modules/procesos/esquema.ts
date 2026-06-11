@@ -47,7 +47,12 @@ export type ReglasEtapa = {
   plazoDiasPorValorDe?: { campo: string; mapa: Record<string, number> }; // término según otro campo
 };
 
-export type AccionEtapa = { tipo: "crearDerivado"; tipoDestinoNombre: string };
+export type AccionEtapa = {
+  tipo: "crearDerivado";
+  tipoDestinoNombre: string;
+  copiarDatos?: string[]; // keys de datos a copiar del proceso base al derivado
+  copiarCliente?: boolean; // arrastra el mismo cliente/peticionario como parte
+};
 
 export type EtapaDef = {
   key: string;

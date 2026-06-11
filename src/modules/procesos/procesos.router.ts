@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { EstadoProceso, Prisma, RolEmpresa } from "@prisma/client";
+import { EstadoProceso, Prisma, RolEmpresa, RolParte } from "@prisma/client";
 import { prisma } from "../../index";
 import { asyncHandler } from "../../middleware/async";
 import { empresaIdRequerido, requireAuth, requirePermiso } from "../../middleware/auth";
@@ -26,8 +26,21 @@ import {
 import { generarCodigoInterno } from "./procesos.service";
 import { construirContexto, renderPlantilla } from "./plantilla";
 import { convertirCliente } from "../clientes/clientes.service";
+import { construirUrlDocumento, subirDocumento } from "../documentos/documentos.client";
+import multer from "multer";
 
 export const procesoRoutes: Router = Router();
+
+// Subida de archivos del expediente (en memoria; el binario va a tecnovapp).
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+/** Resuelve la URL pública de cada documento del proceso: `url` guarda un enlace
+ *  absoluto (adjunto por enlace) o la ruta relativa de tecnovapp (archivo subido);
+ *  en ambos casos construirUrlDocumento devuelve la URL lista para abrir. */
+function serializeDetalle<T extends { documentos?: { url: string | null }[] }>(p: T | null): T | null {
+  if (!p || !p.documentos) return p;
+  return { ...p, documentos: p.documentos.map((d) => ({ ...d, url: construirUrlDocumento(d.url) })) } as T;
+}
 
 const detalleInclude = {
   tipoProceso: { include: { areas: { include: { area: true } } } },
@@ -150,6 +163,125 @@ procesoRoutes.get(
   }),
 );
 
+/**
+ * POST /procesos/calcular-vencimiento — calcula (sin crear nada) la fecha límite
+ * que tendría un proceso de `tipoProcesoId` con los `datos` dados, usando la etapa
+ * que define un plazo (p. ej. "Radicación" del DdP). Para mostrar el vencimiento
+ * en vivo en el formulario. Se declara ANTES de `/:id` para no ser capturada.
+ */
+procesoRoutes.post(
+  "/calcular-vencimiento",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { tipoProcesoId, datos } = req.body as { tipoProcesoId?: string; datos?: Record<string, unknown> };
+    if (!tipoProcesoId) throw new HttpError(400, "Falta tipoProcesoId");
+    const empresaId = req.empresaId ?? null;
+    const tipo = await prisma.tipoProceso.findUnique({
+      where: { id: tipoProcesoId },
+      select: { empresaId: true, etapas: true },
+    });
+    if (!tipo || (tipo.empresaId !== null && tipo.empresaId !== empresaId)) {
+      throw new HttpError(404, "Tipo de proceso no encontrado");
+    }
+    const etapas = tipo.etapas as unknown as EtapaDef[];
+    const conPlazo = etapas.find((e) => e.reglas?.plazoDesdeCampo);
+    const reglas = conPlazo?.reglas;
+    const datosIn = datos ?? {};
+    const fechaLimite = reglas ? derivarFechaLimite(reglas, datosIn) : null;
+    // Nº de días del término (para mostrarlo junto a la fecha).
+    let dias: number | null = null;
+    if (reglas?.plazoDiasPorValorDe) {
+      const v = String(datosIn[reglas.plazoDiasPorValorDe.campo] ?? "");
+      dias = reglas.plazoDiasPorValorDe.mapa[v] ?? null;
+    } else if (typeof reglas?.plazoDias === "number") {
+      dias = reglas.plazoDias;
+    }
+    res.json({
+      fechaLimite: fechaLimite ? fechaLimite.toISOString() : null,
+      dias: dias != null && Number.isFinite(dias) ? dias : null,
+      tipoDias: reglas?.plazoTipoDias ?? null,
+      etapaKey: conPlazo?.key ?? null,
+    });
+  }),
+);
+
+/**
+ * GET /procesos/:id/caso — la cadena completa del caso al que pertenece el proceso:
+ * sube hasta la raíz (casoRelacionadoId = null) y recoge todos los descendientes (BFS
+ * por `derivados`). Devuelve nodos mínimos ordenados (raíz → hojas) para la barra de
+ * caso (p. ej. DdP → DdP reiteración → Tutela). Tenant-scoped por empresaId.
+ */
+procesoRoutes.get(
+  "/:id/caso",
+  requireAuth,
+  requirePermiso("proceso.ver"),
+  validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const select = {
+      id: true,
+      codigoInterno: true,
+      titulo: true,
+      estado: true,
+      etapaActual: true,
+      fechaLimite: true,
+      casoRelacionadoId: true,
+      createdAt: true,
+      tipoProceso: { select: { nombre: true, esJudicial: true } },
+    } as const;
+
+    const inicial = await prisma.proceso.findFirst({ where: { id: req.params.id, empresaId }, select });
+    if (!inicial) throw new HttpError(404, "Proceso no encontrado");
+
+    // Subir hasta la raíz del caso (con guarda anti-ciclo).
+    let raiz = inicial;
+    const vistos = new Set<string>([raiz.id]);
+    while (raiz.casoRelacionadoId) {
+      const padre = await prisma.proceso.findFirst({
+        where: { id: raiz.casoRelacionadoId, empresaId },
+        select,
+      });
+      if (!padre || vistos.has(padre.id)) break;
+      vistos.add(padre.id);
+      raiz = padre;
+    }
+
+    // BFS de descendientes desde la raíz (orden raíz → hojas).
+    const orden: (typeof inicial)[] = [raiz];
+    const enLista = new Set<string>([raiz.id]);
+    const cola: string[] = [raiz.id];
+    while (cola.length) {
+      const actual = cola.shift()!;
+      const hijos = await prisma.proceso.findMany({
+        where: { empresaId, casoRelacionadoId: actual },
+        select,
+        orderBy: { createdAt: "asc" },
+      });
+      for (const h of hijos) {
+        if (enLista.has(h.id)) continue;
+        enLista.add(h.id);
+        orden.push(h);
+        cola.push(h.id);
+      }
+    }
+
+    res.json(
+      orden.map((p) => ({
+        id: p.id,
+        codigoInterno: p.codigoInterno,
+        titulo: p.titulo,
+        tipoProcesoNombre: p.tipoProceso.nombre,
+        esJudicial: p.tipoProceso.esJudicial,
+        estado: p.estado,
+        etapaActual: p.etapaActual,
+        fechaLimite: p.fechaLimite,
+        casoRelacionadoId: p.casoRelacionadoId,
+        createdAt: p.createdAt,
+      })),
+    );
+  }),
+);
+
 /** GET /procesos/:id — un proceso del despacho con todo su detalle. */
 procesoRoutes.get(
   "/:id",
@@ -163,7 +295,7 @@ procesoRoutes.get(
       include: detalleInclude,
     });
     if (!proceso) throw new HttpError(404, "Proceso no encontrado");
-    res.json(proceso);
+    res.json(serializeDetalle(proceso));
   }),
 );
 
@@ -294,7 +426,7 @@ procesoRoutes.post(
       return tx.proceso.findUnique({ where: { id: creado.id }, include: detalleInclude });
     });
 
-    res.status(201).json(proceso);
+    res.status(201).json(serializeDetalle(proceso));
   }),
 );
 
@@ -388,7 +520,7 @@ procesoRoutes.patch(
         include: detalleInclude,
       });
     });
-    res.json(actualizado);
+    res.json(serializeDetalle(actualizado));
   }),
 );
 
@@ -439,7 +571,25 @@ procesoRoutes.post(
     const entrada = etapaEntrada(tipoDestino.etapas as unknown as EtapaDef[]);
     if (!entrada) throw new HttpError(400, "El tipo destino no define etapas");
 
+    // Carry-over de datos: solo las keys declaradas en la acción que existan en el base
+    // (p. ej. reiteración del DdP copia entidad/tipoPeticion/queSolicita…, no la respuesta).
+    const baseDatos = proceso.datos as Record<string, unknown>;
+    const datosCopiados: Record<string, unknown> = {};
+    for (const k of accion.copiarDatos ?? []) {
+      if (baseDatos[k] !== undefined) datosCopiados[k] = baseDatos[k];
+    }
+
     const derivado = await prisma.$transaction(async (tx) => {
+      // Mismo peticionario/cliente como parte (si la acción lo pide).
+      let clienteCopia: { clienteId: string; litiganteId: string } | null = null;
+      if (accion.copiarCliente && proceso.clienteId) {
+        const cli = await tx.cliente.findFirst({ where: { id: proceso.clienteId, empresaId } });
+        if (cli) {
+          const litiganteId = cli.litiganteId ?? (await convertirCliente(tx, cli));
+          clienteCopia = { clienteId: cli.id, litiganteId };
+        }
+      }
+
       const codigoInterno = await generarCodigoInterno(tx, empresaId);
       const creado = await tx.proceso.create({
         data: {
@@ -449,16 +599,29 @@ procesoRoutes.post(
           tipoEsquemaVersion: tipoDestino.esquemaVersion,
           jurisdiccion: tipoDestino.jurisdiccion,
           casoRelacionadoId: proceso.id,
+          clienteId: clienteCopia?.clienteId,
           creadoPorId: req.user!.sub,
           titulo: `${tipoDestino.nombre} — ${proceso.titulo}`,
-          datos: {},
+          datos: datosCopiados as Prisma.InputJsonValue,
           etapaActual: entrada.key,
           historial: { create: { etapaKey: entrada.key, usuarioId: req.user!.sub } },
         },
       });
+      // El cliente entra como parte (esNuestroCliente). Rol según el tipo destino.
+      if (clienteCopia) {
+        await tx.parteProceso.create({
+          data: {
+            procesoId: creado.id,
+            litiganteId: clienteCopia.litiganteId,
+            esNuestroCliente: true,
+            rol: tipoDestino.esJudicial ? RolParte.ACCIONANTE : RolParte.OTRO,
+            rolEtiqueta: tipoDestino.esJudicial ? undefined : "Peticionario",
+          },
+        });
+      }
       return tx.proceso.findUnique({ where: { id: creado.id }, include: detalleInclude });
     });
-    res.status(201).json(derivado);
+    res.status(201).json(serializeDetalle(derivado));
   }),
 );
 
@@ -529,7 +692,7 @@ procesoRoutes.patch(
       data,
       include: detalleInclude,
     });
-    res.json(proceso);
+    res.json(serializeDetalle(proceso));
   }),
 );
 
@@ -607,6 +770,45 @@ procesoRoutes.post(
       },
     });
     res.status(201).json(doc);
+  }),
+);
+
+/**
+ * POST /procesos/:id/documentos/subir — sube un archivo (multipart) a la API
+ * documental (tecnovapp) y lo registra como documento del expediente. El binario
+ * vive en el microservicio; en BD guardamos solo la `path` (en la columna `url`,
+ * que construirUrlDocumento resuelve a URL pública). Usado p. ej. para el poder
+ * del Derecho de Petición, que se sube con nombre "poder.pdf" para satisfacer la
+ * regla `documentosRequeridos` condicional de la etapa.
+ */
+procesoRoutes.post(
+  "/:id/documentos/subir",
+  requireAuth,
+  requirePermiso("proceso.editar"),
+  upload.single("file"),
+  validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const proceso = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      select: { id: true, codigoInterno: true },
+    });
+    if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+    if (!req.file) throw new HttpError(400, "No se recibió ningún archivo");
+
+    const nombre =
+      (typeof req.body.nombre === "string" && req.body.nombre.trim()) || req.file.originalname;
+    const subido = await subirDocumento({
+      archivo: req.file.buffer,
+      nombreArchivo: req.file.originalname,
+      documento: proceso.codigoInterno ?? proceso.id,
+      carpeta: "procesos",
+      tipo: req.file.mimetype,
+    });
+    const doc = await prisma.documentoProceso.create({
+      data: { procesoId: proceso.id, nombre, url: subido.path },
+    });
+    res.status(201).json({ ...doc, url: construirUrlDocumento(doc.url) });
   }),
 );
 

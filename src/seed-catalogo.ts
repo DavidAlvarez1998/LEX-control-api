@@ -41,6 +41,7 @@ type TipoSeed = {
   nombre: string;
   descripcion: string;
   jurisdiccion: Jurisdiccion;
+  esJudicial?: boolean; // default true; false = trámite ante entidad (DdP)
   areaSlugs: string[];
   esquemaFormulario: Prisma.InputJsonValue;
   etapas: Prisma.InputJsonValue;
@@ -82,6 +83,7 @@ async function main() {
           data: {
             descripcion: t.descripcion,
             jurisdiccion: t.jurisdiccion,
+            esJudicial: t.esJudicial ?? true,
             esquemaFormulario: t.esquemaFormulario,
             etapas: t.etapas,
             esquemaVersion: { increment: 1 },
@@ -96,6 +98,7 @@ async function main() {
           nombre: t.nombre,
           descripcion: t.descripcion,
           jurisdiccion: t.jurisdiccion,
+          esJudicial: t.esJudicial ?? true,
           esquemaFormulario: t.esquemaFormulario,
           etapas: t.etapas,
           empresaId: null,

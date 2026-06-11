@@ -37,6 +37,7 @@ function serializeTipo(t: TipoConAreas) {
     etapas: t.etapas,
     esquemaVersion: t.esquemaVersion,
     empresaId: t.empresaId,
+    esJudicial: t.esJudicial,
     areaSlugs: t.areas.map((a) => a.area.slug),
   };
 }
@@ -188,6 +189,7 @@ catalogRoutes.post(
           nombre: data.nombre,
           descripcion: data.descripcion,
           jurisdiccion: data.jurisdiccion,
+          esJudicial: data.esJudicial ?? true,
           esquemaFormulario: data.esquemaFormulario,
           etapas: data.etapas,
           empresaId,
@@ -229,6 +231,7 @@ catalogRoutes.patch(
           nombre: data.nombre,
           descripcion: data.descripcion,
           jurisdiccion: data.jurisdiccion,
+          ...(data.esJudicial !== undefined ? { esJudicial: data.esJudicial } : {}),
           esquemaFormulario: data.esquemaFormulario,
           etapas: data.etapas,
           esquemaVersion: { increment: 1 },

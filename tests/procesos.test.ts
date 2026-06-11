@@ -28,10 +28,18 @@ vi.mock("../src/index", () => ({
   },
 }));
 
+// Mock SOLO de subirDocumento (no red); construirUrlDocumento queda real.
+vi.mock("../src/modules/documentos/documentos.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../src/modules/documentos/documentos.client")>();
+  return { ...actual, subirDocumento: vi.fn() };
+});
+
 import request from "supertest";
 import { createApp } from "../src/app";
 import { prisma } from "../src/index";
 import { signToken } from "../src/modules/auth/auth.service";
+import { subirDocumento } from "../src/modules/documentos/documentos.client";
 
 const app = createApp();
 const m = prisma as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
@@ -42,6 +50,7 @@ const areaPractica = m.areaPractica;
 const plantillaDocumento = m.plantillaDocumento;
 const documentoProceso = m.documentoProceso;
 const permiso = m.permiso;
+const subir = subirDocumento as unknown as ReturnType<typeof vi.fn>;
 
 const token = signToken({ sub: "u1", rol: "USUARIO" });
 const adminToken = signToken({ sub: "a1", rol: "ADMIN" });
@@ -513,6 +522,48 @@ describe("POST /procesos/:id/derivar — escalar a tutela (Fase 3)", () => {
   });
 });
 
+describe("POST /procesos/:id/derivar — carry-over (reiteración)", () => {
+  const baseEtapas = [
+    { key: "reiteracion", nombre: "Reiteración", orden: 2, accion: { tipo: "crearDerivado", tipoDestinoNombre: "Derecho de Petición", copiarDatos: ["entidad", "tipoPeticion"], copiarCliente: true } },
+  ];
+  const ddpDestino = { id: "tt-ddp", empresaId: null, esJudicial: false, esquemaVersion: 3, jurisdiccion: "CONSTITUCIONAL", nombre: "Derecho de Petición", etapas: [{ key: "borrador", orden: 0 }] };
+
+  it("copia solo los datos declarados + el mismo cliente como parte (rol Peticionario)", async () => {
+    proceso.findFirst
+      .mockResolvedValueOnce({ id: "tr1", titulo: "DdP Uno", etapaActual: "reiteracion", clienteId: "cli1", datos: { entidad: "Alcaldía", tipoPeticion: "General", contestaron: "PARCIAL" }, tipoProceso: { etapas: baseEtapas } })
+      .mockResolvedValueOnce(null); // sin derivado previo
+    tipoProceso.findFirst.mockResolvedValue(ddpDestino);
+    proceso.count.mockResolvedValue(0);
+    m.cliente.findFirst.mockResolvedValue({ id: "cli1", litiganteId: "lit1" });
+    m.$transaction.mockImplementation(async (cb: (tx: typeof m) => unknown) => cb(m));
+    proceso.create.mockResolvedValue({ id: "deriv1" });
+    m.parteProceso.create.mockResolvedValue({});
+    proceso.findUnique.mockResolvedValue({ id: "deriv1", casoRelacionadoId: "tr1" });
+
+    const res = await request(app).post("/procesos/tr1/derivar").set(auth(token));
+    expect(res.status).toBe(201);
+    // datos: solo las keys de copiarDatos (NO contestaron).
+    expect(proceso.create.mock.calls[0][0].data.datos).toEqual({ entidad: "Alcaldía", tipoPeticion: "General" });
+    expect(proceso.create.mock.calls[0][0].data).toMatchObject({ clienteId: "cli1", casoRelacionadoId: "tr1" });
+    // el cliente entra como parte; rol no-judicial = OTRO/Peticionario.
+    expect(m.parteProceso.create.mock.calls[0][0].data).toMatchObject({ litiganteId: "lit1", esNuestroCliente: true, rol: "OTRO", rolEtiqueta: "Peticionario" });
+  });
+});
+
+describe("GET /procesos/:id/caso — cadena del caso", () => {
+  it("devuelve la cadena raíz→hojas (DdP → reiteración)", async () => {
+    const tp = { nombre: "Derecho de Petición", esJudicial: false };
+    const A = { id: "A", codigoInterno: "DP-1", titulo: "Uno", estado: "ABIERTO", etapaActual: "respondida", fechaLimite: null, casoRelacionadoId: null, createdAt: new Date(), tipoProceso: tp };
+    const B = { id: "B", codigoInterno: "DP-2", titulo: "Dos", estado: "ABIERTO", etapaActual: "borrador", fechaLimite: null, casoRelacionadoId: "A", createdAt: new Date(), tipoProceso: tp };
+    proceso.findFirst.mockResolvedValueOnce(B).mockResolvedValueOnce(A); // inicial=B, luego padre=A
+    proceso.findMany.mockResolvedValueOnce([B]).mockResolvedValueOnce([]); // hijos de A, luego de B
+    const res = await request(app).get("/procesos/B/caso").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body.map((n: { codigoInterno: string }) => n.codigoInterno)).toEqual(["DP-1", "DP-2"]);
+    expect(res.body[0].tipoProcesoNombre).toBe("Derecho de Petición");
+  });
+});
+
 describe("GET /procesos/vencimientos — semáforo (Fase 3)", () => {
   it("clasifica en vencido / por_vencer / al_dia y aísla por despacho", async () => {
     const ahora = new Date();
@@ -593,5 +644,61 @@ describe("RBAC — COMERCIAL solo lectura, acotado a sus clientes", () => {
     permiso.findUnique.mockResolvedValue({ modulo: { clave: "judicial" }, roles: [{ rolEmpresa: "JURIDICO" }] });
     const res = await request(app).patch("/procesos/tr1/etapa").set(auth(token)).send({ etapaKey: "fallo" });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("POST /procesos/:id/documentos/subir (subida de archivo a tecnovapp)", () => {
+  it("201 sube el archivo y lo registra guardando la path en `url`", async () => {
+    proceso.findFirst.mockResolvedValue({ id: "p1", codigoInterno: "DP-2026-0001" });
+    subir.mockResolvedValue({ path: "DEMO/PROCESOS/2026/06/poder.pdf", filename: "poder.pdf", url: "ignored" });
+    documentoProceso.create.mockResolvedValue({ id: "d1", nombre: "poder.pdf", url: "DEMO/PROCESOS/2026/06/poder.pdf" });
+    const res = await request(app)
+      .post("/procesos/p1/documentos/subir")
+      .set(auth(token))
+      .field("nombre", "poder.pdf")
+      .attach("file", Buffer.from("%PDF"), "mi_poder.pdf");
+    expect(res.status).toBe(201);
+    // carpeta del módulo + identificador del dueño (codigoInterno) van a tecnovapp.
+    expect(subir).toHaveBeenCalledWith(
+      expect.objectContaining({ carpeta: "procesos", documento: "DP-2026-0001" }),
+    );
+    expect(documentoProceso.create.mock.calls[0][0].data).toMatchObject({
+      procesoId: "p1",
+      nombre: "poder.pdf",
+      url: "DEMO/PROCESOS/2026/06/poder.pdf",
+    });
+    // La respuesta trae la URL pública resuelta desde la path.
+    expect(res.body.url).toContain("/documentos/DEMO/PROCESOS/2026/06/poder.pdf");
+  });
+
+  it("404 si el proceso no es del despacho (no sube nada)", async () => {
+    proceso.findFirst.mockResolvedValue(null);
+    const res = await request(app)
+      .post("/procesos/p9/documentos/subir")
+      .set(auth(token))
+      .attach("file", Buffer.from("x"), "p.pdf");
+    expect(res.status).toBe(404);
+    expect(subir).not.toHaveBeenCalled();
+  });
+
+  it("400 si no se adjunta archivo", async () => {
+    proceso.findFirst.mockResolvedValue({ id: "p1", codigoInterno: "DP-1" });
+    const res = await request(app).post("/procesos/p1/documentos/subir").set(auth(token));
+    expect(res.status).toBe(400);
+    expect(subir).not.toHaveBeenCalled();
+  });
+
+  it("403 si el rol no tiene proceso.editar (p. ej. COMERCIAL)", async () => {
+    usuario.findUnique.mockResolvedValue({
+      activo: true, activationToken: null, tokenVersion: 0,
+      empresaId: "emp1", esAdminEmpresa: false, rolesEmpresa: [{ rolEmpresa: "COMERCIAL" }],
+    });
+    permiso.findUnique.mockResolvedValue({ modulo: { clave: "judicial" }, roles: [{ rolEmpresa: "JURIDICO" }] });
+    const res = await request(app)
+      .post("/procesos/p1/documentos/subir")
+      .set(auth(token))
+      .attach("file", Buffer.from("x"), "p.pdf");
+    expect(res.status).toBe(403);
+    expect(subir).not.toHaveBeenCalled();
   });
 });

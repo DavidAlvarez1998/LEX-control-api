@@ -58,7 +58,14 @@ const etapaDefSchema = z.object({
   resultado: z.string().optional(),
   reglas: reglasEtapaSchema.optional(),
   disponibleSi: condicionSchema.optional(),
-  accion: z.object({ tipo: z.literal("crearDerivado"), tipoDestinoNombre: z.string().min(1) }).optional(),
+  accion: z
+    .object({
+      tipo: z.literal("crearDerivado"),
+      tipoDestinoNombre: z.string().min(1),
+      copiarDatos: z.array(z.string()).optional(),
+      copiarCliente: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const createTipoProcesoSchema = z
@@ -66,6 +73,7 @@ export const createTipoProcesoSchema = z
     nombre: z.string().min(1),
     descripcion: z.string().optional(),
     jurisdiccion: z.nativeEnum(Jurisdiccion),
+    esJudicial: z.boolean().optional(), // default true en BD; false = trámite ante entidad (DdP)
     areaSlugs: z.array(z.string().min(1)).min(1),
     esquemaFormulario: z.array(campoEsquemaSchema).min(1),
     etapas: z.array(etapaDefSchema).min(1),
