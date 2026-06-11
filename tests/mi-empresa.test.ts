@@ -55,11 +55,12 @@ describe("GET /mi-empresa", () => {
     expect(res.status).toBe(404);
   });
 
-  it("200 con la empresa y sus servicios contratados", async () => {
+  it("200 con la empresa y sus servicios contratados (admin de empresa)", async () => {
     usuario.findUnique.mockResolvedValue({
       activo: true,
       activationToken: null,
       tokenVersion: 0,
+      esAdminEmpresa: true, // requireAuth lee esto → el handler SÍ incluye servicios
       empresa: {
         id: "e1",
         nombre: "ACME",
@@ -73,9 +74,29 @@ describe("GET /mi-empresa", () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ id: "e1", nombre: "ACME" });
     expect(res.body.servicios).toHaveLength(1);
-    // El endpoint resuelve la empresa por el `sub` del token, no por un id del cliente.
+    // El admin de empresa SÍ solicita los servicios contratados.
     expect(usuario.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "cli1" } }),
+      expect.objectContaining({
+        where: { id: "cli1" },
+        select: { empresa: { include: expect.objectContaining({ servicios: expect.anything() }) } },
+      }),
+    );
+  });
+
+  it("200 SIN servicios contratados para un usuario que no es admin de empresa", async () => {
+    usuario.findUnique.mockResolvedValue({
+      activo: true,
+      activationToken: null,
+      tokenVersion: 0,
+      esAdminEmpresa: false,
+      empresa: { id: "e1", nombre: "ACME", activo: true },
+    });
+    const res = await request(app).get("/mi-empresa").set(auth(clienteToken));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: "e1", nombre: "ACME" });
+    // El handler NO pide los servicios (precios) cuando el usuario no es admin.
+    expect(usuario.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { empresa: { include: {} } } }),
     );
   });
 });

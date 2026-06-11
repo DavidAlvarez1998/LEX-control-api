@@ -38,19 +38,21 @@ miEmpresaRoutes.get(
   requireAuth,
   requireRole(Rol.USUARIO),
   asyncHandler(async (req, res) => {
+    // Los servicios contratados (con precios) son sensibles: SOLO los ve el
+    // administrador de empresa. Un usuario normal recibe su empresa sin ellos.
+    const empresaInclude = req.esAdminEmpresa
+      ? {
+          servicios: {
+            where: { activo: true },
+            include: { servicio: true },
+            orderBy: { asignadoEn: "desc" as const },
+          },
+        }
+      : {};
+
     const usuario = await prisma.usuario.findUnique({
       where: { id: req.user!.sub },
-      select: {
-        empresa: {
-          include: {
-            servicios: {
-              where: { activo: true },
-              include: { servicio: true },
-              orderBy: { asignadoEn: "desc" },
-            },
-          },
-        },
-      },
+      select: { empresa: { include: empresaInclude } },
     });
 
     if (!usuario?.empresa) {
