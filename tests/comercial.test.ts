@@ -59,9 +59,17 @@ describe("autorización", () => {
   });
   it("403 si el módulo comercial no está contratado", async () => {
     comercialContratado(false);
-    const res = await request(app).get("/comercial/seguimientos").set(auth(token));
+    // La agenda/seguimientos ya NO exige el módulo (es baseline) → se prueba con /alertas.
+    const res = await request(app).get("/comercial/alertas").set(auth(token));
     expect(res.status).toBe(403);
     expect(res.body.error.message).toBe("Módulo no contratado");
+  });
+  it("agenda/seguimientos es baseline: accesible para cualquier usuario del despacho (sin módulo ni rol)", async () => {
+    p.usuario.findUnique.mockResolvedValue({ ...cuenta, esAdminEmpresa: false, rolesEmpresa: [] });
+    comercialContratado(false);
+    p.seguimientoComercial.findMany.mockResolvedValue([]);
+    const res = await request(app).get("/comercial/seguimientos").set(auth(token));
+    expect(res.status).toBe(200);
   });
 });
 

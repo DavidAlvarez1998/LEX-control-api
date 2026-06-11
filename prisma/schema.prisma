@@ -846,7 +846,7 @@ enum EstadoSolicitud {
 model SeguimientoComercial {
   id                String               @id @default(cuid())
   empresaId         String // desnormalizado, sin FK
-  clienteId         String
+  clienteId         String? // opcional: la actividad de agenda no requiere cliente
   fechaContacto     DateTime             @default(now())
   tipoGestion       TipoGestionComercial
   motivoContacto    String?              @db.Text
@@ -866,7 +866,7 @@ model SeguimientoComercial {
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 
-  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
   @@index([clienteId, fechaContacto])
   @@index([empresaId, fechaProximaTarea])

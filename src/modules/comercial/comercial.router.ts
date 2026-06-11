@@ -50,7 +50,6 @@ async function assertCliente(empresaId: string, clienteId: string): Promise<void
 comercialRoutes.get(
   "/seguimientos",
   requireAuth,
-  requirePermiso("comercial.seguimiento.ver"),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
     const clienteId = typeof req.query.clienteId === "string" ? req.query.clienteId : undefined;
@@ -65,11 +64,11 @@ comercialRoutes.get(
 comercialRoutes.post(
   "/seguimientos",
   requireAuth,
-  requirePermiso("comercial.seguimiento.crear"),
   validate({ body: createSeguimientoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
-    await assertCliente(empresaId, req.body.clienteId);
+    // Solo verificar pertenencia si se especifica un cliente
+    if (req.body.clienteId) await assertCliente(empresaId, req.body.clienteId);
     // Dueño (agenda): por defecto el usuario actual; solo el admin de empresa puede fijar otro.
     const comercialId = req.esAdminEmpresa && req.body.comercialId ? req.body.comercialId : req.user!.sub;
     const seguimiento = await prisma.seguimientoComercial.create({
@@ -82,7 +81,6 @@ comercialRoutes.post(
 comercialRoutes.patch(
   "/seguimientos/:id",
   requireAuth,
-  requirePermiso("comercial.seguimiento.editar"),
   validate({ params: idParams, body: updateSeguimientoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -107,7 +105,6 @@ const CLIENTE_RESUMEN = { id: true, nombre: true, telefono: true } as const;
 comercialRoutes.get(
   "/agenda",
   requireAuth,
-  requirePermiso("comercial.seguimiento.ver"),
   validate({ query: agendaQuery }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -137,14 +134,32 @@ comercialRoutes.get(
         })
       : [];
 
-    res.json({ desde, hasta, items, vencidas });
+    // Creador de cada ítem (nombre + roles) para la vista del admin de empresa.
+    // registradoPorId es escalar (sin FK) → se resuelve en batch, scoped por empresa.
+    const registradores = [
+      ...new Set([...items, ...vencidas].map((s) => s.registradoPorId).filter((x): x is string => !!x)),
+    ];
+    const usuarios = registradores.length
+      ? await prisma.usuario.findMany({
+          where: { id: { in: registradores }, empresaId },
+          select: { id: true, nombre: true, esAdminEmpresa: true, rolesEmpresa: { select: { rolEmpresa: true } } },
+        })
+      : [];
+    const creadorPorId = new Map(
+      usuarios.map((u) => [u.id, { nombre: u.nombre, esAdminEmpresa: u.esAdminEmpresa, roles: u.rolesEmpresa.map((r) => r.rolEmpresa) }]),
+    );
+    const conCreador = <T extends { registradoPorId: string | null }>(s: T) => ({
+      ...s,
+      registradoPor: s.registradoPorId ? creadorPorId.get(s.registradoPorId) ?? null : null,
+    });
+
+    res.json({ desde, hasta, items: items.map(conCreador), vencidas: vencidas.map(conCreador) });
   }),
 );
 
 comercialRoutes.post(
   "/seguimientos/:id/completar",
   requireAuth,
-  requirePermiso("comercial.seguimiento.editar"),
   validate({ params: idParams, body: completarSeguimientoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -164,7 +179,6 @@ comercialRoutes.post(
 comercialRoutes.post(
   "/seguimientos/:id/cancelar",
   requireAuth,
-  requirePermiso("comercial.seguimiento.editar"),
   validate({ params: idParams, body: cancelarSeguimientoSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
@@ -180,7 +194,6 @@ comercialRoutes.post(
 comercialRoutes.post(
   "/seguimientos/:id/reabrir",
   requireAuth,
-  requirePermiso("comercial.seguimiento.editar"),
   validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);

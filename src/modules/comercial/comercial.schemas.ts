@@ -18,7 +18,7 @@ const porcentaje = z.number().min(0).max(100);
 
 // --- Seguimiento (también sirve de ítem de AGENDA: titulo + comercialId dueño) ---
 export const createSeguimientoSchema = z.object({
-  clienteId: z.string().min(1),
+  clienteId: z.string().min(1).optional(), // opcional: agenda sin cliente asociado
   tipoGestion,
   titulo: z.string().trim().min(1).optional(),
   motivoContacto: z.string().trim().min(1).optional(),
