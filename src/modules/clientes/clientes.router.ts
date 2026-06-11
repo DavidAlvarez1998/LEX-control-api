@@ -91,6 +91,7 @@ clienteRoutes.get(
           : {}),
       },
       orderBy: { fechaIngreso: "desc" },
+      include: { responsableComercial: { select: { id: true, nombre: true } } },
     });
     res.json(clientes);
   }),
@@ -106,6 +107,7 @@ clienteRoutes.get(
     const empresaId = empresaIdRequerido(req);
     const cliente = await prisma.cliente.findFirst({
       where: { id: req.params.id, empresaId },
+      include: { responsableComercial: { select: { id: true, nombre: true } } },
     });
     if (!cliente) throw new HttpError(404, "Cliente no encontrado");
     res.json(cliente);
@@ -122,7 +124,13 @@ clienteRoutes.post(
     const empresaId = empresaIdRequerido(req);
     await assertSameEmpresa(empresaId, req.body);
     const cliente = await prisma.cliente.create({
-      data: { ...req.body, empresaId }, // estado=PROSPECTO por default del schema
+      // El responsable por defecto es quien lo crea (queda "dueño" para atribución
+      // y para el filtro "Míos"); el admin puede asignar otro vía el body.
+      data: {
+        ...req.body,
+        empresaId, // estado=PROSPECTO por default del schema
+        responsableComercialId: req.body.responsableComercialId ?? req.user!.sub,
+      },
     });
     res.status(201).json(cliente);
   }),

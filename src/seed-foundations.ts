@@ -33,14 +33,14 @@ const PERMISOS: { clave: string; nombre: string; modulo: string }[] = [
 const RBAC: Record<string, RolEmpresa[]> = {
   // CONTABLE incluido (solo lectura): facturar exige elegir un cliente (la vista
   // /facturacion carga el listado para el desplegable).
-  // JURIDICO incluido (ver/crear/editar): el abogado ve TODA la cartera del
-  // despacho (cobertura + chequeo de conflictos de interés, estándar Clio/MyCase)
-  // y puede registrar/editar clientes. `convertir` (paso del embudo comercial)
-  // sigue siendo ADMINISTRADOR + COMERCIAL.
+  // JURIDICO incluido (ver/crear/editar/convertir): el abogado ve TODA la cartera
+  // del despacho (cobertura + chequeo de conflictos de interés, estándar Clio/MyCase)
+  // y puede registrar/editar/activar clientes — el abogado que hace el intake puede
+  // convertir su propio prospecto sin depender de un comercial.
   "cliente.ver": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL, RolEmpresa.CONTABLE, RolEmpresa.JURIDICO],
   "cliente.crear": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL, RolEmpresa.JURIDICO],
   "cliente.editar": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL, RolEmpresa.JURIDICO],
-  "cliente.convertir": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL],
+  "cliente.convertir": [RolEmpresa.ADMINISTRADOR, RolEmpresa.COMERCIAL, RolEmpresa.JURIDICO],
 };
 
 // --- Permisos del módulo COMERCIAL (set lean, claves CONCRETAS — requirePermiso

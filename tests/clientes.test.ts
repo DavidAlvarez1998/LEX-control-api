@@ -87,15 +87,18 @@ describe("GET /clientes", () => {
 });
 
 describe("POST /clientes", () => {
-  it("201 crea un prospecto forzando empresaId del token", async () => {
+  it("201 crea un prospecto forzando empresaId + responsable = creador del token", async () => {
     p.cliente.create.mockResolvedValue({ id: "c1", nombre: "Juan", estado: "PROSPECTO" });
     const res = await request(app)
       .post("/clientes")
       .set(auth(clienteToken))
       .send({ nombre: "Juan", canalIngreso: "WHATSAPP" });
     expect(res.status).toBe(201);
+    // Sin responsable en el body → se asigna al creador (sub del token).
     expect(p.cliente.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ empresaId: "eA", nombre: "Juan" }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ empresaId: "eA", nombre: "Juan", responsableComercialId: "cli1" }),
+      }),
     );
   });
 
