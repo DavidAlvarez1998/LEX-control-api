@@ -447,23 +447,23 @@ comercialRoutes.get(
     ] = await Promise.all([
       prisma.cliente.findMany({
         where: { empresaId, estado: "PROSPECTO", seguimientos: { none: { fechaContacto: { gte: hace3d } } } },
-        select: { id: true, nombre: true },
+        select: { id: true, nombre: true, telefono: true },
       }),
       prisma.cotizacion.findMany({
         where: { empresaId, estadoPropuesta: { in: ["ENVIADA", "PENDIENTE"] }, fechaEnvio: { lt: hace3d } },
-        select: { id: true, clienteId: true, valorCotizado: true },
+        select: { id: true, clienteId: true, valorCotizado: true, cliente: { select: { nombre: true } } },
       }),
       prisma.contratoComercial.findMany({
         where: { empresaId, estadoContrato: "ENVIADO", fechaEnvio: { lt: hace3d } },
-        select: { id: true, clienteId: true },
+        select: { id: true, clienteId: true, cliente: { select: { nombre: true } } },
       }),
       prisma.contratoComercial.findMany({
         where: { empresaId, estadoPoder: "PENDIENTE" },
-        select: { id: true, clienteId: true },
+        select: { id: true, clienteId: true, cliente: { select: { nombre: true } } },
       }),
       prisma.configuracionCobro.findMany({
         where: { empresaId, fechaPrimerPago: { lt: ahora } },
-        select: { id: true, contratoId: true, fechaPrimerPago: true },
+        select: { id: true, contratoId: true, clienteId: true, fechaPrimerPago: true },
       }),
       prisma.seguimientoComercial.findMany({
         where: {
@@ -471,22 +471,133 @@ comercialRoutes.get(
           tipoGestion: { in: ["REUNION", "VIDEOLLAMADA"] },
           fechaProximaTarea: { gte: inicioHoy, lt: finHoy },
         },
-        select: { id: true, clienteId: true, fechaProximaTarea: true },
+        select: { id: true, clienteId: true, fechaProximaTarea: true, cliente: { select: { nombre: true, telefono: true } } },
       }),
       prisma.seguimientoComercial.findMany({
         where: { empresaId, estadoSeguimiento: { not: "CERRADO" }, fechaProximaTarea: { lt: ahora } },
-        select: { id: true, clienteId: true, proximaTarea: true, fechaProximaTarea: true },
+        select: { id: true, clienteId: true, proximaTarea: true, fechaProximaTarea: true, cliente: { select: { nombre: true, telefono: true } } },
       }),
     ]);
 
+    // Cada item lleva clienteId + nombre (+ telefono donde aplica) para listas accionables.
     res.json({
-      prospectoSinSeguimiento: prospectosSinSeguimiento,
-      propuestaSinRespuesta: propuestasSinRespuesta,
-      contratoSinFirmar: contratosSinFirmar,
-      poderPendiente: poderesPendientes,
-      cuotaInicialVencida,
-      citaHoy: citasHoy,
-      tareaVencida: tareasVencidas,
+      prospectoSinSeguimiento: prospectosSinSeguimiento.map((c) => ({ id: c.id, clienteId: c.id, nombre: c.nombre, telefono: c.telefono })),
+      propuestaSinRespuesta: propuestasSinRespuesta.map((x) => ({ id: x.id, clienteId: x.clienteId, nombre: x.cliente?.nombre ?? null, valorCotizado: x.valorCotizado })),
+      contratoSinFirmar: contratosSinFirmar.map((x) => ({ id: x.id, clienteId: x.clienteId, nombre: x.cliente?.nombre ?? null })),
+      poderPendiente: poderesPendientes.map((x) => ({ id: x.id, clienteId: x.clienteId, nombre: x.cliente?.nombre ?? null })),
+      cuotaInicialVencida: cuotaInicialVencida.map((x) => ({ id: x.id, clienteId: x.clienteId, contratoId: x.contratoId, fechaPrimerPago: x.fechaPrimerPago })),
+      citaHoy: citasHoy.map((x) => ({ id: x.id, clienteId: x.clienteId, nombre: x.cliente?.nombre ?? null, telefono: x.cliente?.telefono ?? null, fechaProximaTarea: x.fechaProximaTarea })),
+      tareaVencida: tareasVencidas.map((x) => ({ id: x.id, clienteId: x.clienteId, nombre: x.cliente?.nombre ?? null, telefono: x.cliente?.telefono ?? null, proximaTarea: x.proximaTarea, fechaProximaTarea: x.fechaProximaTarea })),
+    });
+  }),
+);
+
+// ===================== PIPELINE (señales derivadas por cliente, on-read) =====================
+comercialRoutes.get(
+  "/pipeline",
+  requireAuth,
+  requirePermiso("cliente.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const mios = req.query.mios === "true" || req.query.mios === "1";
+    const ahora = new Date();
+    const dias = (desde: Date) => Math.floor((ahora.getTime() - desde.getTime()) / DIA_MS);
+
+    const clientes = await prisma.cliente.findMany({
+      where: {
+        empresaId,
+        estado: { in: ["PROSPECTO", "CLIENTE"] },
+        ...(mios ? { responsableComercialId: req.user!.sub } : {}),
+      },
+      select: {
+        id: true, nombre: true, telefono: true, estado: true, viabilidad: true,
+        canalIngreso: true, responsableComercialId: true,
+        seguimientos: {
+          orderBy: { fechaContacto: "desc" },
+          take: 50,
+          select: { fechaContacto: true, disposicion: true, completada: true, canceladaEn: true, fechaProximaTarea: true, proximaTarea: true },
+        },
+        fasesComerciales: {
+          where: { fechaCierreFase: null },
+          orderBy: { fechaInicioFase: "desc" },
+          take: 1,
+          select: { fase: true, fechaInicioFase: true },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    res.json(
+      clientes.map((c) => {
+        const ultima = c.seguimientos[0]; // más reciente por fechaContacto
+        const conDisp = c.seguimientos.find((s) => s.disposicion);
+        const prox = c.seguimientos
+          .filter((s) => !s.completada && !s.canceladaEn && s.fechaProximaTarea)
+          .sort((a, b) => a.fechaProximaTarea!.getTime() - b.fechaProximaTarea!.getTime())[0];
+        const fase = c.fasesComerciales[0];
+        return {
+          id: c.id,
+          nombre: c.nombre,
+          telefono: c.telefono,
+          estado: c.estado,
+          viabilidad: c.viabilidad,
+          canalIngreso: c.canalIngreso,
+          faseActual: fase?.fase ?? null,
+          diasEnFase: fase ? dias(fase.fechaInicioFase) : null,
+          ultimaGestionEn: ultima?.fechaContacto ?? null,
+          diasSinGestion: ultima ? dias(ultima.fechaContacto) : null,
+          ultimaDisposicion: conDisp?.disposicion ?? null,
+          proximaTareaEn: prox?.fechaProximaTarea ?? null,
+          proximaTarea: prox?.proximaTarea ?? null,
+          tareaVencida: prox?.fechaProximaTarea ? prox.fechaProximaTarea < ahora : false,
+        };
+      }),
+    );
+  }),
+);
+
+// ===================== HOY (cockpit accionable: vencidas / hoy / fríos) =====================
+comercialRoutes.get(
+  "/hoy",
+  requireAuth,
+  requirePermiso("cliente.ver"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const mios = req.query.mios === "true" || req.query.mios === "1";
+    const ahora = new Date();
+    const hace3d = new Date(ahora.getTime() - 3 * DIA_MS);
+    const inicioHoy = new Date(ahora);
+    inicioHoy.setHours(0, 0, 0, 0);
+    const finHoy = new Date(inicioHoy.getTime() + DIA_MS);
+
+    const [pendientes, frios] = await Promise.all([
+      prisma.seguimientoComercial.findMany({
+        where: { empresaId, ...(mios ? { comercialId: req.user!.sub } : {}), completada: false, canceladaEn: null, fechaProximaTarea: { not: null, lt: finHoy } },
+        orderBy: { fechaProximaTarea: "asc" },
+        select: { id: true, clienteId: true, titulo: true, tipoGestion: true, proximaTarea: true, fechaProximaTarea: true, cliente: { select: { nombre: true, telefono: true } } },
+      }),
+      prisma.cliente.findMany({
+        where: {
+          empresaId, estado: "PROSPECTO", ...(mios ? { responsableComercialId: req.user!.sub } : {}),
+          AND: [
+            { seguimientos: { none: { fechaContacto: { gte: hace3d } } } },
+            { seguimientos: { none: { completada: false, canceladaEn: null, fechaProximaTarea: { gte: ahora } } } },
+          ],
+        },
+        select: { id: true, nombre: true, telefono: true },
+        orderBy: { fechaIngreso: "asc" },
+      }),
+    ]);
+
+    const mapTarea = (s: (typeof pendientes)[number]) => ({
+      id: s.id, clienteId: s.clienteId, nombre: s.cliente?.nombre ?? s.titulo ?? null,
+      telefono: s.cliente?.telefono ?? null, tipoGestion: s.tipoGestion,
+      tarea: s.proximaTarea ?? s.titulo ?? null, fechaProximaTarea: s.fechaProximaTarea,
+    });
+    res.json({
+      vencidas: pendientes.filter((s) => s.fechaProximaTarea! < inicioHoy).map(mapTarea),
+      hoy: pendientes.filter((s) => s.fechaProximaTarea! >= inicioHoy).map(mapTarea),
+      frios: frios.map((c) => ({ id: null, clienteId: c.id, nombre: c.nombre, telefono: c.telefono, tipoGestion: null, tarea: null, fechaProximaTarea: null })),
     });
   }),
 );

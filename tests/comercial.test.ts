@@ -184,6 +184,46 @@ describe("alertas", () => {
   });
 });
 
+describe("pipeline (señales derivadas)", () => {
+  it("deriva diasSinGestion / faseActual / diasEnFase / ultimaDisposicion / tareaVencida", async () => {
+    const hace = (d: number) => new Date(Date.now() - d * 86_400_000);
+    p.cliente.findMany.mockResolvedValue([
+      {
+        id: "c1", nombre: "Ana", telefono: "300", estado: "PROSPECTO", viabilidad: null, canalIngreso: null, responsableComercialId: "u1",
+        seguimientos: [{ fechaContacto: hace(10), disposicion: "INTERESADO", completada: false, canceladaEn: null, fechaProximaTarea: hace(1), proximaTarea: "Llamar" }],
+        fasesComerciales: [{ fase: "NEGOCIACION", fechaInicioFase: hace(5) }],
+      },
+    ]);
+    const res = await request(app).get("/comercial/pipeline").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({ diasSinGestion: 10, faseActual: "NEGOCIACION", diasEnFase: 5, ultimaDisposicion: "INTERESADO", tareaVencida: true });
+  });
+});
+
+describe("hoy (cockpit)", () => {
+  it("agrupa vencidas y fríos", async () => {
+    const ayer = new Date(Date.now() - 86_400_000);
+    p.seguimientoComercial.findMany.mockResolvedValue([
+      { id: "s1", clienteId: "c1", titulo: null, tipoGestion: "LLAMADA", proximaTarea: "x", fechaProximaTarea: ayer, cliente: { nombre: "Ana", telefono: "300" } },
+    ]);
+    p.cliente.findMany.mockResolvedValue([{ id: "c2", nombre: "Frío", telefono: null }]);
+    const res = await request(app).get("/comercial/hoy").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body.vencidas.map((x: { clienteId: string }) => x.clienteId)).toEqual(["c1"]);
+    expect(res.body.frios.map((x: { clienteId: string }) => x.clienteId)).toEqual(["c2"]);
+  });
+});
+
+describe("registrar gestión con disposición", () => {
+  it("persiste la disposicion", async () => {
+    p.cliente.findFirst.mockResolvedValue({ id: "c1" });
+    p.seguimientoComercial.create.mockResolvedValue({ id: "s1", disposicion: "INTERESADO" });
+    const res = await request(app).post("/comercial/seguimientos").set(auth(token)).send({ clienteId: "c1", tipoGestion: "LLAMADA", disposicion: "INTERESADO" });
+    expect(res.status).toBe(201);
+    expect(p.seguimientoComercial.create.mock.calls[0][0].data).toMatchObject({ disposicion: "INTERESADO" });
+  });
+});
+
 describe("puente: solicitud de asignación", () => {
   it("201 crea solicitud (contrato FIRMADO) con tipo default de la necesidad del cliente", async () => {
     p.cliente.findFirst.mockResolvedValue({ id: "c1", necesidadTipoProcesoId: "tp1", resumenCaso: "Caso X" });

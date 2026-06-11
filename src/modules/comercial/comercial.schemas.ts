@@ -3,6 +3,7 @@ import { z } from "zod";
 // --- Enums (espejo de Prisma) ---
 const tipoGestion = z.enum(["LLAMADA", "WHATSAPP", "REUNION", "VIDEOLLAMADA", "CORREO", "OTRO"]);
 const estadoSeguimiento = z.enum(["PENDIENTE", "EN_GESTION", "CERRADO"]);
+const disposicion = z.enum(["CONTACTADO", "NO_CONTESTA", "INTERESADO", "NO_VIABLE", "OTRO"]);
 const faseComercial = z.enum([
   "LEAD", "CONTACTO", "EVALUACION", "PROPUESTA", "NEGOCIACION", "CONTRATO", "PODERES", "FIRMADO", "PERDIDO",
 ]);
@@ -23,6 +24,7 @@ export const createSeguimientoSchema = z.object({
   titulo: z.string().trim().min(1).optional(),
   motivoContacto: z.string().trim().min(1).optional(),
   resultado: z.string().trim().min(1).optional(),
+  disposicion: disposicion.optional(), // resultado tipificado de la gestión
   proximaTarea: z.string().trim().min(1).optional(),
   fechaProximaTarea: z.coerce.date().optional(),
   estadoSeguimiento: estadoSeguimiento.optional(),

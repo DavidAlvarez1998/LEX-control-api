@@ -798,6 +798,16 @@ enum EstadoSeguimiento {
   CERRADO
 }
 
+// Resultado tipificado de una gestión (cierra el ciclo del contacto): qué pasó.
+// Alimenta la señal frío/caliente del pipeline y hace medible el embudo.
+enum DisposicionGestion {
+  CONTACTADO // se logró el contacto
+  NO_CONTESTA // no respondió
+  INTERESADO // mostró interés (caliente)
+  NO_VIABLE // no le interesa / no es viable (candidato a PERDIDO)
+  OTRO
+}
+
 enum FormaPago {
   CONTADO
   CUOTAS
@@ -855,6 +865,7 @@ model SeguimientoComercial {
   tipoGestion       TipoGestionComercial
   motivoContacto    String?              @db.Text
   resultado         String?              @db.Text
+  disposicion       DisposicionGestion? // resultado tipificado de la gestión (cierra el ciclo)
   proximaTarea      String?
   fechaProximaTarea DateTime?
   estadoSeguimiento EstadoSeguimiento    @default(PENDIENTE)
