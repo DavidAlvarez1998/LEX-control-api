@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../src/index", () => {
   const m = () => ({ findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), createMany: vi.fn(), updateMany: vi.fn(), delete: vi.fn(), count: vi.fn(), aggregate: vi.fn(), groupBy: vi.fn() });
   const prisma: any = {
-    usuario: { findUnique: vi.fn() },
+    usuario: { findUnique: vi.fn(), findFirst: vi.fn() },
     cliente: { findFirst: vi.fn() },
+    contrato: m(),
     proceso: { findFirst: vi.fn() },
     ingreso: m(),
     egreso: m(),
@@ -78,6 +79,44 @@ describe("ingresos", () => {
       .send({ clienteId: "ajeno", conceptoPago: "x", tipoCobro: "ABONO", valorRecibido: 1, metodoPago: "EFECTIVO" });
     expect(res.status).toBe(400);
     expect(p.ingreso.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("nómina · empleables + empleadoId", () => {
+  it("GET /nominas/empleables: proyección mínima scoped por empresa, sin campos legales", async () => {
+    p.contrato.findMany.mockResolvedValue([
+      { id: "k1", usuarioId: "u1", nombreCompleto: "Ana Ruiz", cargo: "Abogada", honorarios: 4500000, tipoContrato: "Laboral", fechaInicio: new Date("2025-02-01"), estado: "ACTIVO" },
+    ]);
+    const res = await request(app).get("/contable/nominas/empleables").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(p.contrato.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { empresaId: "eA" } }));
+    expect(res.body[0]).toEqual({
+      contratoId: "k1", usuarioId: "u1", nombre: "Ana Ruiz", cargo: "Abogada",
+      honorarios: 4500000, tipoContrato: "Laboral", fechaInicio: expect.any(String), estado: "ACTIVO",
+    });
+    // El select NUNCA expone cláusulas/documentos (segregación de funciones).
+    const sel = p.contrato.findMany.mock.calls[0][0].select;
+    expect(sel.clausulas).toBeUndefined();
+    expect(sel.documentos).toBeUndefined();
+    expect(sel.nombreCompleto).toBe(true);
+  });
+
+  it("POST /nominas: 400 si empleadoId es de otra empresa (no es staff del despacho)", async () => {
+    p.usuario.findFirst.mockResolvedValue(null);
+    const res = await request(app).post("/contable/nominas").set(auth(token))
+      .send({ empleadoId: "ajeno", nombreEmpleado: "X", tipoVinculacion: "LABORAL", periodo: "2026-06", salarioHonorarios: 1000000, valorNetoPagar: 1000000 });
+    expect(res.status).toBe(400);
+    expect(p.nomina.create).not.toHaveBeenCalled();
+  });
+
+  it("POST /nominas: 201 con empleadoId del mismo despacho (validado same-empresa)", async () => {
+    p.usuario.findFirst.mockResolvedValue({ id: "u1" });
+    p.nomina.create.mockResolvedValue({ id: "n1" });
+    const res = await request(app).post("/contable/nominas").set(auth(token))
+      .send({ empleadoId: "u1", nombreEmpleado: "Ana Ruiz", cargo: "Abogada", tipoVinculacion: "LABORAL", periodo: "2026-06", salarioHonorarios: 4500000, valorNetoPagar: 4500000 });
+    expect(res.status).toBe(201);
+    expect(p.usuario.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "u1", empresaId: "eA" }, select: { id: true } }));
+    expect(p.nomina.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ empresaId: "eA", empleadoId: "u1" }) }));
   });
 });
 

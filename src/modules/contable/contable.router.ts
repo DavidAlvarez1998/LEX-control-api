@@ -35,6 +35,13 @@ async function assertCuenta(empresaId: string, cuentaId: string) {
   if (!(await prisma.cuentaBancaria.findFirst({ where: { id: cuentaId, empresaId }, select: { id: true } })))
     throw new HttpError(400, "La cuenta no pertenece a tu empresa");
 }
+// La nómina referencia al empleado por escalar (sin FK): debe ser personal del
+// MISMO despacho. Un ADMIN de plataforma (empresaId null) nunca casa con el
+// empresaId del token → no puede ser sujeto de nómina. Ver spec contable-nomina.
+async function assertEmpleado(empresaId: string, empleadoId: string) {
+  if (!(await prisma.usuario.findFirst({ where: { id: empleadoId, empresaId }, select: { id: true } })))
+    throw new HttpError(400, "El empleado no pertenece a tu empresa");
+}
 
 // ===================== INGRESOS (append-only) =====================
 contableRoutes.get("/ingresos", requireAuth, requirePermiso("contable.ingreso.ver"),
@@ -107,10 +114,35 @@ contableRoutes.get("/nominas", requireAuth, requirePermiso("contable.nomina.ver"
     }));
   }));
 
+// GET /nominas/empleables — proyección MÍNIMA de los contratos del despacho para
+// prellenar la nómina. Segregación de funciones: el contable ve solo lo que
+// necesita para pagar (nombre/cargo/honorarios/tipo/fecha/estado), NUNCA el
+// contrato completo (cláusulas, documentos, datos legales). NO requiere
+// contrato.ver; se gobierna con contable.nomina.crear. Incluye `estado` para que
+// el front muestre vigentes por defecto pero permita finalizados (liquidación).
+contableRoutes.get("/nominas/empleables", requireAuth, requirePermiso("contable.nomina.crear"),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const contratos = await prisma.contrato.findMany({
+      where: { empresaId },
+      select: {
+        id: true, usuarioId: true, nombreCompleto: true, cargo: true,
+        honorarios: true, tipoContrato: true, fechaInicio: true, estado: true,
+      },
+      orderBy: [{ estado: "asc" }, { nombreCompleto: "asc" }],
+    });
+    res.json(contratos.map((c) => ({
+      contratoId: c.id, usuarioId: c.usuarioId, nombre: c.nombreCompleto,
+      cargo: c.cargo, honorarios: c.honorarios, tipoContrato: c.tipoContrato,
+      fechaInicio: c.fechaInicio, estado: c.estado,
+    })));
+  }));
+
 contableRoutes.post("/nominas", requireAuth, requirePermiso("contable.nomina.crear"),
   validate({ body: createNominaSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
+    if (req.body.empleadoId) await assertEmpleado(empresaId, req.body.empleadoId);
     if (req.body.cuentaId) await assertCuenta(empresaId, req.body.cuentaId);
     res.status(201).json(await prisma.nomina.create({ data: { ...req.body, empresaId } }));
   }));
@@ -119,6 +151,7 @@ contableRoutes.patch("/nominas/:id", requireAuth, requirePermiso("contable.nomin
   validate({ params: idParams, body: updateNominaSchema }),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
+    if (req.body.empleadoId) await assertEmpleado(empresaId, req.body.empleadoId);
     const { count } = await prisma.nomina.updateMany({ where: { id: req.params.id, empresaId }, data: req.body });
     if (count === 0) throw new HttpError(404, "Nómina no encontrada");
     res.json(await prisma.nomina.findUnique({ where: { id: req.params.id } }));
