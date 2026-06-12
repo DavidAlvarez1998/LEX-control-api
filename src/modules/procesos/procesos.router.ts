@@ -71,6 +71,7 @@ procesoRoutes.get(
     const page = Math.max(1, Number(req.query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
 
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const where: Prisma.ProcesoWhereInput = {
       empresaId,
       ...(req.query.estado ? { estado: req.query.estado as EstadoProceso } : {}),
@@ -82,6 +83,18 @@ procesoRoutes.get(
       ...(req.query.litiganteId
         ? { partes: { some: { litiganteId: String(req.query.litiganteId) } } }
         : {}),
+      // Búsqueda libre (insensible a mayúsculas por la colación de MySQL) sobre
+      // código, título, radicado y el nombre del cliente del caso.
+      ...(q
+        ? {
+            OR: [
+              { codigoInterno: { contains: q } },
+              { titulo: { contains: q } },
+              { radicado: { contains: q } },
+              { cliente: { is: { nombre: { contains: q } } } },
+            ],
+          }
+        : {}),
     };
     const scope = soloMisClientes(req);
     if (scope) Object.assign(where, scope);
@@ -90,12 +103,28 @@ procesoRoutes.get(
       prisma.proceso.count({ where }),
       prisma.proceso.findMany({
         where,
-        include: { tipoProceso: { include: { areas: { include: { area: true } } } } },
+        include: {
+          tipoProceso: { include: { areas: { include: { area: true } } } },
+          responsable: { select: { id: true, nombre: true } },
+          cliente: { select: { nombre: true } },
+          _count: { select: { derivados: true } },
+        },
         orderBy: { updatedAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
     ]);
+
+    // Semáforo del vencimiento, mismo criterio que GET /vencimientos (≤3 días
+    // hábiles = por_vencer). El front deriva "vence hoy" desde la fecha.
+    const ahoraL = new Date();
+    const hoyL = new Date(Date.UTC(ahoraL.getUTCFullYear(), ahoraL.getUTCMonth(), ahoraL.getUTCDate()));
+    const limitePorVencerL = sumarDiasHabiles(hoyL, 3);
+    const semaforoL = (f: Date | null): "vencido" | "por_vencer" | "al_dia" => {
+      if (!f) return "al_dia";
+      if (f < hoyL) return "vencido";
+      return f <= limitePorVencerL ? "por_vencer" : "al_dia";
+    };
 
     res.json({
       total,
@@ -112,6 +141,16 @@ procesoRoutes.get(
         estado: t.estado,
         prioridad: t.prioridad,
         proximaAudiencia: t.proximaAudiencia,
+        // Deadline-first + caso (change procesos-ux-ddp-tutela): el front pinta el
+        // semáforo, ordena por urgencia y marca si la fila es parte de un caso.
+        etapaActual: t.etapaActual,
+        fechaLimite: t.fechaLimite,
+        semaforo: semaforoL(t.fechaLimite),
+        responsableId: t.responsableId,
+        responsableNombre: t.responsable?.nombre ?? null,
+        clienteNombre: t.cliente?.nombre ?? null,
+        casoRelacionadoId: t.casoRelacionadoId,
+        tieneDerivados: t._count.derivados > 0,
       })),
     });
   }),
