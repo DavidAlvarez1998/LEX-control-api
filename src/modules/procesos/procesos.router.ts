@@ -774,6 +774,34 @@ procesoRoutes.post(
 );
 
 /**
+ * POST /procesos/:id/documentos/render — renderiza una plantilla y devuelve el
+ * texto SIN persistir un DocumentoProceso. Sirve para "generar y descargar" sin
+ * ensuciar la lista de documentos del expediente (el front baja un .doc).
+ */
+procesoRoutes.post(
+  "/:id/documentos/render",
+  requireAuth,
+  requirePermiso("proceso.ver"),
+  validate({ params: procesoIdParams, body: generarDocumentoSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const proceso = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      include: { partes: { include: { litigante: true } } },
+    });
+    if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+
+    const plantilla = await prisma.plantillaDocumento.findFirst({
+      where: { id: req.body.plantillaId, tipoProcesoId: proceso.tipoProcesoId },
+    });
+    if (!plantilla) throw new HttpError(404, "Plantilla no encontrada para este tipo de proceso");
+
+    const contenido = renderPlantilla(plantilla.contenido, construirContexto(proceso));
+    res.json({ nombre: req.body.nombre ?? plantilla.nombre, contenido });
+  }),
+);
+
+/**
  * POST /procesos/:id/documentos/subir — sube un archivo (multipart) a la API
  * documental (tecnovapp) y lo registra como documento del expediente. El binario
  * vive en el microservicio; en BD guardamos solo la `path` (en la columna `url`,
