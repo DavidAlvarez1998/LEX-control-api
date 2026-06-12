@@ -50,8 +50,8 @@ describe("plantillas-seed", () => {
     });
     expect(out).toContain("Juan Pérez");
     expect(out).toContain("DIAN");
-    expect(out).toContain("- Información");
-    expect(out).toContain("- Copia de documentos");
+    expect(out).toContain("1. Información");
+    expect(out).toContain("2. Copia de documentos");
     expect(out).toContain("notificaciones@dian.gov.co");
     expect(out).not.toContain("[[falta"); // todos los campos resueltos
   });
@@ -75,7 +75,7 @@ describe("plantillas-seed", () => {
 
   it("un campo ausente queda como marcador [[falta: ...]] (no rompe)", () => {
     const out = render("Reiteración de la petición", { queSolicita: ["Certificación"] });
-    expect(out).toContain("- Certificación");
+    expect(out).toContain("1. Certificación");
     expect(out).toContain("[[falta:"); // entidad/nroRadicado ausentes
   });
 });

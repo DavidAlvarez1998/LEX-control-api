@@ -250,6 +250,42 @@ describe("scoping multi-tenant", () => {
   });
 });
 
+describe("GET /procesos — búsqueda y filtros (change procesos-ux-ddp-tutela)", () => {
+  beforeEach(() => {
+    proceso.count.mockResolvedValue(0);
+    proceso.findMany.mockResolvedValue([]);
+  });
+  const whereDe = () => proceso.findMany.mock.calls.at(-1)![0].where as Record<string, unknown>;
+
+  it("q busca por código/título/radicado/cliente y queda scoped al despacho", async () => {
+    const res = await request(app).get("/procesos?q=salud").set(auth(token));
+    expect(res.status).toBe(200);
+    const where = whereDe();
+    expect(where.empresaId).toBe("emp1");
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { codigoInterno: { contains: "salud" } },
+        { titulo: { contains: "salud" } },
+        { radicado: { contains: "salud" } },
+        { cliente: { is: { nombre: { contains: "salud" } } } },
+      ]),
+    );
+  });
+
+  it("responsableId filtra por abogado, scoped al despacho", async () => {
+    const res = await request(app).get("/procesos?responsableId=ab1").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(whereDe()).toMatchObject({ empresaId: "emp1", responsableId: "ab1" });
+  });
+
+  it("sin q no agrega cláusula OR (lista normal)", async () => {
+    await request(app).get("/procesos").set(auth(token));
+    const where = whereDe();
+    expect(where.empresaId).toBe("emp1");
+    expect(where.OR).toBeUndefined();
+  });
+});
+
 describe("PATCH /procesos/:id/etapa — rule-gated", () => {
   it("400 cuando la etapa destino exige un campo ausente", async () => {
     proceso.findFirst.mockResolvedValue({
