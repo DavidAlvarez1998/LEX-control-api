@@ -38,6 +38,7 @@ export type CampoEsquema = {
 export type ReglasEtapa = {
   camposRequeridos?: string[];
   documentosRequeridos?: string[];
+  documentosOpcionales?: string[]; // ofrecidos para adjuntar, NO bloquean (p. ej. reiteracion.pdf)
   plazoDias?: number; // término informativo (existente; sin derivación de fechaLimite)
   // Requeridos condicionales: aplican solo cuando `si` se cumple.
   requeridosSi?: { si: Condicion; camposRequeridos?: string[]; documentosRequeridos?: string[] }[];
