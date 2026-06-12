@@ -6,14 +6,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // suscripcion.findUnique) + permiso.findUnique. Luego consulta las entidades.
 vi.mock("../src/index", () => {
   const prisma: any = {
-    usuario: { findUnique: vi.fn() },
+    usuario: { findUnique: vi.fn(), findMany: vi.fn() },
     permiso: { findUnique: vi.fn() },
     modulo: { findMany: vi.fn() },
     suscripcion: { findUnique: vi.fn() },
     prospecto: { findMany: vi.fn() },
     empresa: { findMany: vi.fn() },
+    plan: { findMany: vi.fn() },
     cliente: { findMany: vi.fn() },
     proceso: { findMany: vi.fn() },
+    factura: { findMany: vi.fn() },
+    contrato: { findMany: vi.fn() },
   };
   return { prisma };
 });
@@ -30,6 +33,7 @@ const adminToken = signToken({ sub: "adm1", rol: "ADMIN" });
 const comToken = signToken({ sub: "com1", rol: "COMERCIAL" });
 const juridicoToken = signToken({ sub: "jur1", rol: "USUARIO" });
 const contableToken = signToken({ sub: "con1", rol: "USUARIO" });
+const adminEmpresaToken = signToken({ sub: "ae1", rol: "USUARIO" });
 
 // Cuentas para requireAuth, indexadas por sub.
 const CUENTAS: Record<string, any> = {
@@ -37,6 +41,7 @@ const CUENTAS: Record<string, any> = {
   com1: { activo: true, activationToken: null, tokenVersion: 0, empresaId: null, esAdminEmpresa: false, empresa: null, rolesEmpresa: [] },
   jur1: { activo: true, activationToken: null, tokenVersion: 0, empresaId: "eA", esAdminEmpresa: false, empresa: { activo: true }, rolesEmpresa: [{ rolEmpresa: "JURIDICO" }] },
   con1: { activo: true, activationToken: null, tokenVersion: 0, empresaId: "eA", esAdminEmpresa: false, empresa: { activo: true }, rolesEmpresa: [{ rolEmpresa: "CONTABLE" }] },
+  ae1: { activo: true, activationToken: null, tokenVersion: 0, empresaId: "eA", esAdminEmpresa: true, empresa: { activo: true }, rolesEmpresa: [] },
 };
 
 beforeEach(() => {
@@ -56,12 +61,18 @@ beforeEach(() => {
       return Promise.resolve({ modulo: { clave: "comercial" }, roles: [{ rolEmpresa: "ADMINISTRADOR" }, { rolEmpresa: "COMERCIAL" }, { rolEmpresa: "CONTABLE" }, { rolEmpresa: "JURIDICO" }] });
     if (where.clave === "proceso.ver")
       return Promise.resolve({ modulo: { clave: "judicial" }, roles: [{ rolEmpresa: "JURIDICO" }, { rolEmpresa: "COMERCIAL" }, { rolEmpresa: "ADMINISTRADOR" }] });
+    if (where.clave === "facturacion.factura.ver")
+      return Promise.resolve({ modulo: { clave: "contable" }, roles: [{ rolEmpresa: "ADMINISTRADOR" }, { rolEmpresa: "CONTABLE" }] });
     return Promise.resolve(null);
   });
   p.prospecto.findMany.mockResolvedValue([]);
   p.empresa.findMany.mockResolvedValue([]);
+  p.plan.findMany.mockResolvedValue([]);
+  p.usuario.findMany.mockResolvedValue([]);
   p.cliente.findMany.mockResolvedValue([]);
   p.proceso.findMany.mockResolvedValue([]);
+  p.factura.findMany.mockResolvedValue([]);
+  p.contrato.findMany.mockResolvedValue([]);
 });
 
 describe("autorización y entrada", () => {
@@ -80,14 +91,18 @@ describe("autorización y entrada", () => {
 });
 
 describe("staff de plataforma", () => {
-  it("ADMIN busca prospectos Y empresas", async () => {
+  it("ADMIN busca prospectos, empresas, planes y usuarios", async () => {
     p.prospecto.findMany.mockResolvedValue([{ id: "pr1", nombreEmpresa: "Acme", nombreContacto: "Ana" }]);
     p.empresa.findMany.mockResolvedValue([{ id: "e9", nombre: "Acme SAS", rfc: "900" }]);
+    p.plan.findMany.mockResolvedValue([{ id: "pl1", nombre: "Bufete", clave: "bufete" }]);
+    p.usuario.findMany.mockResolvedValue([{ id: "u1", nombre: "Acme Admin", email: "a@x.co" }]);
     const res = await request(app).get("/buscar?q=acme").set(auth(adminToken));
     expect(res.status).toBe(200);
     const tipos = res.body.resultados.map((r: any) => r.tipo);
     expect(tipos).toContain("prospecto");
     expect(tipos).toContain("empresa");
+    expect(tipos).toContain("plan");
+    expect(tipos).toContain("usuario");
     // ADMIN no se acota por comercialId.
     expect(p.prospecto.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.not.objectContaining({ comercialId: expect.anything() }) }),
@@ -117,10 +132,37 @@ describe("usuario de despacho", () => {
     expect(tipos).toContain("proceso");
     expect(p.prospecto.findMany).not.toHaveBeenCalled();
     expect(p.empresa.findMany).not.toHaveBeenCalled();
+    // No es admin de empresa ni tiene facturación → nada de equipo/contratos/facturas.
+    expect(p.usuario.findMany).not.toHaveBeenCalled();
+    expect(p.contrato.findMany).not.toHaveBeenCalled();
+    expect(p.factura.findMany).not.toHaveBeenCalled();
     expect(p.cliente.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ empresaId: "eA" }) }),
     );
     expect(p.proceso.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ empresaId: "eA" }) }),
+    );
+  });
+
+  it("admin de empresa ve equipo, contratos y facturas (de su empresa)", async () => {
+    // contable habilitado para pasar la puerta de módulo de facturación.
+    p.suscripcion.findUnique.mockResolvedValue({
+      estado: "ACTIVA",
+      plan: { modulos: [{ modulo: { clave: "comercial" } }, { modulo: { clave: "contable" } }], cuotas: [] },
+      modulos: [],
+      cuotas: [],
+    });
+    p.usuario.findMany.mockResolvedValue([{ id: "u2", nombre: "Equipo Ana", email: "e@x.co" }]);
+    p.contrato.findMany.mockResolvedValue([{ id: "ct1", nombreCompleto: "Carlos", cargo: "Abogado" }]);
+    p.factura.findMany.mockResolvedValue([{ id: "f1", numero: "FAC-2026-0001", cliente: { nombre: "Cli" } }]);
+    const res = await request(app).get("/buscar?q=an").set(auth(adminEmpresaToken));
+    expect(res.status).toBe(200);
+    const tipos = res.body.resultados.map((r: any) => r.tipo);
+    expect(tipos).toContain("usuario");
+    expect(tipos).toContain("contrato");
+    expect(tipos).toContain("factura");
+    // Equipo acotado a su empresa.
+    expect(p.usuario.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ empresaId: "eA" }) }),
     );
   });

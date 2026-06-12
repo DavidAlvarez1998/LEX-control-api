@@ -14,7 +14,15 @@ export const buscarRoutes: Router = Router();
 
 /** Un resultado plano, listo para pintar y navegar en el frontend. */
 type Resultado = {
-  tipo: "cliente" | "proceso" | "prospecto" | "empresa";
+  tipo:
+    | "cliente"
+    | "proceso"
+    | "factura"
+    | "usuario"
+    | "contrato"
+    | "prospecto"
+    | "empresa"
+    | "plan";
   id: string;
   titulo: string;
   subtitulo: string | null;
@@ -84,6 +92,26 @@ buscarRoutes.get(
             subtitulo: e.rfc ? `NIT ${e.rfc}` : null,
           });
         }
+
+        const planes = await prisma.plan.findMany({
+          where: { OR: [{ nombre: { contains: q } }, { clave: { contains: q } }] },
+          orderBy: { orden: "asc" },
+          take: POR_TIPO,
+          select: { id: true, nombre: true, clave: true },
+        });
+        for (const pl of planes) {
+          resultados.push({ tipo: "plan", id: pl.id, titulo: pl.nombre, subtitulo: pl.clave });
+        }
+
+        const usuarios = await prisma.usuario.findMany({
+          where: { OR: [{ nombre: { contains: q } }, { email: { contains: q } }] },
+          orderBy: { nombre: "asc" },
+          take: POR_TIPO,
+          select: { id: true, nombre: true, email: true },
+        });
+        for (const u of usuarios) {
+          resultados.push({ tipo: "usuario", id: u.id, titulo: u.nombre, subtitulo: u.email });
+        }
       }
     } else if (req.empresaId) {
       // Usuario de despacho: clientes y procesos, acotados a su empresa y a sus
@@ -135,6 +163,64 @@ buscarRoutes.get(
             id: p.id,
             titulo: p.titulo,
             subtitulo: p.codigoInterno,
+          });
+        }
+      }
+
+      if (await tienePermiso(req, "facturacion.factura.ver")) {
+        const facturas = await prisma.factura.findMany({
+          where: {
+            empresaId,
+            OR: [{ numero: { contains: q } }, { radicado: { contains: q } }],
+          },
+          orderBy: { createdAt: "desc" },
+          take: POR_TIPO,
+          select: { id: true, numero: true, cliente: { select: { nombre: true } } },
+        });
+        for (const f of facturas) {
+          resultados.push({
+            tipo: "factura",
+            id: f.id,
+            titulo: f.numero ?? "Factura (borrador)",
+            subtitulo: f.cliente?.nombre ?? null,
+          });
+        }
+      }
+
+      // Equipo (usuarios de la empresa) y contratos: solo el admin de la empresa.
+      if (req.esAdminEmpresa) {
+        const equipo = await prisma.usuario.findMany({
+          where: {
+            empresaId,
+            OR: [{ nombre: { contains: q } }, { email: { contains: q } }],
+          },
+          orderBy: { nombre: "asc" },
+          take: POR_TIPO,
+          select: { id: true, nombre: true, email: true },
+        });
+        for (const u of equipo) {
+          resultados.push({ tipo: "usuario", id: u.id, titulo: u.nombre, subtitulo: u.email });
+        }
+
+        const contratos = await prisma.contrato.findMany({
+          where: {
+            empresaId,
+            OR: [
+              { nombreCompleto: { contains: q } },
+              { numeroDocumento: { contains: q } },
+              { cargo: { contains: q } },
+            ],
+          },
+          orderBy: { createdAt: "desc" },
+          take: POR_TIPO,
+          select: { id: true, nombreCompleto: true, cargo: true },
+        });
+        for (const c of contratos) {
+          resultados.push({
+            tipo: "contrato",
+            id: c.id,
+            titulo: c.nombreCompleto,
+            subtitulo: c.cargo,
           });
         }
       }
