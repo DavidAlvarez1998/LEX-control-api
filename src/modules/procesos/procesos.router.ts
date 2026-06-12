@@ -446,13 +446,19 @@ procesoRoutes.patch(
       },
     });
     if (!proceso) throw new HttpError(404, "Proceso no encontrado");
-    if (proceso.estado === "CERRADO" || proceso.estado === "ARCHIVADO") {
-      throw new HttpError(400, "El proceso está cerrado; reábrelo para mover etapas");
+    if (proceso.estado === "ARCHIVADO") {
+      throw new HttpError(400, "El proceso está archivado; no se puede mover de etapa");
     }
 
     const etapas = proceso.tipoProceso.etapas as unknown as EtapaDef[];
     const destino = etapas.find((e) => e.key === req.body.etapaKey);
     if (!destino) throw new HttpError(400, "Etapa inválida para este tipo de proceso");
+
+    // Retroceder de etapa es una CORRECCIÓN, no un avance: se permite siempre (y
+    // reabre el proceso si estaba CERRADO, porque mover a una etapa no terminal
+    // pone estado=EN_PROCESO). Los requisitos hacia adelante NO se exigen al volver.
+    const ordenActual = etapas.find((e) => e.key === proceso.etapaActual)?.orden ?? 0;
+    const esRetroceso = destino.orden < ordenActual;
 
     const datos = proceso.datos as Record<string, unknown>;
 
@@ -492,7 +498,7 @@ procesoRoutes.patch(
       (nombre) => !docsPresentes.has(nombre.trim().toLowerCase()),
     );
 
-    if (faltantes.length > 0 || documentosFaltantes.length > 0) {
+    if (!esRetroceso && (faltantes.length > 0 || documentosFaltantes.length > 0)) {
       throw new HttpError(400, "No puedes avanzar: faltan requisitos", {
         faltantes,
         documentosFaltantes,
