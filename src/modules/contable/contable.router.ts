@@ -158,10 +158,21 @@ contableRoutes.patch("/nominas/:id", requireAuth, requirePermiso("contable.nomin
   }));
 
 // ===================== CAJA MENOR =====================
+/** GET cajas con saldoActual DERIVADO por caja (= montoInicial - salidas +
+ *  reposiciones). groupBy en lote por (cajaId, tipoMovimiento) para evitar N+1. */
 contableRoutes.get("/cajas", requireAuth, requirePermiso("contable.cajamenor.ver"),
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
-    res.json(await prisma.cajaMenor.findMany({ where: { empresaId }, orderBy: { createdAt: "desc" } }));
+    const cajas = await prisma.cajaMenor.findMany({ where: { empresaId }, orderBy: { createdAt: "desc" } });
+    const movs = await prisma.cajaMenorMovimiento.groupBy({
+      by: ["cajaId", "tipoMovimiento"], _sum: { valor: true }, where: { empresaId },
+    });
+    const delta = new Map<string, number>(); // cajaId -> (reposiciones - salidas)
+    for (const m of movs) {
+      const signo = m.tipoMovimiento === "REPOSICION" ? 1 : -1;
+      delta.set(m.cajaId, (delta.get(m.cajaId) ?? 0) + signo * n(m._sum.valor));
+    }
+    res.json(cajas.map((c) => ({ ...c, saldoActual: n(c.montoInicial) + (delta.get(c.id) ?? 0) })));
   }));
 
 contableRoutes.post("/cajas", requireAuth, requirePermiso("contable.cajamenor.crear"),
