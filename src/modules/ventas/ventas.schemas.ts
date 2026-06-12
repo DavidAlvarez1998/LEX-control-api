@@ -15,6 +15,7 @@ export const createProspectoSchema = z.object({
   nombreContacto: z.string().trim().min(1),
   email: z.string().trim().email().optional(),
   telefono: z.string().trim().min(1).optional(),
+  numeroDocumento: z.string().trim().min(1).optional(), // NIT / identificación
   cargo: z.string().trim().min(1).optional(),
   canalEntrada: canalEntrada.optional(),
   referidoPor: z.string().trim().min(1).optional(), // quién lo refirió (canal REFERIDO)
@@ -28,6 +29,7 @@ export const updateProspectoSchema = z.object({
   nombreContacto: z.string().trim().min(1).optional(),
   email: z.string().trim().email().optional(),
   telefono: z.string().trim().min(1).optional(),
+  numeroDocumento: z.string().trim().min(1).nullable().optional(), // NIT / identificación
   cargo: z.string().trim().min(1).optional(),
   canalEntrada: canalEntrada.optional(),
   referidoPor: z.string().trim().min(1).nullable().optional(),

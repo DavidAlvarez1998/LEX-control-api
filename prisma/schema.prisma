@@ -1520,6 +1520,7 @@ model Prospecto {
   nombreContacto String
   email          String?
   telefono       String?
+  numeroDocumento String? // NIT del despacho / identificación del contacto (búsqueda)
   cargo          String?
   canalEntrada   CanalEntrada    @default(DIRECTO)
   referidoPor    String? // nombre de quién lo refirió (cuando canalEntrada = REFERIDO)

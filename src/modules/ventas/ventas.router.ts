@@ -62,7 +62,7 @@ prospectoRoutes.post("/", requireAuth, requireRole(Rol.ADMIN, Rol.COMERCIAL),
     res.status(201).json(await prisma.prospecto.create({
       data: {
         nombreEmpresa: b.nombreEmpresa, nombreContacto: b.nombreContacto,
-        email: b.email, telefono: b.telefono, cargo: b.cargo,
+        email: b.email, telefono: b.telefono, numeroDocumento: b.numeroDocumento, cargo: b.cargo,
         canalEntrada: b.canalEntrada, referidoPor: b.referidoPor, planInteresId: b.planInteresId,
         comercialId, notas: b.notas,
       },
