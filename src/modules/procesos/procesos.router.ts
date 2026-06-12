@@ -144,6 +144,9 @@ procesoRoutes.get(
         // Deadline-first + caso (change procesos-ux-ddp-tutela): el front pinta el
         // semáforo, ordena por urgencia y marca si la fila es parte de un caso.
         etapaActual: t.etapaActual,
+        etapaNombre:
+          ((t.tipoProceso.etapas as unknown as EtapaDef[]) ?? []).find((e) => e.key === t.etapaActual)?.nombre ??
+          t.etapaActual,
         fechaLimite: t.fechaLimite,
         semaforo: semaforoL(t.fechaLimite),
         responsableId: t.responsableId,
