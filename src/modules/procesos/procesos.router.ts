@@ -72,7 +72,10 @@ function siguienteEtapaAuto(
   const enMin = candidatas.filter((e) => e.orden === minOrden);
   if (enMin.length !== 1) return null; // varias ramas disponibles → no auto-avanzar
   const next = enMin[0];
-  if (next.terminal) return null; // no auto-cerrar
+  // Se auto-avanza a una rama terminal CONDICIONAL (p. ej. "Respondida" cuando
+  // contestaron=SI y la respuesta está completa), pero NO al terminal genérico
+  // (sin disponibleSi) para no cerrar el proceso solo.
+  if (next.terminal && !next.disponibleSi) return null;
   if (next.accion?.tipo === "crearDerivado") return null; // requiere "Crear" manual
   const reglas = next.reglas;
   const camposReq = [
