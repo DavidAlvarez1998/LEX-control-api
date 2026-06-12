@@ -51,6 +51,82 @@ const detalleInclude = {
   documentos: { orderBy: { createdAt: "desc" } },
 } as const;
 
+/**
+ * Siguiente etapa a la que el proceso puede AVANZAR SOLO con los datos/documentos
+ * actuales: la inmediata por orden, sin ambigüedad de ramas, que no sea terminal
+ * ni con acción de derivar, y con todos sus campos y documentos requeridos listos.
+ * Devuelve null si no debe auto-avanzar (deja la decisión al usuario).
+ */
+function siguienteEtapaAuto(
+  etapas: EtapaDef[],
+  etapaActualKey: string,
+  datos: Record<string, unknown>,
+  docs: string[],
+): EtapaDef | null {
+  const ordenActual = etapas.find((e) => e.key === etapaActualKey)?.orden ?? -1;
+  const candidatas = etapas.filter(
+    (e) => e.orden > ordenActual && (!e.disponibleSi || evaluarCondicion(e.disponibleSi, datos)),
+  );
+  if (candidatas.length === 0) return null;
+  const minOrden = Math.min(...candidatas.map((e) => e.orden));
+  const enMin = candidatas.filter((e) => e.orden === minOrden);
+  if (enMin.length !== 1) return null; // varias ramas disponibles → no auto-avanzar
+  const next = enMin[0];
+  if (next.terminal) return null; // no auto-cerrar
+  if (next.accion?.tipo === "crearDerivado") return null; // requiere "Crear" manual
+  const reglas = next.reglas;
+  const camposReq = [
+    ...(reglas?.camposRequeridos ?? []),
+    ...(reglas?.requeridosSi ?? []).filter((r) => evaluarCondicion(r.si, datos)).flatMap((r) => r.camposRequeridos ?? []),
+  ];
+  if ([...new Set(camposReq)].some((k) => { const v = datos[k]; return v === undefined || v === null || v === ""; })) return null;
+  const docsReq = [
+    ...(reglas?.documentosRequeridos ?? []),
+    ...(reglas?.requeridosSi ?? []).filter((r) => evaluarCondicion(r.si, datos)).flatMap((r) => r.documentosRequeridos ?? []),
+  ];
+  const presentes = new Set(docs.map((d) => d.trim().toLowerCase()));
+  if ([...new Set(docsReq)].some((n) => !presentes.has(n.trim().toLowerCase()))) return null;
+  return next;
+}
+
+/** Avanza el proceso TODAS las etapas que pueda con los datos/documentos actuales
+ *  (p. ej. al completar fecha+nro de radicado y la petición → pasa a "Radicación"). */
+async function autoavanzarEtapas(empresaId: string, procesoId: string, usuarioId: string): Promise<void> {
+  for (let i = 0; i < 25; i++) {
+    const p = await prisma.proceso.findFirst({
+      where: { id: procesoId, empresaId },
+      select: {
+        id: true,
+        etapaActual: true,
+        datos: true,
+        estado: true,
+        tipoProceso: { select: { etapas: true } },
+        documentos: { select: { nombre: true } },
+      },
+    });
+    if (!p || p.estado === "ARCHIVADO") return;
+    const etapas = p.tipoProceso?.etapas as unknown as EtapaDef[] | undefined;
+    if (!Array.isArray(etapas) || etapas.length === 0) return;
+    const datos = (p.datos ?? {}) as Record<string, unknown>;
+    const next = siguienteEtapaAuto(etapas, p.etapaActual, datos, (p.documentos ?? []).map((d) => d.nombre));
+    if (!next) return;
+    const fechaLimite = next.reglas?.plazoDesdeCampo ? derivarFechaLimite(next.reglas, datos) : undefined;
+    await prisma.$transaction(async (tx) => {
+      await tx.etapaProceso.create({
+        data: { procesoId: p.id, etapaKey: next.key, usuarioId, nota: "Avance automático (datos completos)" },
+      });
+      await tx.proceso.update({
+        where: { id: p.id },
+        data: {
+          etapaActual: next.key,
+          estado: next.terminal ? "CERRADO" : "EN_PROCESO",
+          ...(fechaLimite !== undefined ? { fechaLimite } : {}),
+        },
+      });
+    });
+  }
+}
+
 /** Un COMERCIAL (sin JURIDICO ni admin de empresa) solo ve los procesos de SUS clientes:
  *  donde es responsable o responsable comercial del cliente. Mismo criterio que /clientes?mios. */
 function soloMisClientes(req: import("express").Request): Prisma.ProcesoWhereInput | null {
@@ -760,9 +836,15 @@ procesoRoutes.patch(
         : {}),
     };
 
-    const proceso = await prisma.proceso.update({
-      where: { id: existe.id },
-      data,
+    await prisma.proceso.update({ where: { id: existe.id }, data });
+
+    // Auto-avance: si al guardar los datos quedó completa la siguiente etapa
+    // (campos + documentos, rama no ambigua, sin acción de derivar ni terminal),
+    // el proceso avanza solo (p. ej. fecha + nro de radicado + petición → "Radicación").
+    if (body.datos !== undefined) await autoavanzarEtapas(empresaId, existe.id, req.user!.sub);
+
+    const proceso = await prisma.proceso.findFirst({
+      where: { id: existe.id, empresaId },
       include: detalleInclude,
     });
     res.json(serializeDetalle(proceso));
