@@ -266,7 +266,7 @@ procesoRoutes.get(
       fechaLimite: true,
       casoRelacionadoId: true,
       createdAt: true,
-      tipoProceso: { select: { nombre: true, esJudicial: true } },
+      tipoProceso: { select: { nombre: true, esJudicial: true, etapas: true } },
     } as const;
 
     const inicial = await prisma.proceso.findFirst({ where: { id: req.params.id, empresaId }, select });
@@ -305,18 +305,23 @@ procesoRoutes.get(
     }
 
     res.json(
-      orden.map((p) => ({
-        id: p.id,
-        codigoInterno: p.codigoInterno,
-        titulo: p.titulo,
-        tipoProcesoNombre: p.tipoProceso.nombre,
-        esJudicial: p.tipoProceso.esJudicial,
-        estado: p.estado,
-        etapaActual: p.etapaActual,
-        fechaLimite: p.fechaLimite,
-        casoRelacionadoId: p.casoRelacionadoId,
-        createdAt: p.createdAt,
-      })),
+      orden.map((p) => {
+        const etapas = p.tipoProceso.etapas as unknown as EtapaDef[];
+        const etapaNombre = etapas?.find((e) => e.key === p.etapaActual)?.nombre ?? p.etapaActual;
+        return {
+          id: p.id,
+          codigoInterno: p.codigoInterno,
+          titulo: p.titulo,
+          tipoProcesoNombre: p.tipoProceso.nombre,
+          esJudicial: p.tipoProceso.esJudicial,
+          estado: p.estado,
+          etapaActual: p.etapaActual,
+          etapaNombre,
+          fechaLimite: p.fechaLimite,
+          casoRelacionadoId: p.casoRelacionadoId,
+          createdAt: p.createdAt,
+        };
+      }),
     );
   }),
 );
