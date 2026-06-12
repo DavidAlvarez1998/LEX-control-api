@@ -52,6 +52,7 @@ export type AccionEtapa = {
   tipoDestinoNombre: string;
   copiarDatos?: string[]; // keys de datos a copiar del proceso base al derivado
   copiarCliente?: boolean; // arrastra el mismo cliente/peticionario como parte
+  copiarDocumentos?: string[]; // nombres de documentos a heredar (p. ej. "poder.pdf")
 };
 
 export type EtapaDef = {

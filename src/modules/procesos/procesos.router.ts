@@ -619,6 +619,26 @@ procesoRoutes.post(
           },
         });
       }
+
+      // Hereda los documentos declarados (p. ej. "poder.pdf"): es el MISMO archivo
+      // (misma url en el microservicio documental), solo se crea un nuevo registro
+      // ligado al derivado. En la reiteración del DdP, el poder es el mismo del base.
+      const nombresHeredar = (accion.copiarDocumentos ?? []).map((n) => n.trim().toLowerCase());
+      if (nombresHeredar.length > 0) {
+        const baseDocs = await tx.documentoProceso.findMany({ where: { procesoId: proceso.id } });
+        const aHeredar = baseDocs.filter((d) => nombresHeredar.includes(d.nombre.trim().toLowerCase()));
+        if (aHeredar.length > 0) {
+          await tx.documentoProceso.createMany({
+            data: aHeredar.map((d) => ({
+              procesoId: creado.id,
+              nombre: d.nombre,
+              url: d.url,
+              contenido: d.contenido,
+              generadoDePlantilla: d.generadoDePlantilla,
+            })),
+          });
+        }
+      }
       return tx.proceso.findUnique({ where: { id: creado.id }, include: detalleInclude });
     });
     res.status(201).json(serializeDetalle(derivado));
