@@ -152,3 +152,27 @@ export function requirePermiso(clave: string) {
     next();
   });
 }
+
+/**
+ * Versión NO-lanzadora de `requirePermiso`: responde `true/false` en vez de tirar
+ * 403/500. Aplica las dos mismas puertas (módulo contratado + RBAC, con
+ * `esAdminEmpresa` cortando la RBAC). Útil cuando un endpoint decide qué incluir
+ * según el permiso sin abortar toda la request (p. ej. la búsqueda global, que
+ * consulta una entidad solo si el usuario puede verla). Debe ir tras `requireAuth`.
+ */
+export async function tienePermiso(req: Request, clave: string): Promise<boolean> {
+  if (!req.empresaId) return false;
+  const permiso = await prisma.permiso.findUnique({
+    where: { clave },
+    select: {
+      modulo: { select: { clave: true } },
+      roles: { select: { rolEmpresa: true } },
+    },
+  });
+  if (!permiso) return false; // permiso no sembrado → trátalo como sin acceso
+  const { modulosHabilitados } = await resolveEntitlements(req.empresaId);
+  if (!modulosHabilitados.has(permiso.modulo.clave)) return false;
+  if (req.esAdminEmpresa) return true;
+  const concedidos = new Set(permiso.roles.map((r) => r.rolEmpresa));
+  return (req.rolesEmpresa ?? []).some((r) => concedidos.has(r));
+}

@@ -3,6 +3,7 @@ import express, { type Express } from "express";
 import { env } from "./config/env";
 import { errorHandler, notFound } from "./middleware/error";
 import { authRoutes } from "./modules/auth/auth.router";
+import { buscarRoutes } from "./modules/buscar/buscar.router";
 import { catalogRoutes } from "./modules/catalog/catalog.router";
 import { clienteRoutes } from "./modules/clientes/clientes.router";
 import { comercialRoutes } from "./modules/comercial/comercial.router";
@@ -36,6 +37,8 @@ export function createApp(): Express {
 
   // Feature routers:
   app.use("/auth", authRoutes);
+  // Búsqueda global (consciente de rol; ramifica por tipo de usuario).
+  app.use("/buscar", buscarRoutes);
   app.use("/empresas", empresaRoutes);
   app.use("/mi-empresa", miEmpresaRoutes);
   app.use("/servicios", servicioRoutes);
