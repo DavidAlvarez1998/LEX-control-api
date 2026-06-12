@@ -63,33 +63,39 @@ function siguienteEtapaAuto(
   datos: Record<string, unknown>,
   docs: string[],
 ): EtapaDef | null {
+  const vacio = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
   const ordenActual = etapas.find((e) => e.key === etapaActualKey)?.orden ?? -1;
-  const candidatas = etapas.filter(
-    (e) => e.orden > ordenActual && (!e.disponibleSi || evaluarCondicion(e.disponibleSi, datos)),
-  );
-  if (candidatas.length === 0) return null;
-  const minOrden = Math.min(...candidatas.map((e) => e.orden));
-  const enMin = candidatas.filter((e) => e.orden === minOrden);
-  if (enMin.length !== 1) return null; // varias ramas disponibles → no auto-avanzar
-  const next = enMin[0];
-  // Se auto-avanza a una rama terminal CONDICIONAL (p. ej. "Respondida" cuando
-  // contestaron=SI y la respuesta está completa), pero NO al terminal genérico
-  // (sin disponibleSi) para no cerrar el proceso solo.
-  if (next.terminal && !next.disponibleSi) return null;
-  if (next.accion?.tipo === "crearDerivado") return null; // requiere "Crear" manual
-  const reglas = next.reglas;
-  const camposReq = [
-    ...(reglas?.camposRequeridos ?? []),
-    ...(reglas?.requeridosSi ?? []).filter((r) => evaluarCondicion(r.si, datos)).flatMap((r) => r.camposRequeridos ?? []),
-  ];
-  if ([...new Set(camposReq)].some((k) => { const v = datos[k]; return v === undefined || v === null || v === ""; })) return null;
-  const docsReq = [
-    ...(reglas?.documentosRequeridos ?? []),
-    ...(reglas?.requeridosSi ?? []).filter((r) => evaluarCondicion(r.si, datos)).flatMap((r) => r.documentosRequeridos ?? []),
-  ];
-  const presentes = new Set(docs.map((d) => d.trim().toLowerCase()));
-  if ([...new Set(docsReq)].some((n) => !presentes.has(n.trim().toLowerCase()))) return null;
-  return next;
+  // Camina nivel por nivel (orden ascendente). En cada nivel: si ninguna rama está
+  // disponible, ESPERA si alguna depende de un campo aún vacío (decisión pendiente,
+  // p. ej. recién radicado sin "¿Contestaron?"), o SALTA el nivel si todas son N/A
+  // definitivas (el campo ya está decidido, p. ej. Sí no toma las ramas de Parcial/No,
+  // así llega a "Terminación"). Varias disponibles → ambiguo (decide el usuario).
+  const ordenes = [...new Set(etapas.filter((e) => e.orden > ordenActual).map((e) => e.orden))].sort((a, b) => a - b);
+  for (const orden of ordenes) {
+    const nivel = etapas.filter((e) => e.orden === orden);
+    const disponibles = nivel.filter((e) => !e.disponibleSi || evaluarCondicion(e.disponibleSi, datos));
+    if (disponibles.length === 0) {
+      if (nivel.some((e) => e.disponibleSi && vacio(datos[e.disponibleSi.campo]))) return null; // pendiente → esperar
+      continue; // N/A definitivo → saltar nivel
+    }
+    if (disponibles.length > 1) return null; // varias ramas → no auto-avanzar
+    const next = disponibles[0];
+    if (next.accion?.tipo === "crearDerivado") return null; // requiere "Crear" manual
+    const reglas = next.reglas;
+    const camposReq = [
+      ...(reglas?.camposRequeridos ?? []),
+      ...(reglas?.requeridosSi ?? []).filter((r) => evaluarCondicion(r.si, datos)).flatMap((r) => r.camposRequeridos ?? []),
+    ];
+    if ([...new Set(camposReq)].some((k) => vacio(datos[k]))) return null;
+    const docsReq = [
+      ...(reglas?.documentosRequeridos ?? []),
+      ...(reglas?.requeridosSi ?? []).filter((r) => evaluarCondicion(r.si, datos)).flatMap((r) => r.documentosRequeridos ?? []),
+    ];
+    const presentes = new Set(docs.map((d) => d.trim().toLowerCase()));
+    if ([...new Set(docsReq)].some((n) => !presentes.has(n.trim().toLowerCase()))) return null;
+    return next;
+  }
+  return null;
 }
 
 /** Avanza el proceso TODAS las etapas que pueda con los datos/documentos actuales
