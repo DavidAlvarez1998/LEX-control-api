@@ -267,6 +267,18 @@ export function construirContexto(proceso: ProcesoParaContexto): Contexto {
     if (!parte[key]) parte[key] = p;
   }
 
+  // El cliente del despacho: en trámites no judiciales (p. ej. derecho de petición)
+  // se guarda con rol OTRO (etiqueta "Peticionario"), no como accionante/demandante.
+  // Se expone con nombres estables (peticionario/cliente) y se da alias a los roles
+  // comunes si faltan, para que las plantillas resuelvan al cliente sin [[falta:]].
+  const cliente = partes.find((p) => p.esNuestroCliente) ?? partes[0];
+  if (cliente) {
+    if (!parte.peticionario) parte.peticionario = cliente;
+    if (!parte.cliente) parte.cliente = cliente;
+    if (!parte.accionante) parte.accionante = cliente;
+    if (!parte.demandante) parte.demandante = cliente;
+  }
+
   const procesoCtx = {
     codigoInterno: proceso.codigoInterno,
     radicado: proceso.radicado,

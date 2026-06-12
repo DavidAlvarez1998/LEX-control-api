@@ -6,52 +6,81 @@
 
 export type PlantillaSeed = { tipoNombre: string; nombre: string; contenido: string };
 
-const PETICION = `Señores
-{{datos.entidad}}
-{{#if datos.correo}}Correo: {{datos.correo}}{{/if}}
-E.  S.  D.
+const PETICION = `{{fecha proceso.createdAt}}
 
-Referencia: Derecho de petición — {{datos.tipoPeticion}}
+Señores
+{{mayus datos.entidad}}
+{{#if datos.correo}}Correo electrónico: {{datos.correo}}
+{{/if}}E.  S.  D.
 
-{{parte.accionante.nombre}}, identificado(a) con {{parte.accionante.tipoDocumento}} No. {{parte.accionante.numeroDocumento}}, en ejercicio del derecho fundamental de petición (artículo 23 de la Constitución Política y Ley 1755 de 2015), respetuosamente formulo la siguiente petición:
+REFERENCIA: Derecho de petición — {{datos.tipoPeticion}}
+
+Respetados señores:
+
+{{parte.peticionario.nombre}}, mayor de edad, identificado(a) con {{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}, actuando en nombre propio y en ejercicio del derecho fundamental de petición consagrado en el artículo 23 de la Constitución Política y desarrollado por la Ley 1755 de 2015, de manera respetuosa elevo ante ustedes la siguiente petición.
 
 PETICIÓN
-Solicito a la entidad:
+Solicito comedidamente a la entidad:
 {{#each datos.queSolicita}}
-  - {{this}}
-{{/each}}
+{{@index}}. {{this}}{{/each}}
 {{#if datos.detalle}}
-SUSTENTO
+HECHOS Y FUNDAMENTOS
 {{datos.detalle}}
 {{/if}}
+FUNDAMENTOS DE DERECHO
+La presente petición se sustenta en el artículo 23 de la Constitución Política, que consagra el derecho fundamental de petición, y en la Ley 1755 de 2015, que regula su ejercicio y los términos para resolver.
+
+TÉRMINO PARA RESOLVER
+De conformidad con el artículo 14 de la Ley 1755 de 2015, solicito que la respuesta se profiera dentro del término legal: quince (15) días hábiles como regla general; diez (10) días hábiles cuando se trate de peticiones de documentos e información; y treinta (30) días hábiles para consultas.
+
 NOTIFICACIONES
-{{#if datos.correo}}Recibiré respuesta en el correo electrónico: {{datos.correo}}.{{else}}Indicaré la dirección de notificación.{{/if}}
+{{#if datos.correo}}Recibiré la respuesta y las notificaciones en el correo electrónico: {{datos.correo}}.{{else}}Indicaré la dirección física o electrónica para recibir la respuesta.{{/if}}
 
 Atentamente,
 
 
-{{parte.accionante.nombre}}
-{{parte.accionante.tipoDocumento}} No. {{parte.accionante.numeroDocumento}}`;
 
-const REITERACION = `Señores
-{{datos.entidad}}
-E.  S.  D.
+______________________________
+{{parte.peticionario.nombre}}
+{{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}`;
 
-Referencia: Reiteración de derecho de petición — Radicado {{datos.nroRadicado}}
+const REITERACION = `{{fecha proceso.createdAt}}
 
-{{parte.accionante.nombre}}, identificado(a) con {{parte.accionante.tipoDocumento}} No. {{parte.accionante.numeroDocumento}}, me permito REITERAR el derecho de petición radicado el {{fecha datos.fechaRadicacion}} bajo el No. {{datos.nroRadicado}}, por cuanto la respuesta recibida fue parcial o incompleta.
+Señores
+{{mayus datos.entidad}}
+{{#if datos.correo}}Correo electrónico: {{datos.correo}}
+{{/if}}E.  S.  D.
 
+REFERENCIA: Reiteración de derecho de petición — Radicado {{datos.nroRadicado}}
+
+Respetados señores:
+
+{{parte.peticionario.nombre}}, mayor de edad, identificado(a) con {{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}, actuando en nombre propio, me permito REITERAR respetuosamente el derecho de petición radicado el {{fecha datos.fechaRadicacion}} bajo el No. {{datos.nroRadicado}}, por cuanto la respuesta recibida fue parcial, incompleta o no resolvió de fondo lo solicitado.
+
+PETICIÓN
 Reitero la solicitud de:
 {{#each datos.queSolicita}}
-  - {{this}}
-{{/each}}
-Solicito respetuosamente una respuesta de fondo, clara, precisa y congruente, dentro del término legal.
+{{@index}}. {{this}}{{/each}}
+{{#if datos.queFalto}}
+LO QUE FALTÓ POR RESOLVER
+{{datos.queFalto}}
+{{/if}}
+FUNDAMENTOS DE DERECHO
+El artículo 23 de la Constitución Política y la Ley 1755 de 2015 garantizan una respuesta de fondo, clara, precisa, congruente y oportuna. Una respuesta parcial o evasiva vulnera el núcleo esencial del derecho de petición (Corte Constitucional, sentencias T-206 de 2018 y T-001 de 2019, entre otras).
+
+PETICIÓN DE FONDO
+Solicito que, dentro del término legal, se profiera una respuesta completa y de fondo respecto de todo lo pedido.
+
+NOTIFICACIONES
+{{#if datos.correo}}Recibiré la respuesta y las notificaciones en el correo electrónico: {{datos.correo}}.{{else}}Indicaré la dirección física o electrónica para recibir la respuesta.{{/if}}
 
 Atentamente,
 
 
-{{parte.accionante.nombre}}
-{{parte.accionante.tipoDocumento}} No. {{parte.accionante.numeroDocumento}}`;
+
+______________________________
+{{parte.peticionario.nombre}}
+{{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}`;
 
 const DEMANDA_TUTELA = `Señor
 JUEZ (REPARTO)
