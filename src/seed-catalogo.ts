@@ -103,6 +103,8 @@ async function main() {
           descripcion: t.descripcion,
           jurisdiccion: t.jurisdiccion,
           esJudicial: t.esJudicial ?? true,
+          clienteOpcional: t.clienteOpcional ?? false,
+          grupo: t.grupo ?? "JUDICIAL",
           esquemaFormulario: t.esquemaFormulario,
           etapas: t.etapas,
           empresaId: null,

@@ -21,14 +21,16 @@
       { "key": "falloPrimera", "label": "Fallo de primera instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"] },
       { "key": "fechaFallo", "label": "Fecha del fallo", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "falloPrimera", "igualA": ["Favorable", "Desfavorable"] } },
       { "key": "impugnada", "label": "¿Se impugnó el fallo?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
-      { "key": "falloSegunda", "label": "Fallo de segunda instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"], "mostrarSi": { "campo": "impugnada", "igualA": "SI" } }
+      { "key": "falloSegunda", "label": "Fallo de segunda instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"], "mostrarSi": { "campo": "impugnada", "igualA": "SI" } },
+      { "key": "incidenteDesacato", "label": "¿Se promovió incidente de desacato?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
+      { "key": "fechaIncidenteDesacato", "label": "Fecha del incidente de desacato", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "incidenteDesacato", "igualA": "SI" } }
     ],
     "etapas": [
       { "key": "radicacion", "nombre": "Radicación y reparto", "orden": 1, "reglas": { "camposRequeridos": ["derechosFundamentales", "entidadAccionada", "hechos", "pretension", "existeOtroMedioDefensa"], "documentosRequeridos": ["demanda.pdf"], "documentosOpcionales": ["pruebas.pdf", "anexos.pdf"], "plazoDesdeCampo": "fechaPresentacion", "plazoTipoDias": "habiles", "plazoDias": 10 } },
       { "key": "admision", "nombre": "Admisión y traslado al accionado", "orden": 2, "reglas": { "camposRequeridos": ["entidadAccionada"], "documentosRequeridos": ["auto_admisorio.pdf"] } },
       { "key": "falloPrimeraInstancia", "nombre": "Fallo de primera instancia", "orden": 3, "reglas": { "camposRequeridos": ["pretension"], "documentosRequeridos": ["sentencia.pdf"], "plazoDias": 10 } },
       { "key": "impugnacion", "nombre": "Impugnación", "orden": 4, "disponibleSi": { "campo": "impugnada", "igualA": "SI" }, "reglas": { "documentosRequeridos": ["impugnacion.pdf"], "plazoDias": 3 } },
-      { "key": "falloSegundaInstancia", "nombre": "Fallo de segunda instancia", "orden": 5, "reglas": { "documentosRequeridos": ["sentencia_segunda.pdf"], "plazoDias": 20 } },
+      { "key": "falloSegundaInstancia", "nombre": "Fallo de segunda instancia", "orden": 5, "reglas": { "documentosRequeridos": ["sentencia_segunda.pdf"], "plazoDias": 20, "opcionalesSi": [{ "si": { "campo": "incidenteDesacato", "igualA": "SI" }, "documentosOpcionales": ["escrito_desacato.pdf", "fallo_desacato.pdf"] }] } },
       { "key": "remisionRevision", "nombre": "Remisión a la Corte Constitucional para eventual revisión", "orden": 6, "reglas": { "plazoDias": 10 } },
       { "key": "terminado", "nombre": "Terminación", "orden": 7, "terminal": true, "resultado": "Tutela resuelta (eventualmente revisada por la Corte Constitucional)." }
     ]
@@ -101,6 +103,71 @@
       { "key": "recepcion", "nombre": "Recepción", "orden": 0, "reglas": { "camposRequeridos": ["radicadoIngreso", "fechaRecepcion", "peticionario", "tipoPeticion", "queSolicita"], "documentosRequeridos": ["peticion-recibida.pdf"], "plazoDesdeCampo": "fechaRecepcion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
       { "key": "contestacion", "nombre": "Contestación", "orden": 1, "disponibleSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestada", "igualA": "SI" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestada", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["respuesta.pdf"] }] } },
       { "key": "terminada", "nombre": "Terminación", "orden": 2, "terminal": true, "resultado": "Petición recibida atendida." }
+    ]
+  },
+  {
+    "nombre": "Reclamación Administrativa",
+    "grupo": "PETICION",
+    "descripcion": "Reclamación respetuosa presentada ante la administración para obtener pronta resolución de lo solicitado (art. 23 C.P.; Ley 1755/2015). Términos: general 15 días hábiles, documentos/información 10, consultas 30.",
+    "jurisdiccion": "CONSTITUCIONAL",
+    "esJudicial": false,
+    "areaSlugs": ["constitucional"],
+    "esquemaFormulario": [
+      { "key": "entidad", "label": "Entidad o particular destinatario", "tipo": "texto", "requerido": true },
+      { "key": "correo", "label": "Correo electrónico de la entidad", "tipo": "texto", "requerido": false },
+      { "key": "tipoPeticion", "label": "Tipo de reclamación", "tipo": "select", "requerido": true, "opciones": ["General", "Documental", "Consulta"], "ayuda": "General = 15 días hábiles · Documental = 10 · Consulta = 30." },
+      { "key": "queSolicita", "label": "¿Qué desea solicitar?", "tipo": "multiselect", "requerido": true, "opciones": ["Información", "Copia de documentos", "Certificación", "Historia laboral", "Historia clínica", "Estado de trámite", "Pago pendiente", "Reconocimiento de derecho", "Corrección de información", "Habeas data", "Solicitud laboral", "Salud", "Seguridad social", "Queja", "Reclamo", "Consulta", "Otro"] },
+      { "key": "otroSolicita", "label": "Especifica qué solicitan", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "queSolicita", "igualA": "Otro" }, "requeridoSi": { "campo": "queSolicita", "igualA": "Otro" } },
+      { "key": "detalle", "label": "Detalle de la solicitud", "tipo": "textoLargo", "requerido": false },
+      { "key": "requierePoder", "label": "¿Requiere poder?", "tipo": "boolean", "requerido": false },
+      { "key": "envio", "label": "Medio de envío", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"] },
+      { "key": "fechaRadicacion", "label": "Fecha de radicación", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corre el término de respuesta." },
+      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false },
+      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] },
+
+      { "key": "fechaRespuesta", "label": "Fecha de la respuesta", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
+      { "key": "numeroRespuesta", "label": "N.º de oficio/radicado de la respuesta", "tipo": "texto", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
+      { "key": "respuestaDeFondo", "label": "¿Resolvió de fondo lo solicitado?", "tipo": "select", "requerido": false, "opciones": ["Sí", "No"], "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
+      { "key": "observacionesRespuesta", "label": "Observaciones de la respuesta", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
+
+      { "key": "fechaRespuestaParcial", "label": "Fecha de la respuesta parcial", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "requeridoSi": { "campo": "contestaron", "igualA": "PARCIAL" } },
+      { "key": "queFalto", "label": "¿Qué quedó sin responder?", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "requeridoSi": { "campo": "contestaron", "igualA": "PARCIAL" } },
+
+      { "key": "observacionNoRespuesta", "label": "Observación del incumplimiento", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "NO" } }
+    ],
+    "etapas": [
+      { "key": "borrador", "nombre": "Elaboración de la reclamación", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "tipoPeticion", "queSolicita"] } },
+      { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "documentosRequeridos": ["reclamacion.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
+      { "key": "respondida", "nombre": "Contestación", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "camposRequeridos": ["fechaRespuesta", "respuestaDeFondo"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaRespuestaParcial", "queFalto"], "documentosRequeridos": ["respuesta.pdf"] }] } },
+      { "key": "reiteracion", "nombre": "Reiteración (respuesta parcial)", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Reclamación Administrativa", "copiarDatos": ["entidad", "correo", "tipoPeticion", "queSolicita", "detalle", "requierePoder"], "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
+      { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": ["NO", "PARCIAL"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela", "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
+      { "key": "terminada", "nombre": "Terminación", "orden": 4, "terminal": true, "resultado": "Reclamación terminada." }
+    ]
+  },
+  {
+    "nombre": "Constitución de Renuencia",
+    "grupo": "PETICION",
+    "descripcion": "Reclamo previo dirigido a la autoridad o particular para constituir la renuencia, requisito de procedibilidad de la acción de cumplimiento (art. 8 Ley 393/1997). Si transcurridos 10 días no se atiende o se reitera el incumplimiento, queda constituida la renuencia.",
+    "jurisdiccion": "CONSTITUCIONAL",
+    "esJudicial": false,
+    "areaSlugs": ["constitucional"],
+    "esquemaFormulario": [
+      { "key": "entidad", "label": "Entidad o autoridad renuente", "tipo": "texto", "requerido": true },
+      { "key": "correo", "label": "Correo electrónico de la entidad", "tipo": "texto", "requerido": false },
+      { "key": "solicitud", "label": "Deber legal o acto cuyo cumplimiento se exige", "tipo": "textoLargo", "requerido": true },
+      { "key": "requierePoder", "label": "¿Requiere poder?", "tipo": "boolean", "requerido": false },
+      { "key": "envio", "label": "Medio de envío", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"] },
+      { "key": "fechaRadicacion", "label": "Fecha de radicación", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corren los 15 días hábiles." },
+      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false },
+      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] },
+      { "key": "observacionContestacion", "label": "Anexar/observaciones de la contestación", "tipo": "textoLargo", "requerido": false }
+    ],
+    "etapas": [
+      { "key": "borrador", "nombre": "Elaboración de la renuencia", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "solicitud"] } },
+      { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "documentosRequeridos": ["renuencia.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDias": 15 } },
+      { "key": "respondida", "nombre": "Contestación", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "opcionalesSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "documentosOpcionales": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "documentosOpcionales": ["respuesta.pdf"] }] } },
+      { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": ["NO", "PARCIAL"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela", "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
+      { "key": "terminada", "nombre": "Terminación", "orden": 4, "terminal": true, "resultado": "Renuencia constituida." }
     ]
   },
   {
