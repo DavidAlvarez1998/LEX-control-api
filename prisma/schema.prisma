@@ -299,6 +299,10 @@ model TipoProceso {
   // dígitos, despacho/juzgado y cuantía. false → trámite ante una entidad (p. ej.
   // Derecho de Petición): la UI oculta esos "datos judiciales".
   esJudicial        Boolean      @default(true)
+  // ¿El cliente (CRM) es opcional al crear? false (default) → se exige. true →
+  // trámites dirigidos al propio despacho (p. ej. Derecho de Petición recibido):
+  // el cliente puede quedar vacío (solo se vincula si se atiende en su nombre).
+  clienteOpcional   Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

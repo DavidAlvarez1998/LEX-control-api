@@ -497,6 +497,16 @@ procesoRoutes.post(
       // codigoInterno secuencial por empresa y año (el @@unique respalda la carrera).
       const codigoInterno = await generarCodigoInterno(tx, empresaId);
 
+      // Campos autogenerados (p. ej. radicado de ingreso del DdP recibido): se
+      // rellenan los vacíos con un código alfanumérico derivado del codigoInterno
+      // (EXP-2026-0008 → RAD-2026-0008). Único por empresa+año como el codigoInterno.
+      const datosFinales: Record<string, unknown> = { ...(body.datos as Record<string, unknown>) };
+      for (const campo of esquema) {
+        if (campo.auto && !datosFinales[campo.key]) {
+          datosFinales[campo.key] = codigoInterno.replace(/^[A-Z]+/, "RAD");
+        }
+      }
+
       const creado = await tx.proceso.create({
         data: {
           codigoInterno,
@@ -514,7 +524,7 @@ procesoRoutes.post(
           creadoPorId: req.user!.sub,
           responsableId,
           titulo: body.titulo,
-          datos: body.datos as Prisma.InputJsonValue,
+          datos: datosFinales as Prisma.InputJsonValue,
           etapaActual: entrada.key,
           historial: { create: { etapaKey: entrada.key, usuarioId: req.user!.sub } },
         },

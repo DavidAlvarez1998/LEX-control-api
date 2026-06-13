@@ -33,6 +33,7 @@ export type CampoEsquema = {
   ayuda?: string;
   mostrarSi?: Condicion; // el campo se oculta salvo que la condición se cumpla
   requeridoSi?: Condicion; // requerido (adicionalmente) cuando la condición se cumple
+  auto?: boolean; // lo genera el servidor al crear (p. ej. radicado de ingreso); no se pide al usuario
 };
 
 export type ReglasEtapa = {
@@ -42,6 +43,9 @@ export type ReglasEtapa = {
   plazoDias?: number; // término informativo (existente; sin derivación de fechaLimite)
   // Requeridos condicionales: aplican solo cuando `si` se cumple.
   requeridosSi?: { si: Condicion; camposRequeridos?: string[]; documentosRequeridos?: string[] }[];
+  // Opcionales condicionales: se OFRECEN para adjuntar (no bloquean) solo si `si` se cumple
+  // (p. ej. recurso.pdf cuando la respuesta fue parcial).
+  opcionalesSi?: { si: Condicion; documentosOpcionales?: string[] }[];
   // Derivación de vencimiento: se computa fechaLimite SOLO si `plazoDesdeCampo` está.
   plazoDesdeCampo?: string; // key de un campo `fecha` en datos
   plazoTipoDias?: "habiles" | "calendario"; // default "calendario"
@@ -89,6 +93,7 @@ export function campoEfectivamenteRequerido(
   datos: Record<string, unknown>,
 ): boolean {
   if (!campoVisible(campo, datos)) return false;
+  if (campo.auto) return false; // lo llena el servidor; nunca se le exige al usuario
   return campo.requerido || (campo.requeridoSi != null && evaluarCondicion(campo.requeridoSi, datos));
 }
 
