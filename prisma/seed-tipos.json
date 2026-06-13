@@ -1,6 +1,7 @@
 [
   {
     "nombre": "Acción de tutela",
+    "grupo": "CONSTITUCIONAL",
     "descripcion": "Mecanismo constitucional para la protección inmediata de derechos fundamentales cuando resulten vulnerados o amenazados (art. 86 C.P.; Decreto 2591/1991). El juez debe fallar dentro de los 10 días hábiles siguientes a la presentación.",
     "jurisdiccion": "CONSTITUCIONAL",
     "areaSlugs": ["constitucional"],
@@ -32,6 +33,7 @@
   },
   {
     "nombre": "Derecho de Petición",
+    "grupo": "PETICION",
     "descripcion": "Derecho fundamental a presentar peticiones respetuosas ante autoridades y particulares y obtener pronta resolución (art. 23 C.P.; Ley 1755/2015). Términos: general 15 días hábiles, documentos/información 10, consultas 30.",
     "jurisdiccion": "CONSTITUCIONAL",
     "esJudicial": false,
@@ -70,6 +72,7 @@
   },
   {
     "nombre": "Derecho de Petición Recibido",
+    "grupo": "PETICION",
     "descripcion": "Petición que el despacho o su cliente RECIBE de una persona o entidad y debe responder dentro del término legal (art. 23 C.P.; Ley 1755/2015). El plazo corre contra quien recibe. Términos: general 15 días hábiles, documentos/información 10, consultas 30.",
     "jurisdiccion": "CONSTITUCIONAL",
     "esJudicial": false,
@@ -680,6 +683,7 @@
   },
   {
     "nombre": "Acción de cumplimiento",
+    "grupo": "CONSTITUCIONAL",
     "descripcion": "Hace efectivo el cumplimiento de una ley o acto administrativo por la autoridad renuente (art. 87 Const.; Ley 393/1997).",
     "jurisdiccion": "CONSTITUCIONAL",
     "areaSlugs": ["constitucional"],
@@ -702,6 +706,7 @@
   },
   {
     "nombre": "Acción popular",
+    "grupo": "CONSTITUCIONAL",
     "descripcion": "Protege derechos e intereses colectivos (art. 88 Const.; Ley 472/1998); admite medidas cautelares y pacto de cumplimiento.",
     "jurisdiccion": "CONSTITUCIONAL",
     "areaSlugs": ["constitucional"],
@@ -724,6 +729,7 @@
   },
   {
     "nombre": "Acción de grupo",
+    "grupo": "CONSTITUCIONAL",
     "descripcion": "Reparación del daño causado a un grupo de mínimo 20 personas en condiciones uniformes (art. 88 Const.; Ley 472/1998); caduca a los 2 años.",
     "jurisdiccion": "CONSTITUCIONAL",
     "areaSlugs": ["constitucional"],

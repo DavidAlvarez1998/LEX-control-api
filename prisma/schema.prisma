@@ -283,11 +283,23 @@ model AreaPractica {
 // Catálogo de tipos de proceso. Híbrido: empresaId null = global (ADMIN),
 // set = del despacho. `empresaKey` = empresaId ?? "" como sentinela del unique,
 // porque MySQL trata NULL como distinto en índices únicos.
+// Sección del portal donde vive el tipo: JUDICIAL (Procesos), PETICION
+// (Peticiones: DdP, reclamaciones) o CONSTITUCIONAL (Acciones Constitucionales:
+// tutela, popular, grupo, cumplimiento). Independiente de `esJudicial`, que solo
+// controla qué campos muestra el formulario (una tutela es judicial PERO va en
+// la sección Constitucional).
+enum GrupoProceso {
+  JUDICIAL
+  PETICION
+  CONSTITUCIONAL
+}
+
 model TipoProceso {
   id                String       @id @default(cuid())
   nombre            String
   descripcion       String?      @db.Text
   jurisdiccion      Jurisdiccion
+  grupo             GrupoProceso @default(JUDICIAL)
   esquemaFormulario Json // [{ key, label, tipo, requerido, opciones? }]
   esquemaVersion    Int          @default(1)
   etapas            Json // [{ key, nombre, orden, terminal?, reglas? }]

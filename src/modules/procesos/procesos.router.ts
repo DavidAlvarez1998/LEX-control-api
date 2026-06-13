@@ -221,7 +221,8 @@ procesoRoutes.get(
         radicado: t.radicado,
         titulo: t.titulo,
         tipoProcesoNombre: t.tipoProceso.nombre,
-        esJudicial: t.tipoProceso.esJudicial, // separa Procesos (judicial) de Peticiones (trámite ante entidad)
+        esJudicial: t.tipoProceso.esJudicial, // controla los campos judiciales del formulario
+        grupo: t.tipoProceso.grupo, // sección del portal: JUDICIAL | PETICION | CONSTITUCIONAL
         jurisdiccion: t.jurisdiccion,
         areaSlug: t.tipoProceso.areas[0]?.area.slug ?? null,
         estado: t.estado,
@@ -355,7 +356,7 @@ procesoRoutes.get(
       fechaLimite: true,
       casoRelacionadoId: true,
       createdAt: true,
-      tipoProceso: { select: { nombre: true, esJudicial: true, etapas: true } },
+      tipoProceso: { select: { nombre: true, esJudicial: true, grupo: true, etapas: true } },
     } as const;
 
     const inicial = await prisma.proceso.findFirst({ where: { id: req.params.id, empresaId }, select });
@@ -403,6 +404,7 @@ procesoRoutes.get(
           titulo: p.titulo,
           tipoProcesoNombre: p.tipoProceso.nombre,
           esJudicial: p.tipoProceso.esJudicial,
+          grupo: p.tipoProceso.grupo,
           estado: p.estado,
           etapaActual: p.etapaActual,
           etapaNombre,

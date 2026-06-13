@@ -43,6 +43,7 @@ type TipoSeed = {
   jurisdiccion: Jurisdiccion;
   esJudicial?: boolean; // default true; false = trámite ante entidad (DdP)
   clienteOpcional?: boolean; // default false; true = dirigido al despacho (DdP recibido)
+  grupo?: "JUDICIAL" | "PETICION" | "CONSTITUCIONAL"; // sección del portal; default JUDICIAL
   areaSlugs: string[];
   esquemaFormulario: Prisma.InputJsonValue;
   etapas: Prisma.InputJsonValue;
@@ -86,6 +87,7 @@ async function main() {
             jurisdiccion: t.jurisdiccion,
             esJudicial: t.esJudicial ?? true,
             clienteOpcional: t.clienteOpcional ?? false,
+            grupo: t.grupo ?? "JUDICIAL",
             esquemaFormulario: t.esquemaFormulario,
             etapas: t.etapas,
             esquemaVersion: { increment: 1 },
