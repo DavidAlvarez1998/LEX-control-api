@@ -17,12 +17,14 @@
       { "key": "fechaPresentacion", "label": "Fecha de presentación de la tutela", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corren los 10 días hábiles para el fallo." },
       { "key": "radicadoTutela", "label": "Radicado de la tutela", "tipo": "texto", "requerido": false },
       { "key": "admitida", "label": "¿Admitieron la tutela?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
+      { "key": "fechaAutoAdmisorio", "label": "Fecha del auto admisorio", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "admitida", "igualA": "SI" } },
       { "key": "falloPrimera", "label": "Fallo de primera instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"] },
+      { "key": "fechaFallo", "label": "Fecha del fallo", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "falloPrimera", "igualA": ["Favorable", "Desfavorable"] } },
       { "key": "impugnada", "label": "¿Se impugnó el fallo?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
       { "key": "falloSegunda", "label": "Fallo de segunda instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"], "mostrarSi": { "campo": "impugnada", "igualA": "SI" } }
     ],
     "etapas": [
-      { "key": "radicacion", "nombre": "Radicación y reparto", "orden": 1, "reglas": { "camposRequeridos": ["derechosFundamentales", "entidadAccionada", "hechos", "pretension", "existeOtroMedioDefensa"], "documentosRequeridos": ["demanda.pdf"], "plazoDesdeCampo": "fechaPresentacion", "plazoTipoDias": "habiles", "plazoDias": 10 } },
+      { "key": "radicacion", "nombre": "Radicación y reparto", "orden": 1, "reglas": { "camposRequeridos": ["derechosFundamentales", "entidadAccionada", "hechos", "pretension", "existeOtroMedioDefensa"], "documentosRequeridos": ["demanda.pdf"], "documentosOpcionales": ["pruebas.pdf", "anexos.pdf"], "plazoDesdeCampo": "fechaPresentacion", "plazoTipoDias": "habiles", "plazoDias": 10 } },
       { "key": "admision", "nombre": "Admisión y traslado al accionado", "orden": 2, "reglas": { "camposRequeridos": ["entidadAccionada"], "documentosRequeridos": ["auto_admisorio.pdf"] } },
       { "key": "falloPrimeraInstancia", "nombre": "Fallo de primera instancia", "orden": 3, "reglas": { "camposRequeridos": ["pretension"], "documentosRequeridos": ["sentencia.pdf"], "plazoDias": 10 } },
       { "key": "impugnacion", "nombre": "Impugnación", "orden": 4, "disponibleSi": { "campo": "impugnada", "igualA": "SI" }, "reglas": { "documentosRequeridos": ["impugnacion.pdf"], "plazoDias": 3 } },
@@ -92,6 +94,7 @@
       { "key": "contestada", "label": "¿La petición se contestó?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] },
       { "key": "fechaContestacion", "label": "Fecha en que se contestó", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL"] }, "requeridoSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL"] } },
       { "key": "medioRespuesta", "label": "Medio de envío de la respuesta", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"], "mostrarSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL"] } },
+      { "key": "radicadoRespuesta", "label": "Radicado de la respuesta", "tipo": "texto", "requerido": false, "mostrarSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL"] } },
       { "key": "observacionContestacion", "label": "Observaciones de la contestación", "tipo": "textoLargo", "requerido": false }
     ],
     "etapas": [
