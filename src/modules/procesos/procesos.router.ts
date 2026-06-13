@@ -507,6 +507,14 @@ procesoRoutes.post(
         }
       }
 
+      // Si la etapa de ENTRADA ya define un plazo (p. ej. "Recepción" del DdP
+      // recibido: el término para responder corre desde la fecha de recepción), se
+      // deriva fechaLimite al crear. En tipos cuyo plazo vive en una etapa posterior
+      // (p. ej. DdP solicitar, "Radicación") sale null aquí y se calcula al avanzar.
+      const fechaLimiteEntrada = entrada.reglas?.plazoDesdeCampo
+        ? derivarFechaLimite(entrada.reglas, datosFinales)
+        : null;
+
       const creado = await tx.proceso.create({
         data: {
           codigoInterno,
@@ -525,6 +533,7 @@ procesoRoutes.post(
           responsableId,
           titulo: body.titulo,
           datos: datosFinales as Prisma.InputJsonValue,
+          fechaLimite: fechaLimiteEntrada,
           etapaActual: entrada.key,
           historial: { create: { etapaKey: entrada.key, usuarioId: req.user!.sub } },
         },
