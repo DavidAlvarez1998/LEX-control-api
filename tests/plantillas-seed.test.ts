@@ -78,4 +78,20 @@ describe("plantillas-seed", () => {
     expect(out).toContain("1. Certificación");
     expect(out).toContain("[[falta:"); // entidad/nroRadicado ausentes
   });
+
+  it("la reiteración cita el radicado y la fecha de la petición ANTERIOR (casoBase)", () => {
+    const plantilla = PLANTILLAS_SEED.find((p) => p.nombre === "Reiteración de la petición")!;
+    // El derivado (reiteración) aún no tiene su propio radicado; el de la petición
+    // anterior vive en el proceso padre, expuesto como casoBase.
+    const reiteracion = { ...procesoBase, datos: { entidad: "DIAN", queSolicita: ["Certificación"] } };
+    const peticionAnterior = {
+      ...procesoBase,
+      datos: { nroRadicado: "20231234567", fechaRadicacion: "2026-01-15" },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const out = renderPlantilla(plantilla.contenido, construirContexto(reiteracion as any, peticionAnterior as any));
+    expect(out).toContain("Radicado 20231234567");
+    expect(out).toContain("radicado el"); // fecha de la petición anterior, sin [[falta:]]
+    expect(out).not.toContain("[[falta: casoBase");
+  });
 });

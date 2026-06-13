@@ -246,8 +246,16 @@ interface ProcesoParaContexto {
 /**
  * Arma el contexto de render: `datos.*`, `proceso.*` (alias `tramite.*`),
  * `partes` (arreglo para `#each`) y `parte.<rol>` (primera parte de cada rol).
+ *
+ * `casoBase` (opcional) es el proceso del que éste deriva (`casoRelacionadoId`):
+ * se expone como `casoBase.*` con la misma forma, para que un derivado —p. ej. la
+ * reiteración de un derecho de petición— pueda citar datos de la petición anterior
+ * (`{{casoBase.datos.nroRadicado}}`, `{{fecha casoBase.datos.fechaRadicacion}}`).
  */
-export function construirContexto(proceso: ProcesoParaContexto): Contexto {
+export function construirContexto(
+  proceso: ProcesoParaContexto,
+  casoBase?: ProcesoParaContexto | null,
+): Contexto {
   const partes: ParteCtx[] = proceso.partes.map((p) => ({
     rol: p.rol,
     rolEtiqueta: p.rolEtiqueta,
@@ -294,13 +302,17 @@ export function construirContexto(proceso: ProcesoParaContexto): Contexto {
     createdAt: proceso.createdAt,
   };
 
-  return {
+  const ctx: Contexto = {
     datos: (proceso.datos ?? {}) as Contexto,
     proceso: procesoCtx,
     tramite: procesoCtx, // alias retro: el spec menciona `tramite.<field>`
     partes,
     parte,
   };
+  // El derivado expone su origen como `casoBase.*` (misma forma, sin recursión más
+  // allá del padre: el padre se pasa sin su propio casoBase).
+  if (casoBase) ctx.casoBase = construirContexto(casoBase);
+  return ctx;
 }
 
 // --- Número a letras (español, para cuantía "en letras", art. 623 C.Co) ---

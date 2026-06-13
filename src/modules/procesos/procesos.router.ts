@@ -904,6 +904,19 @@ procesoRoutes.post(
   }),
 );
 
+/**
+ * Carga el proceso del que deriva (`casoRelacionadoId`) para exponerlo como
+ * `casoBase.*` al renderizar — p. ej. la reiteración de un derecho de petición
+ * cita el radicado/fecha de la petición anterior. `null` si no hay origen.
+ */
+async function cargarCasoBase(empresaId: string, casoRelacionadoId: string | null) {
+  if (!casoRelacionadoId) return null;
+  return prisma.proceso.findFirst({
+    where: { id: casoRelacionadoId, empresaId },
+    include: { partes: { include: { litigante: true } } },
+  });
+}
+
 /** POST /procesos/:id/documentos/generar — genera un borrador editable desde una plantilla. */
 procesoRoutes.post(
   "/:id/documentos/generar",
@@ -924,7 +937,8 @@ procesoRoutes.post(
     });
     if (!plantilla) throw new HttpError(404, "Plantilla no encontrada para este tipo de proceso");
 
-    const contenido = renderPlantilla(plantilla.contenido, construirContexto(proceso));
+    const casoBase = await cargarCasoBase(empresaId, proceso.casoRelacionadoId);
+    const contenido = renderPlantilla(plantilla.contenido, construirContexto(proceso, casoBase));
     const doc = await prisma.documentoProceso.create({
       data: {
         procesoId: proceso.id,
@@ -960,7 +974,8 @@ procesoRoutes.post(
     });
     if (!plantilla) throw new HttpError(404, "Plantilla no encontrada para este tipo de proceso");
 
-    const contenido = renderPlantilla(plantilla.contenido, construirContexto(proceso));
+    const casoBase = await cargarCasoBase(empresaId, proceso.casoRelacionadoId);
+    const contenido = renderPlantilla(plantilla.contenido, construirContexto(proceso, casoBase));
     res.json({ nombre: req.body.nombre ?? plantilla.nombre, contenido });
   }),
 );

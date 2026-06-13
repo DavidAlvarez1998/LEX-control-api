@@ -51,11 +51,11 @@ Señores
 {{#if datos.correo}}Correo electrónico: {{datos.correo}}
 {{/if}}E.  S.  D.
 
-REFERENCIA: Reiteración de derecho de petición — Radicado {{datos.nroRadicado}}
+REFERENCIA: Reiteración de derecho de petición — Radicado {{casoBase.datos.nroRadicado}}
 
 Respetados señores:
 
-{{parte.peticionario.nombre}}, mayor de edad, identificado(a) con {{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}, actuando en nombre propio, me permito REITERAR respetuosamente el derecho de petición radicado el {{fecha datos.fechaRadicacion}} bajo el No. {{datos.nroRadicado}}, por cuanto la respuesta recibida fue parcial, incompleta o no resolvió de fondo lo solicitado.
+{{parte.peticionario.nombre}}, mayor de edad, identificado(a) con {{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}, actuando en nombre propio, me permito REITERAR respetuosamente el derecho de petición radicado el {{fecha casoBase.datos.fechaRadicacion}} bajo el No. {{casoBase.datos.nroRadicado}}, por cuanto la respuesta recibida fue parcial, incompleta o no resolvió de fondo lo solicitado.
 
 PETICIÓN
 Reitero la solicitud de:
