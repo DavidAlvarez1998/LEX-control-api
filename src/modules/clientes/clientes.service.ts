@@ -2,6 +2,7 @@
 // embudo comercial (fase FIRMADO) y el puente de asignación de procesos.
 // Ver openspec/changes/comercial-funnel/ (fix F3: antes estaba inline en /convertir).
 import { Prisma } from "@prisma/client";
+import { fusionarCorreos } from "../../correos";
 
 type ClienteParaConvertir = {
   id: string;
@@ -12,6 +13,7 @@ type ClienteParaConvertir = {
   tipoDocumento: string | null;
   numeroDocumento: string | null;
   email: string | null;
+  correos?: unknown; // Json (string[]) del cliente; se copia al litigante
   telefono: string | null;
 };
 
@@ -28,11 +30,13 @@ export async function findOrCreateLitiganteByDoc(
 ): Promise<string> {
   if (cliente.litiganteId) return cliente.litiganteId;
 
+  const { correos, email } = fusionarCorreos(cliente);
   const base = {
     empresaId: cliente.empresaId,
     nombre: cliente.nombre,
     tipoPersona: cliente.tipoPersona,
-    email: cliente.email,
+    email,
+    correos,
     telefono: cliente.telefono,
   };
 

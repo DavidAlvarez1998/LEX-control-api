@@ -14,6 +14,7 @@ import {
   updateClienteSchema,
 } from "./clientes.schemas";
 import { convertirCliente } from "./clientes.service";
+import { fusionarCorreos } from "../../correos";
 
 export const clienteRoutes: Router = Router();
 
@@ -123,11 +124,15 @@ clienteRoutes.post(
   asyncHandler(async (req, res) => {
     const empresaId = empresaIdRequerido(req);
     await assertSameEmpresa(empresaId, req.body);
+    // `correos` (lista) es la fuente; `email` queda como espejo del principal.
+    const { correos, email } = fusionarCorreos(req.body);
     const cliente = await prisma.cliente.create({
       // El responsable por defecto es quien lo crea (queda "dueño" para atribución
       // y para el filtro "Míos"); el admin puede asignar otro vía el body.
       data: {
         ...req.body,
+        correos,
+        email,
         empresaId, // estado=PROSPECTO por default del schema
         responsableComercialId: req.body.responsableComercialId ?? req.user!.sub,
       },
@@ -150,9 +155,17 @@ clienteRoutes.patch(
     });
     if (!actual) throw new HttpError(404, "Cliente no encontrado");
     await assertSameEmpresa(empresaId, req.body);
+    // Solo re-derivar el espejo correos↔email si el body trae alguno de los dos
+    // (en un PATCH parcial que no los toca, se dejan intactos).
+    const data: Record<string, unknown> = { ...req.body };
+    if (req.body.correos !== undefined || req.body.email !== undefined) {
+      const { correos, email } = fusionarCorreos(req.body);
+      data.correos = correos;
+      data.email = email;
+    }
     const cliente = await prisma.cliente.update({
       where: { id: actual.id },
-      data: req.body,
+      data,
     });
     res.json(cliente);
   }),

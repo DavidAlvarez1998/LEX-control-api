@@ -20,6 +20,9 @@ export const createClienteSchema = z.object({
   numeroDocumento: z.string().trim().min(1).optional(),
   telefono: z.string().trim().min(1).optional(),
   email: z.string().trim().email("Correo inválido").optional(),
+  // Lista de correos (el primero es el principal). `email` se mantiene como espejo
+  // de correos[0] del lado del servidor.
+  correos: z.array(z.string().trim().email("Correo inválido")).optional(),
   ciudad: z.string().trim().min(1).optional(),
   canalIngreso: canalIngreso.optional(),
   tipoCaso: tipoCaso.optional(),

@@ -20,6 +20,11 @@ const parteSchema = z
         nombre: z.string().min(1),
         tipoDocumento: z.nativeEnum(TipoDocumento).optional(),
         numeroDocumento: z.string().optional(),
+        telefono: z.string().optional(),
+        email: z.string().email().optional(),
+        // Lista de correos (peticionarios adicionales, contraparte…); el primero
+        // es el principal y se refleja en `email`.
+        correos: z.array(z.string().trim().email()).optional(),
       })
       .optional(),
     rol: z.nativeEnum(RolParte),
@@ -45,6 +50,7 @@ const procesoClienteSchema = z
         numeroDocumento: z.string().optional(),
         telefono: z.string().optional(),
         email: z.string().email().optional(),
+        correos: z.array(z.string().trim().email()).optional(),
         ciudad: z.string().optional(),
       })
       .optional(),

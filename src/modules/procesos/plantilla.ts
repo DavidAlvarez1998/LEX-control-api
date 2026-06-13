@@ -173,6 +173,8 @@ function evaluarVar(expr: string, ctx: Contexto): string {
   }
   const v = resolverPath(expr, ctx);
   if (v === undefined || v === null || v === "") return marcador(expr);
+  // Listas (multiselect, correos de la entidad…) se muestran separadas por coma.
+  if (Array.isArray(v)) return v.length ? v.join(", ") : marcador(expr);
   return String(v);
 }
 
@@ -265,6 +267,7 @@ export function construirContexto(
     tipoDocumento: p.litigante.tipoDocumento,
     numeroDocumento: p.litigante.numeroDocumento,
     email: p.litigante.email,
+    correos: p.litigante.correos, // string[] (varios correos del litigante)
     telefono: p.litigante.telefono,
   }));
 
@@ -308,6 +311,9 @@ export function construirContexto(
     tramite: procesoCtx, // alias retro: el spec menciona `tramite.<field>`
     partes,
     parte,
+    // Todos los peticionarios/accionantes (nuestros) — soporta varios peticionarios.
+    // `parte.peticionario` sigue siendo el primero.
+    peticionarios: partes.filter((p) => p.esNuestroCliente),
   };
   // El derivado expone su origen como `casoBase.*` (misma forma, sin recursión más
   // allá del padre: el padre se pasa sin su propio casoBase).

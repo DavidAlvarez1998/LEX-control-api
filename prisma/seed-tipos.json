@@ -44,7 +44,7 @@
     "areaSlugs": ["constitucional"],
     "esquemaFormulario": [
       { "key": "entidad", "label": "Entidad o particular destinatario", "tipo": "texto", "requerido": true },
-      { "key": "correo", "label": "Correo electrónico de la entidad", "tipo": "texto", "requerido": false },
+      { "key": "correo", "label": "Correos electrónicos de la entidad", "tipo": "listaCorreos", "requerido": false, "ayuda": "Puedes agregar varios; sirven para enviar la petición a todos." },
       { "key": "tipoPeticion", "label": "Tipo de derecho de petición", "tipo": "select", "requerido": true, "opciones": ["General", "Documental", "Consulta"], "ayuda": "General = 15 días hábiles · Documental = 10 · Consulta = 30." },
       { "key": "queSolicita", "label": "¿Qué desea solicitar?", "tipo": "multiselect", "requerido": true, "opciones": ["Información", "Copia de documentos", "Certificación", "Historia laboral", "Historia clínica", "Estado de trámite", "Pago pendiente", "Reconocimiento de derecho", "Corrección de información", "Habeas data", "Solicitud laboral", "Salud", "Seguridad social", "Queja", "Reclamo", "Consulta", "Otro"] },
       { "key": "otroSolicita", "label": "Especifica qué solicitan", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "queSolicita", "igualA": "Otro" }, "requeridoSi": { "campo": "queSolicita", "igualA": "Otro" } },
@@ -86,7 +86,7 @@
       { "key": "radicadoIngreso", "label": "Radicado de ingreso", "tipo": "texto", "requerido": false, "auto": true, "ayuda": "Código alfanumérico generado automáticamente al recibir la petición." },
       { "key": "fechaRecepcion", "label": "Fecha de recepción", "tipo": "fecha", "requerido": true, "ayuda": "Desde aquí corre el término para responder." },
       { "key": "peticionario", "label": "Persona o entidad que realiza la petición", "tipo": "texto", "requerido": true },
-      { "key": "correo", "label": "Correo electrónico del peticionario", "tipo": "texto", "requerido": false },
+      { "key": "correo", "label": "Correos electrónicos del peticionario", "tipo": "listaCorreos", "requerido": false, "ayuda": "Puedes agregar varios correos del peticionario." },
       { "key": "direccion", "label": "Dirección del peticionario", "tipo": "texto", "requerido": false },
       { "key": "tipoPeticion", "label": "Tipo de derecho de petición", "tipo": "select", "requerido": true, "opciones": ["General", "Documental", "Consulta"], "ayuda": "General = 15 días hábiles · Documental = 10 · Consulta = 30." },
       { "key": "queSolicita", "label": "¿Qué están solicitando?", "tipo": "multiselect", "requerido": true, "opciones": ["Información", "Copia de documentos", "Certificación", "Historia laboral", "Historia clínica", "Estado de trámite", "Pago pendiente", "Reconocimiento de derecho", "Corrección de información", "Habeas data", "Solicitud laboral", "Salud", "Seguridad social", "Queja", "Reclamo", "Consulta", "Otro"] },
@@ -150,7 +150,7 @@
     "areaSlugs": ["constitucional"],
     "esquemaFormulario": [
       { "key": "entidad", "label": "Entidad o particular destinatario", "tipo": "texto", "requerido": true },
-      { "key": "correo", "label": "Correo electrónico de la entidad", "tipo": "texto", "requerido": false },
+      { "key": "correo", "label": "Correos electrónicos de la entidad", "tipo": "listaCorreos", "requerido": false, "ayuda": "Puedes agregar varios; sirven para enviar la petición a todos." },
       { "key": "tipoPeticion", "label": "Tipo de reclamación", "tipo": "select", "requerido": true, "opciones": ["General", "Documental", "Consulta"], "ayuda": "General = 15 días hábiles · Documental = 10 · Consulta = 30." },
       { "key": "queSolicita", "label": "¿Qué desea solicitar?", "tipo": "multiselect", "requerido": true, "opciones": ["Información", "Copia de documentos", "Certificación", "Historia laboral", "Historia clínica", "Estado de trámite", "Pago pendiente", "Reconocimiento de derecho", "Corrección de información", "Habeas data", "Solicitud laboral", "Salud", "Seguridad social", "Queja", "Reclamo", "Consulta", "Otro"] },
       { "key": "otroSolicita", "label": "Especifica qué solicitan", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "queSolicita", "igualA": "Otro" }, "requeridoSi": { "campo": "queSolicita", "igualA": "Otro" } },
@@ -189,7 +189,7 @@
     "areaSlugs": ["constitucional"],
     "esquemaFormulario": [
       { "key": "entidad", "label": "Entidad o autoridad renuente", "tipo": "texto", "requerido": true },
-      { "key": "correo", "label": "Correo electrónico de la entidad", "tipo": "texto", "requerido": false },
+      { "key": "correo", "label": "Correos electrónicos de la entidad", "tipo": "listaCorreos", "requerido": false, "ayuda": "Puedes agregar varios; sirven para enviar la petición a todos." },
       { "key": "solicitud", "label": "Deber legal o acto cuyo cumplimiento se exige", "tipo": "textoLargo", "requerido": true },
       { "key": "requierePoder", "label": "¿Requiere poder?", "tipo": "boolean", "requerido": false },
       { "key": "envio", "label": "Medio de envío", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"] },

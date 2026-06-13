@@ -26,6 +26,7 @@ import {
 import { generarCodigoInterno } from "./procesos.service";
 import { construirContexto, renderPlantilla } from "./plantilla";
 import { convertirCliente } from "../clientes/clientes.service";
+import { fusionarCorreos } from "../../correos";
 import { construirUrlDocumento, subirDocumento } from "../documentos/documentos.client";
 import multer from "multer";
 
@@ -490,7 +491,13 @@ procesoRoutes.post(
           ? await tx.cliente.findFirst({
               where: { id: body.cliente.clienteId, empresaId },
             })
-          : await tx.cliente.create({ data: { ...body.cliente.nuevo!, empresaId } });
+          : await tx.cliente.create({
+              data: {
+                ...body.cliente.nuevo!,
+                ...fusionarCorreos(body.cliente.nuevo!),
+                empresaId,
+              },
+            });
         if (!clienteRow) throw new HttpError(400, "El cliente no pertenece a tu despacho");
         const litiganteId = await convertirCliente(tx, clienteRow);
         clienteVinculado = { clienteId: clienteRow.id, litiganteId };
@@ -563,7 +570,9 @@ procesoRoutes.post(
           });
           if (!lit) throw new HttpError(400, "Un litigante no pertenece a tu despacho");
         } else if (p.litigante) {
-          const nuevo = await tx.litigante.create({ data: { ...p.litigante, empresaId } });
+          const nuevo = await tx.litigante.create({
+            data: { ...p.litigante, ...fusionarCorreos(p.litigante), empresaId },
+          });
           litiganteId = nuevo.id;
         }
         await tx.parteProceso.create({

@@ -10,6 +10,7 @@ export const CAMPO_TIPOS = [
   "boolean",
   "select",
   "multiselect",
+  "listaCorreos", // varios correos (string[]); p. ej. correos de la entidad del DdP
 ] as const;
 
 export type CampoTipo = (typeof CAMPO_TIPOS)[number];
@@ -153,6 +154,12 @@ export function validarDatosContraEsquema(
       }
     } else if (campo.tipo === "numero") {
       if (!Number.isFinite(Number(v))) errores.push(`${campo.label}: número inválido`);
+    } else if (campo.tipo === "listaCorreos") {
+      const arr = Array.isArray(v) ? v : [];
+      const correoOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (arr.some((x) => !correoOk.test(String(x).trim()))) {
+        errores.push(`${campo.label}: correo inválido`);
+      }
     }
   }
 

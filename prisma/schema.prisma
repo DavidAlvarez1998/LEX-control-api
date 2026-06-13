@@ -441,7 +441,8 @@ model Litigante {
   nombre          String
   tipoDocumento   TipoDocumento?
   numeroDocumento String?
-  email           String?
+  email           String? // correo principal (espejo de correos[0]); se conserva por compat.
+  correos         Json? // lista de correos (string[]); el primero es el principal.
   telefono        String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -733,7 +734,8 @@ model Cliente {
   tipoDocumento          TipoDocumento?
   numeroDocumento        String?
   telefono               String?
-  email                  String?
+  email                  String? // correo principal (espejo de correos[0]); se conserva por compat.
+  correos                Json? // lista de correos (string[]); el primero es el principal.
   ciudad                 String?
   canalIngreso           CanalIngreso?
   tipoCaso               TipoCaso?
