@@ -68,10 +68,14 @@ export type EtapaDef = {
 };
 
 /** Evalúa una condición de igualdad contra `datos`. `String()` para que los
- *  boolean (true/false) comparen con `igualA: "true"`. */
+ *  boolean (true/false) comparen con `igualA: "true"`. Si el campo es un
+ *  multiselect (array), la condición se cumple cuando el array CONTIENE alguno
+ *  de los objetivos (p. ej. mostrar un campo si "Otro" está entre lo elegido). */
 export function evaluarCondicion(cond: Condicion, datos: Record<string, unknown>): boolean {
-  const actual = String(datos[cond.campo] ?? "");
-  return Array.isArray(cond.igualA) ? cond.igualA.includes(actual) : actual === cond.igualA;
+  const objetivos = Array.isArray(cond.igualA) ? cond.igualA : [cond.igualA];
+  const valor = datos[cond.campo];
+  if (Array.isArray(valor)) return valor.some((v) => objetivos.includes(String(v)));
+  return objetivos.includes(String(valor ?? ""));
 }
 
 /** ¿El campo es visible dado el estado actual de `datos`? */

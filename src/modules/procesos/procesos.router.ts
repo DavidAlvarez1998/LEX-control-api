@@ -221,6 +221,7 @@ procesoRoutes.get(
         radicado: t.radicado,
         titulo: t.titulo,
         tipoProcesoNombre: t.tipoProceso.nombre,
+        esJudicial: t.tipoProceso.esJudicial, // separa Procesos (judicial) de Peticiones (trámite ante entidad)
         jurisdiccion: t.jurisdiccion,
         areaSlug: t.tipoProceso.areas[0]?.area.slug ?? null,
         estado: t.estado,

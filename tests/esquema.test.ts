@@ -24,6 +24,12 @@ describe("evaluarCondicion", () => {
   it("campo ausente no cumple", () => {
     expect(evaluarCondicion({ campo: "x", igualA: "A" }, {})).toBe(false);
   });
+  it("multiselect: se cumple si el array CONTIENE el objetivo", () => {
+    expect(evaluarCondicion({ campo: "q", igualA: "Otro" }, { q: ["Información", "Otro"] })).toBe(true);
+    expect(evaluarCondicion({ campo: "q", igualA: "Otro" }, { q: ["Información"] })).toBe(false);
+    expect(evaluarCondicion({ campo: "q", igualA: ["Queja", "Otro"] }, { q: ["Salud", "Queja"] })).toBe(true);
+    expect(evaluarCondicion({ campo: "q", igualA: "Otro" }, { q: [] })).toBe(false);
+  });
 });
 
 describe("visibilidad y requerido efectivo", () => {
