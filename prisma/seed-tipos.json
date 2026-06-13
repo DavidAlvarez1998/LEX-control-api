@@ -101,8 +101,44 @@
     ],
     "etapas": [
       { "key": "recepcion", "nombre": "Recepción", "orden": 0, "reglas": { "camposRequeridos": ["radicadoIngreso", "fechaRecepcion", "peticionario", "tipoPeticion", "queSolicita"], "documentosRequeridos": ["peticion-recibida.pdf"], "plazoDesdeCampo": "fechaRecepcion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
-      { "key": "contestacion", "nombre": "Contestación", "orden": 1, "disponibleSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestada", "igualA": "SI" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestada", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["respuesta.pdf"] }] } },
-      { "key": "terminada", "nombre": "Terminación", "orden": 2, "terminal": true, "resultado": "Petición recibida atendida." }
+      { "key": "contestacion", "nombre": "Contestación", "orden": 1, "disponibleSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestada", "igualA": "SI" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestada", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["respuesta.pdf"] }], "opcionalesSi": [{ "si": { "campo": "contestada", "igualA": "PARCIAL" }, "documentosOpcionales": ["recurso.pdf"] }] } },
+      { "key": "reiteracion", "nombre": "Reiteración del peticionario", "orden": 2, "disponibleSi": { "campo": "contestada", "igualA": "PARCIAL" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Derecho de Petición Recibido", "copiarDatos": ["peticionario", "correo", "direccion", "tipoPeticion", "queSolicita", "otroSolicita", "detalle"], "copiarCliente": true } },
+      { "key": "escala_tutela", "nombre": "Tutela en contra (defensiva)", "orden": 2, "disponibleSi": { "campo": "contestada", "igualA": ["NO", "PARCIAL"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de Tutela (Recibida)", "copiarCliente": true } },
+      { "key": "terminada", "nombre": "Terminación", "orden": 3, "terminal": true, "resultado": "Petición recibida atendida." }
+    ]
+  },
+  {
+    "nombre": "Acción de Tutela (Recibida)",
+    "descripcion": "Acción de tutela presentada EN CONTRA del despacho o su cliente (somos accionados). Se gestiona la defensa: notificación/traslado, contestación de la tutela, fallo, impugnación e incidente de desacato. Normalmente deriva de un Derecho de Petición Recibido mal contestado.",
+    "jurisdiccion": "CONSTITUCIONAL",
+    "esJudicial": true,
+    "grupo": "CONSTITUCIONAL",
+    "clienteOpcional": true,
+    "areaSlugs": ["constitucional"],
+    "esquemaFormulario": [
+      { "key": "radicadoTutela", "label": "Radicado de la tutela", "tipo": "texto", "requerido": true },
+      { "key": "juzgado", "label": "Juzgado que conoce", "tipo": "texto", "requerido": false },
+      { "key": "accionante", "label": "Accionante (quien interpuso la tutela)", "tipo": "texto", "requerido": true },
+      { "key": "derechosInvocados", "label": "Derechos fundamentales invocados en su contra", "tipo": "textoLargo", "requerido": false },
+      { "key": "hechos", "label": "Hechos de la tutela", "tipo": "textoLargo", "requerido": false },
+      { "key": "pretension", "label": "Pretensión del accionante", "tipo": "textoLargo", "requerido": false },
+      { "key": "fechaNotificacion", "label": "Fecha de notificación del traslado", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corre el término para contestar (lo fija el juez)." },
+      { "key": "contestada", "label": "¿Se contestó la tutela?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
+      { "key": "fechaContestacion", "label": "Fecha de la contestación", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestada", "igualA": "SI" } },
+      { "key": "falloPrimera", "label": "Fallo de primera instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"], "ayuda": "Favorable/desfavorable para el accionado (nuestra parte)." },
+      { "key": "fechaFallo", "label": "Fecha del fallo", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "falloPrimera", "igualA": ["Favorable", "Desfavorable"] } },
+      { "key": "impugnada", "label": "¿Se impugnó el fallo?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
+      { "key": "falloSegunda", "label": "Fallo de segunda instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"], "mostrarSi": { "campo": "impugnada", "igualA": "SI" } },
+      { "key": "incidenteDesacato", "label": "¿Se promovió incidente de desacato?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
+      { "key": "fechaIncidenteDesacato", "label": "Fecha del incidente de desacato", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "incidenteDesacato", "igualA": "SI" } }
+    ],
+    "etapas": [
+      { "key": "traslado", "nombre": "Notificación y traslado", "orden": 0, "reglas": { "camposRequeridos": ["radicadoTutela", "accionante"], "documentosRequeridos": ["tutela_recibida.pdf"], "plazoDesdeCampo": "fechaNotificacion", "plazoTipoDias": "habiles", "plazoDias": 3 } },
+      { "key": "contestacion", "nombre": "Contestación de la tutela", "orden": 1, "disponibleSi": { "campo": "contestada", "igualA": ["SI", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestada", "igualA": "SI" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["contestacion_tutela.pdf"] }] } },
+      { "key": "falloPrimeraInstancia", "nombre": "Fallo de primera instancia", "orden": 2, "disponibleSi": { "campo": "falloPrimera", "igualA": ["Favorable", "Desfavorable"] }, "reglas": { "documentosRequeridos": ["sentencia.pdf"] } },
+      { "key": "impugnacion", "nombre": "Impugnación", "orden": 3, "disponibleSi": { "campo": "impugnada", "igualA": "SI" }, "reglas": { "documentosRequeridos": ["impugnacion.pdf"] } },
+      { "key": "falloSegundaInstancia", "nombre": "Fallo de segunda instancia", "orden": 4, "disponibleSi": { "campo": "impugnada", "igualA": "SI" }, "reglas": { "documentosRequeridos": ["sentencia_segunda.pdf"], "opcionalesSi": [{ "si": { "campo": "incidenteDesacato", "igualA": "SI" }, "documentosOpcionales": ["escrito_desacato.pdf", "fallo_desacato.pdf"] }] } },
+      { "key": "terminado", "nombre": "Terminación", "orden": 5, "terminal": true, "resultado": "Tutela resuelta." }
     ]
   },
   {
