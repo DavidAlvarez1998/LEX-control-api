@@ -222,7 +222,48 @@ Atentamente,
 {{parte.accionante.nombre}}
 {{parte.accionante.tipoDocumento}} No. {{parte.accionante.numeroDocumento}}`;
 
+// Respuesta que NOSOTROS (la entidad/empresa) damos a un derecho de petición que
+// nos fue dirigido. El peticionario externo está en `datos.*` (texto), no como
+// `parte`. La firma queda como bloque en blanco para que el responsable la
+// complete (el contexto de render no expone la empresa).
+const RESPUESTA_DDP_RECIBIDO = `{{fecha datos.fechaContestacion}}
+
+Señor(a)
+{{mayus datos.peticionario}}
+{{#if datos.direccion}}{{datos.direccion}}
+{{/if}}{{#if datos.correo}}Correo electrónico: {{datos.correo}}
+{{/if}}E.  S.  D.
+
+REFERENCIA: Respuesta a derecho de petición — Radicado de ingreso {{datos.radicadoIngreso}}{{#if datos.radicadoRespuesta}} — Radicado de respuesta {{datos.radicadoRespuesta}}{{/if}}
+
+Respetado(a) señor(a):
+
+En atención al derecho de petición radicado bajo el No. {{datos.radicadoIngreso}}{{#if datos.fechaRecepcion}}, recibido el {{fecha datos.fechaRecepcion}}{{/if}}, mediante el cual solicitó:
+{{#each datos.queSolicita}}
+{{@index}}. {{this}}{{/each}}
+{{#if datos.otroSolicita}}
+{{datos.otroSolicita}}
+{{/if}}
+nos permitimos dar respuesta de fondo, clara, precisa y congruente con lo solicitado, en cumplimiento del derecho fundamental de petición consagrado en el artículo 23 de la Constitución Política y la Ley 1755 de 2015.
+
+RESPUESTA
+{{#if datos.observacionContestacion}}{{datos.observacionContestacion}}{{else}}[[falta: respuesta de fondo a la petición]]{{/if}}
+
+{{#if datos.detalle}}HECHOS Y CONSIDERACIONES
+{{datos.detalle}}
+
+{{/if}}La presente respuesta se notifica por el medio señalado por el peticionario{{#if datos.medioRespuesta}} ({{datos.medioRespuesta}}){{/if}}. Si no comparte la decisión adoptada, podrá ejercer los recursos y acciones que la ley contempla.
+
+Atentamente,
+
+
+
+______________________________
+Firma del responsable
+[[falta: nombre, cargo y entidad que responde]]`;
+
 export const PLANTILLAS_SEED: PlantillaSeed[] = [
+  { tipoNombre: "Derecho de Petición Recibido", nombre: "Respuesta a la petición recibida", contenido: RESPUESTA_DDP_RECIBIDO },
   { tipoNombre: "Derecho de Petición", nombre: "Derecho de petición", contenido: PETICION },
   { tipoNombre: "Derecho de Petición", nombre: "Reiteración de la petición", contenido: REITERACION },
   { tipoNombre: "Reclamación Administrativa", nombre: "Reclamación administrativa", contenido: RECLAMACION },
