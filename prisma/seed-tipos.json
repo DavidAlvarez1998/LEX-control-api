@@ -15,7 +15,7 @@
       { "key": "medidaProvisional", "label": "¿Se solicita medida provisional?", "tipo": "boolean", "requerido": false },
       { "key": "juramentoNoTutela", "label": "Juramento de no haber presentado otra tutela por los mismos hechos", "tipo": "boolean", "requerido": true },
       { "key": "fechaPresentacion", "label": "Fecha de presentación de la tutela", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corren los 10 días hábiles para el fallo." },
-      { "key": "radicadoTutela", "label": "Radicado de la tutela", "tipo": "texto", "requerido": false },
+      { "key": "radicadoTutela", "label": "Radicado de la tutela", "tipo": "numero", "requerido": false },
       { "key": "admitida", "label": "¿Admitieron la tutela?", "tipo": "select", "requerido": false, "opciones": ["SI", "NO"] },
       { "key": "fechaAutoAdmisorio", "label": "Fecha del auto admisorio", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "admitida", "igualA": "SI" } },
       { "key": "falloPrimera", "label": "Fallo de primera instancia", "tipo": "select", "requerido": false, "opciones": ["Favorable", "Desfavorable"] },
@@ -45,15 +45,16 @@
     "esquemaFormulario": [
       { "key": "entidad", "label": "Entidad o particular destinatario", "tipo": "texto", "requerido": true },
       { "key": "correo", "label": "Correos electrónicos de la entidad", "tipo": "listaCorreos", "requerido": false, "ayuda": "Puedes agregar varios; sirven para enviar la petición a todos." },
+      { "key": "fechaRadicado", "label": "Fecha de radicación de solicitud", "tipo": "fecha", "requerido": false, "ayuda": "Fecha en que se elabora/radica la solicitud. Es referencia; el término de respuesta corre desde la 'Fecha de radicación del proceso'." },
       { "key": "tipoPeticion", "label": "Tipo de derecho de petición", "tipo": "select", "requerido": true, "opciones": ["General", "Documental", "Consulta"], "ayuda": "General = 15 días hábiles · Documental = 10 · Consulta = 30." },
       { "key": "queSolicita", "label": "¿Qué desea solicitar?", "tipo": "multiselect", "requerido": true, "opciones": ["Información", "Copia de documentos", "Certificación", "Historia laboral", "Historia clínica", "Estado de trámite", "Pago pendiente", "Reconocimiento de derecho", "Corrección de información", "Habeas data", "Solicitud laboral", "Salud", "Seguridad social", "Queja", "Reclamo", "Consulta", "Otro"] },
       { "key": "otroSolicita", "label": "Especifica qué solicitan", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "queSolicita", "igualA": "Otro" }, "requeridoSi": { "campo": "queSolicita", "igualA": "Otro" } },
       { "key": "detalle", "label": "Detalle de la solicitud", "tipo": "textoLargo", "requerido": false },
       { "key": "requierePoder", "label": "¿Requiere poder?", "tipo": "boolean", "requerido": false },
       { "key": "envio", "label": "Medio de envío", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"] },
-      { "key": "fechaRadicacion", "label": "Fecha de radicación", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corre el término de respuesta." },
-      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false },
-      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] },
+      { "key": "fechaRadicacion", "label": "Fecha de radicación del proceso", "tipo": "fecha", "requerido": false, "soloFicha": true, "ayuda": "Desde aquí corre el término de respuesta (días hábiles)." },
+      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false, "soloFicha": true },
+      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "PARCIAL", "NO"] },
 
       { "key": "fechaRespuesta", "label": "Fecha de la respuesta", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
       { "key": "numeroRespuesta", "label": "N.º de oficio/radicado de la respuesta", "tipo": "texto", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
@@ -68,7 +69,7 @@
     "etapas": [
       { "key": "borrador", "nombre": "Elaboración de la petición", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "tipoPeticion", "queSolicita"] } },
       { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "documentosRequeridos": ["peticion.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
-      { "key": "respondida", "nombre": "Contestación", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "camposRequeridos": ["fechaRespuesta", "respuestaDeFondo"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaRespuestaParcial", "queFalto"], "documentosRequeridos": ["respuesta.pdf"] }], "opcionalesSi": [{ "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "documentosOpcionales": ["recurso.pdf"] }] } },
+      { "key": "respondida", "nombre": "Respuesta", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "camposRequeridos": ["fechaRespuesta", "respuestaDeFondo"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaRespuestaParcial", "queFalto"], "documentosRequeridos": ["respuesta.pdf"] }], "opcionalesSi": [{ "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "documentosOpcionales": ["recurso.pdf"] }] } },
       { "key": "reiteracion", "nombre": "Reiteración (respuesta parcial)", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Derecho de Petición", "copiarDatos": ["entidad", "correo", "tipoPeticion", "queSolicita", "detalle", "requierePoder"], "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
       { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": ["NO", "PARCIAL"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela", "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
       { "key": "terminada", "nombre": "Terminación", "orden": 4, "terminal": true, "resultado": "Petición terminada." }
@@ -116,7 +117,7 @@
     "clienteOpcional": true,
     "areaSlugs": ["constitucional"],
     "esquemaFormulario": [
-      { "key": "radicadoTutela", "label": "Radicado de la tutela", "tipo": "texto", "requerido": true },
+      { "key": "radicadoTutela", "label": "Radicado de la tutela", "tipo": "numero", "requerido": true },
       { "key": "juzgado", "label": "Juzgado que conoce", "tipo": "texto", "requerido": false },
       { "key": "accionante", "label": "Accionante (quien interpuso la tutela)", "tipo": "texto", "requerido": true },
       { "key": "derechosInvocados", "label": "Derechos fundamentales invocados en su contra", "tipo": "textoLargo", "requerido": false },

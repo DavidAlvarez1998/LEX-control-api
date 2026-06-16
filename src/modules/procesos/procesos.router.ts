@@ -903,15 +903,22 @@ procesoRoutes.get(
     const empresaId = empresaIdRequerido(req);
     const proceso = await prisma.proceso.findFirst({
       where: { id: req.params.id, empresaId },
-      select: { tipoProcesoId: true },
+      select: { tipoProcesoId: true, casoRelacionadoId: true },
     });
     if (!proceso) throw new HttpError(404, "Proceso no encontrado");
     const plantillas = await prisma.plantillaDocumento.findMany({
       where: { tipoProcesoId: proceso.tipoProcesoId },
-      select: { id: true, nombre: true },
+      select: { id: true, nombre: true, contenido: true },
       orderBy: { nombre: "asc" },
     });
-    res.json(plantillas);
+    // Las plantillas que usan {{casoBase...}} (p. ej. la reiteración) solo aplican a
+    // un proceso DERIVADO (creado por la acción de reiteración → tiene casoRelacionadoId).
+    // En el original no se ofrecen, porque no hay petición anterior que referenciar.
+    const esDerivado = proceso.casoRelacionadoId != null;
+    const visibles = plantillas
+      .filter((p) => esDerivado || !p.contenido.includes("casoBase"))
+      .map(({ id, nombre }) => ({ id, nombre }));
+    res.json(visibles);
   }),
 );
 
@@ -967,6 +974,11 @@ procesoRoutes.post(
       where: { id: req.body.plantillaId, tipoProcesoId: proceso.tipoProcesoId },
     });
     if (!plantilla) throw new HttpError(404, "Plantilla no encontrada para este tipo de proceso");
+    // Una plantilla que referencia {{casoBase...}} (reiteración) exige un proceso
+    // derivado: en el original no hay petición anterior que citar.
+    if (plantilla.contenido.includes("casoBase") && proceso.casoRelacionadoId == null) {
+      throw new HttpError(422, "Esta plantilla solo aplica a una reiteración (proceso derivado de otro).");
+    }
 
     const casoBase = await cargarCasoBase(empresaId, proceso.casoRelacionadoId);
     const contenido = renderPlantilla(plantilla.contenido, construirContexto(proceso, casoBase));
@@ -1004,6 +1016,9 @@ procesoRoutes.post(
       where: { id: req.body.plantillaId, tipoProcesoId: proceso.tipoProcesoId },
     });
     if (!plantilla) throw new HttpError(404, "Plantilla no encontrada para este tipo de proceso");
+    if (plantilla.contenido.includes("casoBase") && proceso.casoRelacionadoId == null) {
+      throw new HttpError(422, "Esta plantilla solo aplica a una reiteración (proceso derivado de otro).");
+    }
 
     const casoBase = await cargarCasoBase(empresaId, proceso.casoRelacionadoId);
     const contenido = renderPlantilla(plantilla.contenido, construirContexto(proceso, casoBase));
