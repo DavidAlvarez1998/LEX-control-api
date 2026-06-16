@@ -82,6 +82,115 @@ ______________________________
 {{parte.peticionario.nombre}}
 {{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}`;
 
+const RECLAMACION = `{{fecha proceso.createdAt}}
+
+Señores
+{{mayus datos.entidad}}
+{{#if datos.correo}}Correo electrónico: {{datos.correo}}
+{{/if}}E.  S.  D.
+
+REFERENCIA: Reclamación administrativa — {{datos.tipoPeticion}}
+
+Respetados señores:
+
+{{parte.peticionario.nombre}}, mayor de edad, identificado(a) con {{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}, actuando en nombre propio, de manera respetuosa presento ante ustedes la siguiente RECLAMACIÓN ADMINISTRATIVA.
+
+OBJETO DE LA RECLAMACIÓN
+Solicito comedidamente a la entidad:
+{{#each datos.queSolicita}}
+{{@index}}. {{this}}{{/each}}
+{{#if datos.detalle}}
+HECHOS Y FUNDAMENTOS
+{{datos.detalle}}
+{{/if}}
+FUNDAMENTOS DE DERECHO
+La presente reclamación se formula en ejercicio del derecho fundamental de petición (artículo 23 de la Constitución Política y Ley 1755 de 2015) y, según corresponda, como reclamación administrativa previa para agotar la actuación ante la entidad.
+
+TÉRMINO PARA RESOLVER
+Solicito que la respuesta se profiera dentro del término legal aplicable.
+
+NOTIFICACIONES
+{{#if datos.correo}}Recibiré la respuesta y las notificaciones en el correo electrónico: {{datos.correo}}.{{else}}Indicaré la dirección física o electrónica para recibir la respuesta.{{/if}}
+
+Atentamente,
+
+
+
+______________________________
+{{parte.peticionario.nombre}}
+{{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}`;
+
+const REITERACION_RECLAMACION = `{{fecha proceso.createdAt}}
+
+Señores
+{{mayus datos.entidad}}
+{{#if datos.correo}}Correo electrónico: {{datos.correo}}
+{{/if}}E.  S.  D.
+
+REFERENCIA: Reiteración de reclamación administrativa — Radicado {{casoBase.datos.nroRadicado}}
+
+Respetados señores:
+
+{{parte.peticionario.nombre}}, mayor de edad, identificado(a) con {{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}, actuando en nombre propio, me permito REITERAR respetuosamente la reclamación administrativa radicada el {{fecha casoBase.datos.fechaRadicacion}} bajo el No. {{casoBase.datos.nroRadicado}}, por cuanto la respuesta recibida fue parcial, incompleta o no resolvió de fondo lo solicitado.
+
+OBJETO DE LA RECLAMACIÓN
+Reitero la solicitud de:
+{{#each datos.queSolicita}}
+{{@index}}. {{this}}{{/each}}
+{{#if casoBase.datos.queFalto}}
+LO QUE FALTÓ POR RESOLVER
+{{casoBase.datos.queFalto}}
+{{/if}}
+FUNDAMENTOS DE DERECHO
+El artículo 23 de la Constitución Política y la Ley 1755 de 2015 garantizan una respuesta de fondo, clara, precisa, congruente y oportuna. Una respuesta parcial o evasiva vulnera el núcleo esencial del derecho de petición.
+
+PETICIÓN DE FONDO
+Solicito que, dentro del término legal, se profiera una respuesta completa y de fondo respecto de todo lo reclamado.
+
+NOTIFICACIONES
+{{#if datos.correo}}Recibiré la respuesta y las notificaciones en el correo electrónico: {{datos.correo}}.{{else}}Indicaré la dirección física o electrónica para recibir la respuesta.{{/if}}
+
+Atentamente,
+
+
+
+______________________________
+{{parte.peticionario.nombre}}
+{{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}`;
+
+const RENUENCIA = `{{fecha proceso.createdAt}}
+
+Señores
+{{mayus datos.entidad}}
+{{#if datos.correo}}Correo electrónico: {{datos.correo}}
+{{/if}}E.  S.  D.
+
+REFERENCIA: Constitución de renuencia — Ley 393 de 1997
+
+Respetados señores:
+
+{{parte.peticionario.nombre}}, mayor de edad, identificado(a) con {{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}, actuando en nombre propio y con fundamento en el artículo 8 de la Ley 393 de 1997, me permito requerir a esa autoridad el cumplimiento del deber legal o acto administrativo que a continuación se señala, con el fin de constituir la renuencia como requisito de procedibilidad de la acción de cumplimiento (artículo 87 de la Constitución Política).
+
+DEBER LEGAL O ACTO CUYO CUMPLIMIENTO SE EXIGE
+{{datos.solicitud}}
+
+FUNDAMENTOS DE DERECHO
+El artículo 87 de la Constitución Política y la Ley 393 de 1997 facultan a toda persona para hacer efectivo el cumplimiento de normas con fuerza material de ley o de actos administrativos. Conforme al artículo 8 de la misma ley, con el presente requerimiento se procura constituir la renuencia de la autoridad.
+
+REQUERIMIENTO
+Solicito que, dentro de los quince (15) días hábiles siguientes a la presentación de este escrito, la autoridad cumpla el deber o acto señalado o se pronuncie al respecto. Su silencio o negativa constituirá la renuencia que habilita el ejercicio de las acciones constitucionales correspondientes.
+
+NOTIFICACIONES
+{{#if datos.correo}}Recibiré la respuesta y las notificaciones en el correo electrónico: {{datos.correo}}.{{else}}Indicaré la dirección física o electrónica para recibir la respuesta.{{/if}}
+
+Atentamente,
+
+
+
+______________________________
+{{parte.peticionario.nombre}}
+{{parte.peticionario.tipoDocumento}} No. {{parte.peticionario.numeroDocumento}}`;
+
 const DEMANDA_TUTELA = `Señor
 JUEZ (REPARTO)
 E.  S.  D.
@@ -116,5 +225,8 @@ Atentamente,
 export const PLANTILLAS_SEED: PlantillaSeed[] = [
   { tipoNombre: "Derecho de Petición", nombre: "Derecho de petición", contenido: PETICION },
   { tipoNombre: "Derecho de Petición", nombre: "Reiteración de la petición", contenido: REITERACION },
+  { tipoNombre: "Reclamación Administrativa", nombre: "Reclamación administrativa", contenido: RECLAMACION },
+  { tipoNombre: "Reclamación Administrativa", nombre: "Reiteración de la reclamación", contenido: REITERACION_RECLAMACION },
+  { tipoNombre: "Constitución de Renuencia", nombre: "Constitución de renuencia", contenido: RENUENCIA },
   { tipoNombre: "Acción de tutela", nombre: "Demanda de tutela", contenido: DEMANDA_TUTELA },
 ];

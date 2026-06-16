@@ -58,7 +58,6 @@
 
       { "key": "fechaRespuesta", "label": "Fecha de la respuesta", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
       { "key": "numeroRespuesta", "label": "N.º de oficio/radicado de la respuesta", "tipo": "texto", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
-      { "key": "respuestaDeFondo", "label": "¿Resolvió de fondo lo solicitado?", "tipo": "select", "requerido": false, "opciones": ["Sí", "No"], "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
       { "key": "observacionesRespuesta", "label": "Observaciones de la respuesta", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
 
       { "key": "fechaRespuestaParcial", "label": "Fecha de la respuesta parcial", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "requeridoSi": { "campo": "contestaron", "igualA": "PARCIAL" } },
@@ -69,7 +68,7 @@
     "etapas": [
       { "key": "borrador", "nombre": "Elaboración de la petición", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "tipoPeticion", "queSolicita"] } },
       { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "documentosRequeridos": ["peticion.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
-      { "key": "respondida", "nombre": "Respuesta", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "camposRequeridos": ["fechaRespuesta", "respuestaDeFondo"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaRespuestaParcial", "queFalto"], "documentosRequeridos": ["respuesta.pdf"] }], "opcionalesSi": [{ "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "documentosOpcionales": ["recurso.pdf"] }] } },
+      { "key": "respondida", "nombre": "Respuesta", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "camposRequeridos": ["fechaRespuesta"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaRespuestaParcial", "queFalto"], "documentosRequeridos": ["respuesta.pdf"] }], "opcionalesSi": [{ "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "documentosOpcionales": ["recurso.pdf"] }] } },
       { "key": "reiteracion", "nombre": "Reiteración (respuesta parcial)", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Derecho de Petición", "copiarDatos": ["entidad", "correo", "tipoPeticion", "queSolicita", "detalle", "requierePoder"], "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
       { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": ["NO", "PARCIAL"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela", "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
       { "key": "terminada", "nombre": "Terminación", "orden": 4, "terminal": true, "resultado": "Petición terminada." }
@@ -94,15 +93,15 @@
       { "key": "otroSolicita", "label": "Especifica qué solicitan", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "queSolicita", "igualA": "Otro" }, "requeridoSi": { "campo": "queSolicita", "igualA": "Otro" } },
       { "key": "detalle", "label": "Detalle de lo solicitado", "tipo": "textoLargo", "requerido": false },
 
-      { "key": "contestada", "label": "¿La petición se contestó?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] },
+      { "key": "contestada", "label": "¿La petición se contestó?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "PARCIAL", "NO"] },
       { "key": "fechaContestacion", "label": "Fecha en que se contestó", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL"] }, "requeridoSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL"] } },
       { "key": "medioRespuesta", "label": "Medio de envío de la respuesta", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"], "mostrarSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL"] } },
       { "key": "radicadoRespuesta", "label": "Radicado de la respuesta", "tipo": "texto", "requerido": false, "mostrarSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL"] } },
-      { "key": "observacionContestacion", "label": "Observaciones de la contestación", "tipo": "textoLargo", "requerido": false }
+      { "key": "observacionContestacion", "label": "Observaciones de la contestación", "tipo": "textoLargo", "requerido": false, "soloFicha": true }
     ],
     "etapas": [
       { "key": "recepcion", "nombre": "Recepción", "orden": 0, "reglas": { "camposRequeridos": ["radicadoIngreso", "fechaRecepcion", "peticionario", "tipoPeticion", "queSolicita"], "documentosRequeridos": ["peticion-recibida.pdf"], "plazoDesdeCampo": "fechaRecepcion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
-      { "key": "contestacion", "nombre": "Contestación", "orden": 1, "disponibleSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestada", "igualA": "SI" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestada", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["respuesta.pdf"] }], "opcionalesSi": [{ "si": { "campo": "contestada", "igualA": "PARCIAL" }, "documentosOpcionales": ["recurso.pdf"] }] } },
+      { "key": "contestacion", "nombre": "Respuesta", "orden": 1, "disponibleSi": { "campo": "contestada", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestada", "igualA": "SI" }, "camposRequeridos": ["fechaContestacion", "medioRespuesta"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestada", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaContestacion", "medioRespuesta"], "documentosRequeridos": ["respuesta.pdf"] }], "opcionalesSi": [{ "si": { "campo": "contestada", "igualA": "PARCIAL" }, "documentosOpcionales": ["recurso.pdf"] }, { "si": { "campo": "medioRespuesta", "igualA": "Correo electrónico" }, "documentosOpcionales": ["acuse-correo.pdf"] }, { "si": { "campo": "medioRespuesta", "igualA": "Físico" }, "documentosOpcionales": ["constancia-envio.pdf"] }] } },
       { "key": "reiteracion", "nombre": "Reiteración del peticionario", "orden": 2, "disponibleSi": { "campo": "contestada", "igualA": "PARCIAL" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Derecho de Petición Recibido", "copiarDatos": ["peticionario", "correo", "direccion", "tipoPeticion", "queSolicita", "otroSolicita", "detalle"], "copiarCliente": true } },
       { "key": "escala_tutela", "nombre": "Tutela en contra (defensiva)", "orden": 2, "disponibleSi": { "campo": "contestada", "igualA": ["NO", "PARCIAL"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de Tutela (Recibida)", "copiarCliente": true } },
       { "key": "terminada", "nombre": "Terminación", "orden": 3, "terminal": true, "resultado": "Petición recibida atendida." }
@@ -152,19 +151,19 @@
     "esquemaFormulario": [
       { "key": "entidad", "label": "Entidad o particular destinatario", "tipo": "texto", "requerido": true },
       { "key": "correo", "label": "Correos electrónicos de la entidad", "tipo": "listaCorreos", "requerido": false, "ayuda": "Puedes agregar varios; sirven para enviar la petición a todos." },
+      { "key": "fechaRadicado", "label": "Fecha de radicación de solicitud", "tipo": "fecha", "requerido": false, "ayuda": "Fecha en que se elabora/radica la reclamación. Es referencia; el término de respuesta corre desde la Fecha de radicación del proceso." },
       { "key": "tipoPeticion", "label": "Tipo de reclamación", "tipo": "select", "requerido": true, "opciones": ["General", "Documental", "Consulta"], "ayuda": "General = 15 días hábiles · Documental = 10 · Consulta = 30." },
       { "key": "queSolicita", "label": "¿Qué desea solicitar?", "tipo": "multiselect", "requerido": true, "opciones": ["Información", "Copia de documentos", "Certificación", "Historia laboral", "Historia clínica", "Estado de trámite", "Pago pendiente", "Reconocimiento de derecho", "Corrección de información", "Habeas data", "Solicitud laboral", "Salud", "Seguridad social", "Queja", "Reclamo", "Consulta", "Otro"] },
       { "key": "otroSolicita", "label": "Especifica qué solicitan", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "queSolicita", "igualA": "Otro" }, "requeridoSi": { "campo": "queSolicita", "igualA": "Otro" } },
       { "key": "detalle", "label": "Detalle de la solicitud", "tipo": "textoLargo", "requerido": false },
       { "key": "requierePoder", "label": "¿Requiere poder?", "tipo": "boolean", "requerido": false },
       { "key": "envio", "label": "Medio de envío", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"] },
-      { "key": "fechaRadicacion", "label": "Fecha de radicación", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corre el término de respuesta." },
-      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false },
-      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] },
+      { "key": "fechaRadicacion", "label": "Fecha de radicación del proceso", "tipo": "fecha", "requerido": false, "soloFicha": true, "ayuda": "Desde aquí corre el término de respuesta (días hábiles)." },
+      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false, "soloFicha": true },
+      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "PARCIAL", "NO"] },
 
       { "key": "fechaRespuesta", "label": "Fecha de la respuesta", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
       { "key": "numeroRespuesta", "label": "N.º de oficio/radicado de la respuesta", "tipo": "texto", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
-      { "key": "respuestaDeFondo", "label": "¿Resolvió de fondo lo solicitado?", "tipo": "select", "requerido": false, "opciones": ["Sí", "No"], "mostrarSi": { "campo": "contestaron", "igualA": "SI" }, "requeridoSi": { "campo": "contestaron", "igualA": "SI" } },
       { "key": "observacionesRespuesta", "label": "Observaciones de la respuesta", "tipo": "textoLargo", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
 
       { "key": "fechaRespuestaParcial", "label": "Fecha de la respuesta parcial", "tipo": "fecha", "requerido": false, "mostrarSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "requeridoSi": { "campo": "contestaron", "igualA": "PARCIAL" } },
@@ -175,7 +174,7 @@
     "etapas": [
       { "key": "borrador", "nombre": "Elaboración de la reclamación", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "tipoPeticion", "queSolicita"] } },
       { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "documentosRequeridos": ["reclamacion.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDiasPorValorDe": { "campo": "tipoPeticion", "mapa": { "General": 15, "Documental": 10, "Consulta": 30 } } } },
-      { "key": "respondida", "nombre": "Contestación", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "camposRequeridos": ["fechaRespuesta", "respuestaDeFondo"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaRespuestaParcial", "queFalto"], "documentosRequeridos": ["respuesta.pdf"] }] } },
+      { "key": "respondida", "nombre": "Respuesta", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "camposRequeridos": ["fechaRespuesta"], "documentosRequeridos": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "camposRequeridos": ["fechaRespuestaParcial", "queFalto"], "documentosRequeridos": ["respuesta.pdf"] }], "opcionalesSi": [{ "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "documentosOpcionales": ["recurso.pdf"] }] } },
       { "key": "reiteracion", "nombre": "Reiteración (respuesta parcial)", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": "PARCIAL" }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Reclamación Administrativa", "copiarDatos": ["entidad", "correo", "tipoPeticion", "queSolicita", "detalle", "requierePoder"], "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
       { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": ["NO", "PARCIAL"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela", "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
       { "key": "terminada", "nombre": "Terminación", "orden": 4, "terminal": true, "resultado": "Reclamación terminada." }
@@ -192,17 +191,18 @@
       { "key": "entidad", "label": "Entidad o autoridad renuente", "tipo": "texto", "requerido": true },
       { "key": "correo", "label": "Correos electrónicos de la entidad", "tipo": "listaCorreos", "requerido": false, "ayuda": "Puedes agregar varios; sirven para enviar la petición a todos." },
       { "key": "solicitud", "label": "Deber legal o acto cuyo cumplimiento se exige", "tipo": "textoLargo", "requerido": true },
+      { "key": "fechaRadicado", "label": "Fecha de radicación de solicitud", "tipo": "fecha", "requerido": false, "ayuda": "Fecha en que se elabora/radica la renuencia. Es referencia; el término corre desde la Fecha de radicación del proceso." },
       { "key": "requierePoder", "label": "¿Requiere poder?", "tipo": "boolean", "requerido": false },
       { "key": "envio", "label": "Medio de envío", "tipo": "select", "requerido": false, "opciones": ["Físico", "Correo electrónico"] },
-      { "key": "fechaRadicacion", "label": "Fecha de radicación", "tipo": "fecha", "requerido": false, "ayuda": "Desde aquí corren los 15 días hábiles." },
-      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false },
-      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "opciones": ["SI", "PARCIAL", "NO"] },
-      { "key": "observacionContestacion", "label": "Anexar/observaciones de la contestación", "tipo": "textoLargo", "requerido": false }
+      { "key": "fechaRadicacion", "label": "Fecha de radicación del proceso", "tipo": "fecha", "requerido": false, "soloFicha": true, "ayuda": "Desde aquí corren los 15 días hábiles." },
+      { "key": "nroRadicado", "label": "Número de radicado", "tipo": "texto", "requerido": false, "soloFicha": true },
+      { "key": "contestaron", "label": "¿Contestaron?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "PARCIAL", "NO"] },
+      { "key": "observacionContestacion", "label": "Anexar/observaciones de la contestación", "tipo": "textoLargo", "requerido": false, "soloFicha": true }
     ],
     "etapas": [
       { "key": "borrador", "nombre": "Elaboración de la renuencia", "orden": 0, "reglas": { "camposRequeridos": ["entidad", "solicitud"] } },
       { "key": "radicada", "nombre": "Radicación", "orden": 1, "reglas": { "camposRequeridos": ["fechaRadicacion", "nroRadicado"], "documentosRequeridos": ["renuencia.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }], "plazoDesdeCampo": "fechaRadicacion", "plazoTipoDias": "habiles", "plazoDias": 15 } },
-      { "key": "respondida", "nombre": "Contestación", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "opcionalesSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "documentosOpcionales": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "documentosOpcionales": ["respuesta.pdf"] }] } },
+      { "key": "respondida", "nombre": "Respuesta", "orden": 2, "disponibleSi": { "campo": "contestaron", "igualA": ["SI", "PARCIAL", "NO"] }, "reglas": { "opcionalesSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "documentosOpcionales": ["respuesta.pdf"] }, { "si": { "campo": "contestaron", "igualA": "PARCIAL" }, "documentosOpcionales": ["respuesta.pdf"] }] } },
       { "key": "escala_tutela", "nombre": "Escalar a acción de tutela", "orden": 3, "disponibleSi": { "campo": "contestaron", "igualA": ["NO", "PARCIAL"] }, "accion": { "tipo": "crearDerivado", "tipoDestinoNombre": "Acción de tutela", "copiarCliente": true, "copiarDocumentos": ["poder.pdf"] } },
       { "key": "terminada", "nombre": "Terminación", "orden": 4, "terminal": true, "resultado": "Renuencia constituida." }
     ]

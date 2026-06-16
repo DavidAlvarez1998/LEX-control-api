@@ -351,6 +351,8 @@ procesoRoutes.get(
     const select = {
       id: true,
       codigoInterno: true,
+      radicado: true,
+      datos: true,
       titulo: true,
       estado: true,
       etapaActual: true,
@@ -399,9 +401,18 @@ procesoRoutes.get(
       orden.map((p) => {
         const etapas = p.tipoProceso.etapas as unknown as EtapaDef[];
         const etapaNombre = etapas?.find((e) => e.key === p.etapaActual)?.nombre ?? p.etapaActual;
+        // Radicado a mostrar: el judicial (columna `radicado`) si lo hay; si no, el de
+        // la petición/trámite que vive en `datos` (nroRadicado del DdP, radicadoIngreso
+        // del recibido, radicadoTutela…). Sin radicado → null (no se muestra línea).
+        const d = (p.datos ?? {}) as Record<string, unknown>;
+        const radicado =
+          [p.radicado, d.nroRadicado, d.radicadoIngreso, d.radicadoTutela]
+            .map((v) => (typeof v === "string" ? v.trim() : ""))
+            .find((v) => v.length > 0) ?? null;
         return {
           id: p.id,
           codigoInterno: p.codigoInterno,
+          radicado,
           titulo: p.titulo,
           tipoProcesoNombre: p.tipoProceso.nombre,
           esJudicial: p.tipoProceso.esJudicial,
@@ -770,6 +781,9 @@ procesoRoutes.post(
           casoRelacionadoId: proceso.id,
           clienteId: clienteCopia?.clienteId,
           creadoPorId: req.user!.sub,
+          // Hereda el abogado responsable del proceso base: el derivado (reiteración/
+          // tutela) es el MISMO caso, sigue a cargo del mismo abogado.
+          responsableId: proceso.responsableId,
           titulo: `${tipoDestino.nombre} — ${proceso.titulo}`,
           datos: datosCopiados as Prisma.InputJsonValue,
           etapaActual: entrada.key,
