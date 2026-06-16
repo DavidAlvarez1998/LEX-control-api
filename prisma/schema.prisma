@@ -292,6 +292,7 @@ enum GrupoProceso {
   JUDICIAL
   PETICION
   CONSTITUCIONAL
+  LABORAL
 }
 
 model TipoProceso {

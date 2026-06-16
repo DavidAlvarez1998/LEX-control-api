@@ -556,29 +556,73 @@
     ]
   },
   {
-    "nombre": "Proceso ordinario laboral de primera instancia",
-    "descripcion": "Reclamación de derechos laborales (CST) por trámite ordinario (arts. 70 a 80 CPTSS, Ley 712/2001 y Ley 1149/2007).",
+    "nombre": "Proceso Laboral",
+    "descripcion": "Proceso ordinario laboral (Ley 2452/2025; CPTSS / CST). Elige el rol (demandante o demandado) y el tipo de instancia (única o doble): el flujo de etapas se adapta. Términos: contestación 10 días hábiles, subsanación 5 días hábiles, recurso 3 días calendario.",
+    "grupo": "LABORAL",
     "jurisdiccion": "ORDINARIA_LABORAL",
+    "esJudicial": true,
     "areaSlugs": ["laboral"],
     "esquemaFormulario": [
-      { "key": "tipoContrato", "label": "Tipo de contrato de trabajo", "tipo": "select", "requerido": true, "opciones": ["Término indefinido", "Término fijo", "Obra o labor", "Verbal", "Prestación de servicios (discutido)"] },
-      { "key": "fechaInicio", "label": "Fecha de inicio de la relación laboral", "tipo": "fecha", "requerido": true },
-      { "key": "fechaTerminacion", "label": "Fecha de terminación", "tipo": "fecha", "requerido": false },
-      { "key": "causaTerminacion", "label": "Causa de terminación", "tipo": "select", "requerido": false, "opciones": ["Despido sin justa causa", "Despido con justa causa", "Renuncia", "Despido indirecto", "Mutuo acuerdo", "Vencimiento del plazo", "Aún vigente"] },
-      { "key": "salarioMensual", "label": "Salario mensual devengado (COP)", "tipo": "numero", "requerido": true },
-      { "key": "tipoSalario", "label": "Naturaleza del salario", "tipo": "select", "requerido": false, "opciones": ["Ordinario", "Integral", "Variable", "Por comisión"] },
-      { "key": "pretensiones", "label": "Pretensiones laborales", "tipo": "multiselect", "requerido": true, "opciones": ["Cesantías", "Intereses a las cesantías", "Prima de servicios", "Vacaciones", "Horas extras y recargos", "Indemnización por despido (art. 64 CST)", "Indemnización moratoria (art. 65 CST)", "Sanción por no consignación de cesantías", "Aportes a seguridad social", "Contrato realidad", "Reintegro", "Reajuste salarial"] },
-      { "key": "cuantiaEstimada", "label": "Cuantía estimada de las pretensiones (COP)", "tipo": "numero", "requerido": true },
-      { "key": "agotoReclamacion", "label": "¿Se agotó reclamación administrativa previa?", "tipo": "boolean", "requerido": false },
-      { "key": "hechosRelevantes", "label": "Relación de hechos", "tipo": "textoLargo", "requerido": true },
-      { "key": "pruebasAportadas", "label": "Pruebas aportadas y solicitadas", "tipo": "textoLargo", "requerido": false }
+      { "key": "rol", "label": "Rol en el proceso", "tipo": "select", "requerido": true, "opciones": ["Demandante", "Demandado"], "ayuda": "¿Representamos a quien demanda o a quien es demandado?" },
+      { "key": "tipoInstancia", "label": "Tipo de instancia", "tipo": "select", "requerido": true, "opciones": ["Única instancia", "Doble instancia"], "ayuda": "Única = cuantías menores (una sola audiencia, recurso de reposición). Doble = cuantías mayores (audiencias art. 77 y 80, apelación)." },
+      { "key": "pretensiones", "label": "Pretensiones laborales", "tipo": "multiselect", "requerido": true, "opciones": ["Cesantías", "Intereses a las cesantías", "Prima de servicios", "Vacaciones", "Horas extras y recargos", "Indemnización por despido (art. 64 CST)", "Indemnización moratoria (art. 65 CST)", "Sanción por no consignación de cesantías", "Aportes a seguridad social", "Contrato realidad", "Reintegro", "Reajuste salarial", "Pensión", "Otro"] },
+      { "key": "hechos", "label": "Relación de hechos", "tipo": "textoLargo", "requerido": true },
+      { "key": "requierePoder", "label": "¿Requiere poder?", "tipo": "boolean", "requerido": false },
+
+      { "key": "decisionAdmision", "label": "Decisión sobre la demanda", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["ADMISIÓN", "INADMISIÓN", "RECHAZO"] },
+      { "key": "fechaAuto", "label": "Fecha del auto", "tipo": "fecha", "requerido": false, "soloFicha": true },
+      { "key": "fechaInadmision", "label": "Fecha de la inadmisión", "tipo": "fecha", "requerido": false, "soloFicha": true, "mostrarSi": { "campo": "decisionAdmision", "igualA": "INADMISIÓN" }, "ayuda": "Desde aquí corre el plazo de 5 días hábiles para subsanar." },
+      { "key": "decisionTrasSubsanacion", "label": "Decisión tras la subsanación", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["ADMISIÓN", "RECHAZO"], "mostrarSi": { "campo": "decisionAdmision", "igualA": "INADMISIÓN" } },
+      { "key": "recursoRechazo", "label": "Recurso contra el rechazo", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["Reposición", "Apelación", "Ninguno"], "mostrarSi": { "campo": "decisionAdmision", "igualA": "RECHAZO" } },
+      { "key": "decisionRecursoRechazo", "label": "Decisión del recurso", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["Favorable", "Desfavorable"], "mostrarSi": { "campo": "decisionAdmision", "igualA": "RECHAZO" } },
+      { "key": "observacionesAdmision", "label": "Observaciones de la admisión", "tipo": "textoLargo", "requerido": false, "soloFicha": true },
+
+      { "key": "hayRetiro", "label": "¿Hay retiro de la demanda? (art. 67)", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "NO"], "ayuda": "Si hay retiro, el proceso se archiva." },
+
+      { "key": "fechaNotificacion", "label": "Fecha de la notificación del traslado", "tipo": "fecha", "requerido": false, "soloFicha": true, "ayuda": "Desde aquí corren los 10 días hábiles para contestar la demanda." },
+
+      { "key": "contestaron", "label": "¿Se contestó la demanda?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "NO"], "mostrarSi": { "campo": "tipoInstancia", "igualA": "Doble instancia" } },
+      { "key": "fechaContestacion", "label": "Fecha de la contestación", "tipo": "fecha", "requerido": false, "soloFicha": true, "mostrarSi": { "campo": "contestaron", "igualA": "SI" } },
+      { "key": "hayReforma", "label": "¿Hubo reforma de la demanda?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "NO"], "mostrarSi": { "campo": "tipoInstancia", "igualA": "Doble instancia" } },
+      { "key": "fechaReforma", "label": "Fecha de la demanda reformada", "tipo": "fecha", "requerido": false, "soloFicha": true, "mostrarSi": { "campo": "hayReforma", "igualA": "SI" } },
+      { "key": "hayReconvencion", "label": "¿Hubo demanda de reconvención?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "NO"], "mostrarSi": { "campo": "tipoInstancia", "igualA": "Doble instancia" } },
+      { "key": "decisionReconvencion", "label": "Decisión sobre la reconvención", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["ADMITIR", "INADMITIR", "RECHAZAR"], "mostrarSi": { "campo": "hayReconvencion", "igualA": "SI" } },
+      { "key": "contestacionReconvencion", "label": "¿Se contestó la reconvención?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "NO"], "mostrarSi": { "campo": "hayReconvencion", "igualA": "SI" } },
+
+      { "key": "conciliable", "label": "¿Se puede conciliar el proceso?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "NO"] },
+      { "key": "observacionesPreparacion", "label": "Observaciones de la preparación", "tipo": "textoLargo", "requerido": false, "soloFicha": true },
+      { "key": "fechaAudiencia", "label": "Fecha de la audiencia", "tipo": "fecha", "requerido": false, "soloFicha": true },
+
+      { "key": "conciliacionResultado", "label": "Resultado de la conciliación", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["Se concilió total", "Se concilió parcial", "No se concilió"] },
+      { "key": "acuerdoConciliacion", "label": "Acuerdo conciliatorio", "tipo": "textoLargo", "requerido": false, "soloFicha": true, "mostrarSi": { "campo": "conciliacionResultado", "igualA": ["Se concilió total", "Se concilió parcial"] } },
+      { "key": "excepcionesPrevias", "label": "Resolución de excepciones previas", "tipo": "textoLargo", "requerido": false, "soloFicha": true },
+      { "key": "saneamiento", "label": "Saneamiento del proceso", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "NA", "NO"] },
+      { "key": "fijacionLitigio", "label": "Fijación del litigio", "tipo": "textoLargo", "requerido": false, "soloFicha": true },
+      { "key": "decretoPruebas", "label": "Decreto de pruebas", "tipo": "textoLargo", "requerido": false, "soloFicha": true },
+      { "key": "practicaPruebas", "label": "Práctica de pruebas", "tipo": "textoLargo", "requerido": false, "soloFicha": true },
+      { "key": "alegatos", "label": "Alegatos de conclusión", "tipo": "textoLargo", "requerido": false, "soloFicha": true },
+
+      { "key": "fechaSentencia", "label": "Fecha de la sentencia", "tipo": "fecha", "requerido": false, "soloFicha": true },
+      { "key": "decisionSentencia", "label": "Decisión de la sentencia", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["Favorable", "Desfavorable"] },
+      { "key": "hayRecurso", "label": "¿Se interpuso recurso contra la sentencia?", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["SI", "NO"], "ayuda": "En única instancia es reposición; en doble instancia, apelación." },
+      { "key": "medioRecurso", "label": "Forma del recurso", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["En audiencia", "Por escrito (3 días)"], "mostrarSi": { "campo": "hayRecurso", "igualA": "SI" } },
+      { "key": "decisionRecurso", "label": "Decisión del recurso", "tipo": "select", "requerido": false, "soloFicha": true, "opciones": ["Favorable", "Desfavorable"], "mostrarSi": { "campo": "hayRecurso", "igualA": "SI" } }
     ],
     "etapas": [
-      { "key": "demanda", "nombre": "Presentación y admisión de la demanda", "orden": 1, "reglas": { "camposRequeridos": ["tipoContrato", "fechaInicio", "salarioMensual", "pretensiones", "cuantiaEstimada", "hechosRelevantes"] } },
-      { "key": "contestacion", "nombre": "Notificación y contestación de la demanda", "orden": 2, "reglas": { "plazoDias": 10 } },
-      { "key": "audienciaArt77", "nombre": "Audiencia de conciliación, excepciones, saneamiento y fijación del litigio (art. 77)", "orden": 3, "reglas": { "plazoDias": 90 } },
-      { "key": "audienciaArt80", "nombre": "Audiencia de trámite y juzgamiento (art. 80)", "orden": 4, "reglas": { "camposRequeridos": ["pruebasAportadas"] } },
-      { "key": "sentencia", "nombre": "Sentencia de primera instancia", "orden": 5, "terminal": true, "resultado": "Fallo" }
+      { "key": "presentacion", "nombre": "Presentación y radicación de la demanda", "orden": 0, "reglas": { "camposRequeridos": ["rol", "tipoInstancia", "pretensiones", "hechos"], "documentosRequeridos": ["demanda.pdf"], "documentosOpcionales": ["pruebas.pdf", "anexos.pdf", "radicacion.pdf"], "requeridosSi": [{ "si": { "campo": "requierePoder", "igualA": "true" }, "documentosRequeridos": ["poder.pdf"] }] } },
+      { "key": "admision", "nombre": "Calificación de la demanda", "orden": 1, "reglas": { "camposRequeridos": ["decisionAdmision"], "documentosRequeridos": ["auto-admision.pdf"] } },
+      { "key": "subsanacion", "nombre": "Subsanación de la demanda (inadmisión)", "orden": 2, "disponibleSi": { "campo": "decisionAdmision", "igualA": "INADMISIÓN" }, "reglas": { "camposRequeridos": ["decisionTrasSubsanacion"], "documentosRequeridos": ["subsanacion.pdf"], "plazoDesdeCampo": "fechaInadmision", "plazoTipoDias": "habiles", "plazoDias": 5 } },
+      { "key": "recurso_rechazo", "nombre": "Recurso contra el rechazo", "orden": 2, "disponibleSi": { "campo": "decisionAdmision", "igualA": "RECHAZO" }, "reglas": { "camposRequeridos": ["recursoRechazo", "decisionRecursoRechazo"], "documentosOpcionales": ["recurso.pdf"], "plazoDesdeCampo": "fechaAuto", "plazoTipoDias": "calendario", "plazoDias": 3 } },
+      { "key": "traslado", "nombre": "Traslado y notificación", "orden": 3, "reglas": { "camposRequeridos": ["fechaNotificacion"], "documentosRequeridos": ["notificacion.pdf"], "plazoDesdeCampo": "fechaNotificacion", "plazoTipoDias": "habiles", "plazoDias": 10 } },
+      { "key": "contestacion", "nombre": "Contestación de la demanda", "orden": 4, "disponibleSi": { "campo": "tipoInstancia", "igualA": "Doble instancia" }, "reglas": { "requeridosSi": [{ "si": { "campo": "contestaron", "igualA": "SI" }, "camposRequeridos": ["fechaContestacion"], "documentosRequeridos": ["contestacion.pdf"] }, { "si": { "campo": "contestaron", "igualA": "NO" }, "documentosRequeridos": ["auto-silencio.pdf"] }], "opcionalesSi": [{ "si": { "campo": "hayReforma", "igualA": "SI" }, "documentosOpcionales": ["demanda-reformada.pdf"] }, { "si": { "campo": "hayReconvencion", "igualA": "SI" }, "documentosOpcionales": ["reconvencion.pdf"] }] } },
+      { "key": "preparacionAudiencia", "nombre": "Preparación de la audiencia", "orden": 5, "reglas": { "camposRequeridos": ["conciliable"], "documentosOpcionales": ["documentos-audiencia.pdf"] } },
+      { "key": "citacionAudiencia", "nombre": "Citación a audiencia", "orden": 6, "reglas": { "camposRequeridos": ["fechaAudiencia"], "documentosRequeridos": ["auto-citacion.pdf"] } },
+      { "key": "audienciaUnica", "nombre": "Audiencia (única instancia)", "orden": 7, "disponibleSi": { "campo": "tipoInstancia", "igualA": "Única instancia" }, "reglas": { "camposRequeridos": ["conciliacionResultado"], "documentosOpcionales": ["acta-audiencia.pdf"] } },
+      { "key": "audienciaArt77", "nombre": "Audiencia art. 77 (conciliación, excepciones, saneamiento, fijación, decreto)", "orden": 7, "disponibleSi": { "campo": "tipoInstancia", "igualA": "Doble instancia" }, "reglas": { "camposRequeridos": ["conciliacionResultado"], "documentosOpcionales": ["acta-art77.pdf"] } },
+      { "key": "audienciaArt80", "nombre": "Audiencia de trámite y juzgamiento (art. 80)", "orden": 8, "disponibleSi": { "campo": "tipoInstancia", "igualA": "Doble instancia" }, "reglas": { "documentosOpcionales": ["acta-art80.pdf"] } },
+      { "key": "sentencia", "nombre": "Sentencia", "orden": 9, "reglas": { "camposRequeridos": ["fechaSentencia", "decisionSentencia", "hayRecurso"], "documentosRequeridos": ["sentencia.pdf"], "opcionalesSi": [{ "si": { "campo": "hayRecurso", "igualA": "SI" }, "documentosOpcionales": ["recurso.pdf"] }], "plazoDesdeCampo": "fechaSentencia", "plazoTipoDias": "calendario", "plazoDias": 3 } },
+      { "key": "archivado", "nombre": "Archivo por retiro de la demanda (art. 67)", "orden": 10, "terminal": true, "resultado": "Demanda retirada y archivada (art. 67).", "disponibleSi": { "campo": "hayRetiro", "igualA": "SI" } },
+      { "key": "terminada", "nombre": "Terminación", "orden": 10, "terminal": true, "resultado": "Proceso laboral terminado." }
     ]
   },
   {
