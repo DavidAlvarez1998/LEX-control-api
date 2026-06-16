@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mock del cliente Prisma — los endpoints públicos no tocan la BD real.
 vi.mock("../src/index", () => ({
   prisma: {
-    plan: { findMany: vi.fn() },
+    plan: { findMany: vi.fn(), findUnique: vi.fn() },
     prospecto: { create: vi.fn() },
   },
 }));
@@ -59,46 +59,62 @@ describe("GET /publico/planes (público, sin auth)", () => {
   });
 });
 
-describe("POST /publico/solicitar-demo (público, sin auth)", () => {
-  const ok = { nombreEmpresa: "Despacho X", nombreContacto: "Ana", email: "ana@x.co" };
+describe("POST /publico/solicitud-cuenta (público, sin auth)", () => {
+  const ok = { nombreEmpresa: "Despacho X", nombreContacto: "Ana Admin", email: "ana@x.co" };
 
-  it("201 y crea un Prospecto canalEntrada=WEB, estado por defecto", async () => {
+  it("201 y crea un Prospecto pendiente (canalEntrada=WEB) con empresa+admin+plan", async () => {
+    m.plan.findUnique.mockResolvedValue({ id: "plan-firma" });
     m.prospecto.create.mockResolvedValue({ id: "p1" });
-    const res = await request(app).post("/publico/solicitar-demo").send({ ...ok, telefono: "300", mensaje: "Quiero demo" });
-    expect(res.status).toBe(201);
-    expect(m.prospecto.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        nombreEmpresa: "Despacho X",
-        nombreContacto: "Ana",
-        email: "ana@x.co",
-        telefono: "300",
-        canalEntrada: "WEB",
-        notas: "Quiero demo",
-      }),
+    const res = await request(app).post("/publico/solicitud-cuenta").send({
+      ...ok, nit: "900123", telefono: "300", emailEmpresa: "info@x.co", telefonoEmpresa: "601", planClave: "firma",
     });
+    expect(res.status).toBe(201);
+    const data = m.prospecto.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      nombreEmpresa: "Despacho X",
+      numeroDocumento: "900123",
+      nombreContacto: "Ana Admin",
+      email: "ana@x.co",
+      telefono: "300",
+      canalEntrada: "WEB",
+      planInteresId: "plan-firma",
+    });
+    // El correo/teléfono de empresa van a notas (no tienen columna propia).
+    expect(data.notas).toContain("info@x.co");
+    expect(data.notas).toContain("601");
+    expect(m.plan.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { clave: "firma" } }));
+  });
+
+  it("plan inexistente → planInteresId null (no rompe)", async () => {
+    m.plan.findUnique.mockResolvedValue(null);
+    m.prospecto.create.mockResolvedValue({ id: "p2" });
+    const res = await request(app).post("/publico/solicitud-cuenta").send({ ...ok, planClave: "no-existe" });
+    expect(res.status).toBe(201);
+    expect(m.prospecto.create.mock.calls[0][0].data.planInteresId).toBeNull();
   });
 
   it("honeypot lleno → no-op (200, no crea Prospecto)", async () => {
-    const res = await request(app).post("/publico/solicitar-demo").send({ ...ok, website: "http://spam" });
+    const res = await request(app).post("/publico/solicitud-cuenta").send({ ...ok, website: "http://spam" });
     expect(res.status).toBe(200);
     expect(m.prospecto.create).not.toHaveBeenCalled();
   });
 
-  it("email inválido → 400 y no crea", async () => {
-    const res = await request(app).post("/publico/solicitar-demo").send({ ...ok, email: "no-es-correo" });
+  it("correo del admin inválido → 400 y no crea", async () => {
+    const res = await request(app).post("/publico/solicitud-cuenta").send({ ...ok, email: "no-es-correo" });
     expect(res.status).toBe(400);
     expect(m.prospecto.create).not.toHaveBeenCalled();
   });
 
-  it("falta nombreContacto → 400", async () => {
-    const res = await request(app).post("/publico/solicitar-demo").send({ nombreEmpresa: "X", email: "a@b.co" });
+  it("falta nombreContacto (admin) → 400", async () => {
+    const res = await request(app).post("/publico/solicitud-cuenta").send({ nombreEmpresa: "X", email: "a@b.co" });
     expect(res.status).toBe(400);
     expect(m.prospecto.create).not.toHaveBeenCalled();
   });
 
   it("ignora estado/empresaId inyectados (solo usa los campos del schema)", async () => {
-    m.prospecto.create.mockResolvedValue({ id: "p2" });
-    await request(app).post("/publico/solicitar-demo").send({ ...ok, estado: "GANADO", empresaId: "e1" });
+    m.plan.findUnique.mockResolvedValue(null);
+    m.prospecto.create.mockResolvedValue({ id: "p3" });
+    await request(app).post("/publico/solicitud-cuenta").send({ ...ok, estado: "GANADO", empresaId: "e1" });
     const data = m.prospecto.create.mock.calls[0][0].data;
     expect(data).not.toHaveProperty("estado");
     expect(data).not.toHaveProperty("empresaId");

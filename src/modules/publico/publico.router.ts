@@ -6,7 +6,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../index";
 import { asyncHandler } from "../../middleware/async";
 import { validate } from "../../middleware/validate";
-import { solicitarDemoSchema } from "./publico.schemas";
+import { solicitudCuentaSchema } from "./publico.schemas";
 
 export const publicoRoutes: Router = Router();
 const n = (d: Prisma.Decimal) => Number(d);
@@ -45,29 +45,46 @@ publicoRoutes.get(
 );
 
 /**
- * POST /publico/solicitar-demo — capta un lead desde la landing (sin auth). Crea
- * un Prospecto (canalEntrada=WEB, estado=NUEVO) que aterriza en el embudo comercial
- * (/prospectos). Honeypot `website`: si viene lleno es un bot → no-op silencioso.
- * NUNCA acepta `estado`/`empresaId` del cliente.
+ * POST /publico/solicitud-cuenta — solicitud de creación de cuenta desde la landing
+ * (sin auth). MODELO HÍBRIDO: crea un Prospecto (canalEntrada=WEB, estado=NUEVO =
+ * pendiente de aprobación) con los datos del despacho + del usuario admin + el plan
+ * elegido. NO crea acceso: el equipo lo aprueba (GANADO) y el flujo de ventas
+ * provisiona Empresa + admin + suscripción. Honeypot `website`: si viene lleno es un
+ * bot → no-op silencioso. NUNCA acepta `estado`/`empresaId` del cliente.
  */
 publicoRoutes.post(
-  "/solicitar-demo",
-  validate({ body: solicitarDemoSchema }),
+  "/solicitud-cuenta",
+  validate({ body: solicitudCuentaSchema }),
   asyncHandler(async (req, res) => {
-    const b = solicitarDemoSchema.parse(req.body);
+    const b = solicitudCuentaSchema.parse(req.body);
     if (b.website && b.website.trim() !== "") {
-      // Bot: respondemos éxito benigno sin crear nada.
       res.json({ ok: true });
       return;
     }
+    // Resuelve el plan elegido (clave → id) si vino y existe.
+    const plan = b.planClave
+      ? await prisma.plan.findUnique({ where: { clave: b.planClave }, select: { id: true } })
+      : null;
+    // Los datos de empresa que no tienen columna propia van a `notas` (referencia
+    // para quien aprueba; el correo del admin = `email` será su login al provisionar).
+    const notas = [
+      "Solicitud de cuenta vía landing.",
+      b.emailEmpresa ? `Correo empresa: ${b.emailEmpresa}` : null,
+      b.telefonoEmpresa ? `Tel. empresa: ${b.telefonoEmpresa}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
     await prisma.prospecto.create({
       data: {
         nombreEmpresa: b.nombreEmpresa,
+        numeroDocumento: b.nit ?? null,
         nombreContacto: b.nombreContacto,
         email: b.email,
         telefono: b.telefono ?? null,
         canalEntrada: "WEB",
-        notas: b.mensaje ?? null,
+        planInteresId: plan?.id ?? null,
+        notas,
       },
     });
     res.status(201).json({ ok: true });
