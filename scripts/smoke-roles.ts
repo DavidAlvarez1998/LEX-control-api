@@ -119,10 +119,14 @@ async function main() {
   // Matriz esperada por rol (status HTTP). NEG = no debe ser 403 (permiso concedido,
   // aunque el body luego sea inválido → 400). Ver comercial-rol-portal.
   const NEG: Expect = { not: 403, label: "≠403" };
+  // NOTA: la agenda dejó de ser COMERCIAL-only. El change `client-agenda-universal`
+  // (posterior, ya aplicado/archivado) la volvió BASELINE (`requireAuth`): cualquier
+  // usuario del despacho —incl. JURIDICO o un USUARIO sin rol— accede a `/comercial/agenda`
+  // (200). Por eso aquí agenda.ver = 200 para todos los roles.
   const matriz: Record<Rol, Record<string, Expect>> = {
     //                          comisiones.ver  comisiones.crear  cartera.ver  agenda.ver  procesos.ver  procesos.write
     comercial: { "GET /comercial/comisiones": 200, "POST /comercial/comisiones": 403, "GET cartera": 200, "GET /comercial/agenda": 200, "GET /procesos": 200, "POST /procesos": 403 },
-    juridico:  { "GET /comercial/comisiones": 403, "POST /comercial/comisiones": 403, "GET cartera": 403, "GET /comercial/agenda": 403, "GET /procesos": 200, "POST /procesos": NEG },
+    juridico:  { "GET /comercial/comisiones": 403, "POST /comercial/comisiones": 403, "GET cartera": 403, "GET /comercial/agenda": 200, "GET /procesos": 200, "POST /procesos": NEG },
     multi:     { "GET /comercial/comisiones": 200, "POST /comercial/comisiones": 403, "GET cartera": 200, "GET /comercial/agenda": 200, "GET /procesos": 200, "POST /procesos": NEG },
     admin:     { "GET /comercial/comisiones": 200, "POST /comercial/comisiones": NEG, "GET cartera": 200, "GET /comercial/agenda": 200, "GET /procesos": 200, "POST /procesos": NEG },
   };

@@ -58,6 +58,18 @@ export const env = {
       appToken: process.env.SOCRATA_APP_TOKEN, // opcional
       timeoutMs: Number(process.env.INTEGRACIONES_TIMEOUT_MS ?? 15_000),
     },
+    // Llave de cifrado de credenciales de proveedor. Si no se setea, se deriva de
+    // JWT_SECRET (ver crypto.ts) — funciona sin config extra.
+    encKey: process.env.INTEGRACIONES_ENC_KEY ?? process.env.JWT_SECRET ?? "lex-dev-secret",
+    // TTL del caché de actuaciones: una sincronización on-demand dentro de esta
+    // ventana se sirve del caché (no llama al proveedor). Spec: "served from cache within TTL".
+    syncTtlMinutes: Number(process.env.INTEGRACIONES_SYNC_TTL_MIN ?? 360), // 6 h
+    // Proveedor de actuaciones MOCK (Fase B): CPNU/RUES están bloqueados (infra/llaves),
+    // así que en dev/test el motor de sync se ejerce contra un mock determinista. En
+    // producción queda apagado por defecto (no servir datos judiciales falsos).
+    mockActuaciones:
+      (process.env.INTEGRACIONES_MOCK ?? ((process.env.NODE_ENV ?? "development") === "production" ? "false" : "true")) ===
+      "true",
   },
 };
 

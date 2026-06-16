@@ -382,6 +382,7 @@ model Proceso {
   historial          EtapaProceso[]
   documentos         DocumentoProceso[]
   partes             ParteProceso[]
+  actuaciones        ActuacionJudicial[]
   // comercial: la solicitud (si la hubo) que materializó este proceso (1:1).
   solicitudComercial SolicitudAsignacionProceso?
 
@@ -412,6 +413,73 @@ model EtapaProceso {
   @@index([procesoId])
   @@index([usuarioId])
   @@map("etapas_tramite")
+}
+
+// ── Integraciones estatales (Fase B): datos judiciales sincronizados ──
+// Ver openspec/specs/integraciones-estatales/spec.md.
+
+enum EstadoSyncIntegracion {
+  OK
+  ERROR
+  SIN_RADICADO // no-op: el proceso no tiene radicado que consultar
+}
+
+// Actuación judicial sincronizada desde un proveedor estatal, idempotente por
+// `hashIdempotencia` = hash(radicado+fecha+actuacion+anotacion). Se borra al
+// borrar el proceso (habeas data, Ley 1581/2012).
+model ActuacionJudicial {
+  id               String    @id @default(cuid())
+  procesoId        String    @map("tramiteId")
+  radicado         String // snapshot del radicado consultado
+  fechaActuacion   DateTime? // fecha de la actuación (si es parseable)
+  actuacion        String // tipo/título de la actuación
+  anotacion        String?   @db.Text
+  fuente           String // proveedor que la entregó
+  hashIdempotencia String // hash(radicado+fecha+actuacion+anotacion)
+  etapaProcesoId   String? // proyección al timeline (EtapaProceso generada), si aplica
+  createdAt        DateTime  @default(now())
+
+  proceso Proceso @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+
+  @@unique([procesoId, hashIdempotencia])
+  @@index([procesoId, fechaActuacion])
+  @@map("actuaciones_judiciales")
+}
+
+// Bitácora de cada corrida de sincronización (auditoría + cache TTL). empresaId
+// desnormalizado (sin FK); procesoId escalar (sin FK) para conservar el log aun
+// si el proceso se borra.
+model IntegrationSyncLog {
+  id           String                @id @default(cuid())
+  empresaId    String // desnormalizado, sin FK
+  procesoId    String?               @map("tramiteId") // escalar, sin FK
+  proveedor    String
+  estado       EstadoSyncIntegracion
+  itemsFetched Int                   @default(0)
+  itemsNew     Int                   @default(0)
+  error        String?               @db.Text
+  createdAt    DateTime              @default(now())
+
+  @@index([empresaId, createdAt])
+  @@index([procesoId, createdAt])
+  @@map("integration_sync_logs")
+}
+
+// Configuración de proveedor por despacho. La credencial (API key de un
+// agregador/RUES) se guarda CIFRADA (AES-256-GCM), nunca en texto plano.
+model ProviderConfig {
+  id                String   @id @default(cuid())
+  empresaId         String // desnormalizado, sin FK
+  proveedor         String // "corteconst" | "cpnu" | "rues" | ...
+  habilitado        Boolean  @default(true)
+  credencialCifrada String?  @db.Text // API key cifrada; null si el proveedor no requiere credencial
+  configuracion     Json? // ajustes no sensibles (host alterno, cadencia, etc.)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([empresaId, proveedor])
+  @@index([empresaId])
+  @@map("provider_configs")
 }
 
 // Documento de un trámite (adjunto o generado desde plantilla).
