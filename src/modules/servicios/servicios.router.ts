@@ -1,15 +1,17 @@
+// Catálogo GLOBAL de servicios. Router FINO: HTTP + auth/RBAC (ADMIN para escribir);
+// lógica en servicios.service, datos en servicios.repository.
 import { Router } from "express";
-import { Prisma, Rol } from "@prisma/client";
-import { prisma } from "../../index";
+import { Rol } from "@prisma/client";
 import { asyncHandler } from "../../middleware/async";
 import { requireAuth, requireRole } from "../../middleware/auth";
-import { HttpError } from "../../middleware/error";
 import { validate } from "../../middleware/validate";
 import {
   createServicioSchema,
   servicioIdParams,
   updateServicioSchema,
 } from "./servicios.schemas";
+import * as servicios from "./servicios.service";
+import { toServicioDTO } from "./servicios.dto";
 
 export const servicioRoutes: Router = Router();
 
@@ -18,10 +20,8 @@ servicioRoutes.get(
   "/",
   requireAuth,
   asyncHandler(async (_req, res) => {
-    const servicios = await prisma.servicio.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-    res.json(servicios);
+    const lista = await servicios.listServicios();
+    res.json(lista.map(toServicioDTO));
   }),
 );
 
@@ -31,48 +31,32 @@ servicioRoutes.get(
   requireAuth,
   validate({ params: servicioIdParams }),
   asyncHandler(async (req, res) => {
-    const servicio = await prisma.servicio.findUnique({
-      where: { id: req.params.id },
-    });
-    if (!servicio) throw new HttpError(404, "Servicio no encontrado");
-    res.json(servicio);
+    const servicio = await servicios.getServicio(req.params.id);
+    res.json(toServicioDTO(servicio));
   }),
 );
 
-/** POST /servicios — crea un servicio. */
+/** POST /servicios — crea un servicio (ADMIN). */
 servicioRoutes.post(
   "/",
   requireAuth,
   requireRole(Rol.ADMIN),
   validate({ body: createServicioSchema }),
   asyncHandler(async (req, res) => {
-    const servicio = await prisma.servicio.create({ data: req.body });
-    res.status(201).json(servicio);
+    const servicio = await servicios.createServicio(req.body);
+    res.status(201).json(toServicioDTO(servicio));
   }),
 );
 
-/** PATCH /servicios/:id — actualiza campos de un servicio. */
+/** PATCH /servicios/:id — actualiza campos de un servicio (ADMIN). */
 servicioRoutes.patch(
   "/:id",
   requireAuth,
   requireRole(Rol.ADMIN),
   validate({ params: servicioIdParams, body: updateServicioSchema }),
   asyncHandler(async (req, res) => {
-    try {
-      const servicio = await prisma.servicio.update({
-        where: { id: req.params.id },
-        data: req.body,
-      });
-      res.json(servicio);
-    } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === "P2025"
-      ) {
-        throw new HttpError(404, "Servicio no encontrado");
-      }
-      throw err;
-    }
+    const servicio = await servicios.updateServicio(req.params.id, req.body);
+    res.json(toServicioDTO(servicio));
   }),
 );
 
@@ -83,22 +67,7 @@ servicioRoutes.delete(
   requireRole(Rol.ADMIN),
   validate({ params: servicioIdParams }),
   asyncHandler(async (req, res) => {
-    try {
-      await prisma.servicio.delete({ where: { id: req.params.id } });
-      res.status(204).end();
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError) {
-        if (err.code === "P2025") {
-          throw new HttpError(404, "Servicio no encontrado");
-        }
-        if (err.code === "P2003" || err.code === "P2014") {
-          throw new HttpError(
-            409,
-            "No se puede eliminar: el servicio está asignado a una o más empresas",
-          );
-        }
-      }
-      throw err;
-    }
+    await servicios.deleteServicio(req.params.id);
+    res.status(204).end();
   }),
 );

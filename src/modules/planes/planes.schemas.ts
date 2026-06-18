@@ -29,3 +29,6 @@ export const updatePlanSchema = z.object({
 
 export const planIdParams = z.object({ id: z.string().min(1) });
 export const asignarPlanSchema = z.object({ planId: z.string().min(1) });
+
+export type CreatePlanInput = z.infer<typeof createPlanSchema>;
+export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
