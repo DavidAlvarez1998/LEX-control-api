@@ -2,11 +2,13 @@
 // UNA vez por request (en `requireAuth`, que ya carga empresaId/roles) y se lee con
 // `tenant(req)`. Lo que se inyecta es ESTE contexto, NO una instancia de Prisma.
 import type { Request } from "express";
-import type { RolEmpresa } from "@prisma/client";
+import type { Rol, RolEmpresa } from "@prisma/client";
 import { HttpError } from "../middleware/error";
 
 export type TenantContext = {
   userId: string;
+  /** Rol de PLATAFORMA del usuario (ADMIN | USUARIO | COMERCIAL). */
+  rol: Rol;
   /** null = ADMIN de plataforma (sin empresa). */
   empresaId: string | null;
   esAdminEmpresa: boolean;
@@ -17,6 +19,7 @@ export type TenantContext = {
 export function tenant(req: Request): TenantContext {
   return {
     userId: req.user!.sub,
+    rol: req.user!.rol,
     empresaId: req.empresaId ?? null,
     esAdminEmpresa: req.esAdminEmpresa ?? false,
     rolesEmpresa: req.rolesEmpresa ?? [],

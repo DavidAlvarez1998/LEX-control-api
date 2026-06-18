@@ -1,14 +1,11 @@
+// Catálogo de procesos (áreas, tipos, plantillas). Router FINO: HTTP + auth/validate;
+// visibilidad híbrida (global + despacho) y autorización viven en catalog.service.
 import { Router } from "express";
-import { Prisma, Rol } from "@prisma/client";
-import { prisma } from "../../index";
+import { Rol } from "@prisma/client";
 import { asyncHandler } from "../../middleware/async";
-import {
-  empresaIdRequerido,
-  requireAuth,
-  requireRole,
-} from "../../middleware/auth";
-import { HttpError } from "../../middleware/error";
+import { requireAuth, requireRole } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
+import { tenant } from "../../shared/tenant";
 import {
   areaIdParams,
   createAreaSchema,
@@ -20,137 +17,66 @@ import {
   updatePlantillaSchema,
   updateTipoProcesoSchema,
 } from "./catalog.schemas";
+import * as catalog from "./catalog.service";
 
 export const catalogRoutes: Router = Router();
 
-const tipoInclude = { areas: { include: { area: true } } } as const;
+// --- Áreas de práctica ---
 
-type TipoConAreas = Prisma.TipoProcesoGetPayload<{ include: typeof tipoInclude }>;
-
-function serializeTipo(t: TipoConAreas) {
-  return {
-    id: t.id,
-    nombre: t.nombre,
-    descripcion: t.descripcion,
-    jurisdiccion: t.jurisdiccion,
-    esquemaFormulario: t.esquemaFormulario,
-    etapas: t.etapas,
-    esquemaVersion: t.esquemaVersion,
-    empresaId: t.empresaId,
-    esJudicial: t.esJudicial,
-    clienteOpcional: t.clienteOpcional,
-    grupo: t.grupo,
-    actualizado: t.actualizado,
-    areaSlugs: t.areas.map((a) => a.area.slug),
-  };
-}
-
-/**
- * GET /catalogo/areas — áreas de práctica. Por defecto solo activas (lo que
- * consumen los despachos). Un ADMIN puede pedir TODAS con `?incluirInactivas=1`
- * para gestionarlas; a cualquier otro rol se le ignora ese parámetro.
- */
+/** GET /catalogo/areas — áreas (solo activas; ADMIN puede pedir todas con ?incluirInactivas). */
 catalogRoutes.get(
   "/areas",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const verTodas = req.user?.rol === Rol.ADMIN && req.query.incluirInactivas != null;
-    const areas = await prisma.areaPractica.findMany({
-      where: verTodas ? {} : { activo: true },
-      orderBy: [{ orden: "asc" }, { nombre: "asc" }],
-    });
-    res.json(areas);
+    res.json(await catalog.listAreas(tenant(req), req.query.incluirInactivas != null));
   }),
 );
 
-/** POST /catalogo/areas — crea un área de práctica (solo ADMIN). */
+/** POST /catalogo/areas — crea un área (solo ADMIN). */
 catalogRoutes.post(
   "/areas",
   requireAuth,
   requireRole(Rol.ADMIN),
   validate({ body: createAreaSchema }),
   asyncHandler(async (req, res) => {
-    const { nombre, jurisdiccion, tipo, activo, orden } = req.body;
-    const slug = await slugAreaUnico(nombre);
-    const ordenFinal = orden ?? (await siguienteOrdenArea());
-    const area = await prisma.areaPractica.create({
-      data: { slug, nombre, jurisdiccion, tipo, activo, orden: ordenFinal },
-    });
-    res.status(201).json(area);
+    res.status(201).json(await catalog.createArea(req.body));
   }),
 );
 
-/** PATCH /catalogo/areas/:id — edita un área (solo ADMIN). El slug es estable. */
+/** PATCH /catalogo/areas/:id — edita un área (solo ADMIN). */
 catalogRoutes.patch(
   "/areas/:id",
   requireAuth,
   requireRole(Rol.ADMIN),
   validate({ params: areaIdParams, body: updateAreaSchema }),
   asyncHandler(async (req, res) => {
-    const existe = await prisma.areaPractica.findUnique({ where: { id: req.params.id } });
-    if (!existe) throw new HttpError(404, "Área de práctica no encontrada");
-    const area = await prisma.areaPractica.update({
-      where: { id: req.params.id },
-      data: req.body,
-    });
-    res.json(area);
+    res.json(await catalog.updateArea(req.params.id, req.body));
   }),
 );
 
-/**
- * DELETE /catalogo/areas/:id — elimina un área (solo ADMIN). Se rechaza si tiene
- * tipos de proceso asociados: en ese caso se debe DESACTIVAR (activo:false), no
- * borrar, para no romper la taxonomía de los tipos existentes.
- */
+/** DELETE /catalogo/areas/:id — elimina un área (solo ADMIN; 409 si tiene tipos). */
 catalogRoutes.delete(
   "/areas/:id",
   requireAuth,
   requireRole(Rol.ADMIN),
   validate({ params: areaIdParams }),
   asyncHandler(async (req, res) => {
-    const area = await prisma.areaPractica.findUnique({
-      where: { id: req.params.id },
-      include: { _count: { select: { tipos: true } } },
-    });
-    if (!area) throw new HttpError(404, "Área de práctica no encontrada");
-    if (area._count.tipos > 0) {
-      throw new HttpError(409, "El área tiene tipos de proceso asociados; desactívala en vez de eliminarla");
-    }
-    await prisma.areaPractica.delete({ where: { id: req.params.id } });
+    await catalog.deleteArea(req.params.id);
     res.status(204).end();
   }),
 );
 
-/**
- * GET /catalogo/tipos-proceso — tipos visibles para el despacho: globales
- * (empresaId null) + propios. Filtros opcionales `?area=slug`, `?jurisdiccion`.
- */
+// --- Tipos de proceso ---
+
+/** GET /catalogo/tipos-proceso — tipos visibles (globales + propios); filtros ?area, ?jurisdiccion. */
 catalogRoutes.get(
   "/tipos-proceso",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const empresaId = req.empresaId ?? null;
-    const visibles: Prisma.TipoProcesoWhereInput = empresaId
-      ? { OR: [{ empresaId: null }, { empresaId }] }
-      : { empresaId: null };
-
-    const where: Prisma.TipoProcesoWhereInput = {
-      AND: [
-        visibles,
-        { activo: true },
-        req.query.area ? { areas: { some: { area: { slug: String(req.query.area) } } } } : {},
-        req.query.jurisdiccion
-          ? { jurisdiccion: req.query.jurisdiccion as Prisma.TipoProcesoWhereInput["jurisdiccion"] }
-          : {},
-      ],
-    };
-
-    const tipos = await prisma.tipoProceso.findMany({
-      where,
-      include: tipoInclude,
-      orderBy: { nombre: "asc" },
-    });
-    res.json(tipos.map(serializeTipo));
+    res.json(await catalog.listTipos(tenant(req), {
+      area: req.query.area ? String(req.query.area) : undefined,
+      jurisdiccion: req.query.jurisdiccion ? String(req.query.jurisdiccion) : undefined,
+    }));
   }),
 );
 
@@ -160,54 +86,17 @@ catalogRoutes.get(
   requireAuth,
   validate({ params: tipoIdParams }),
   asyncHandler(async (req, res) => {
-    const tipo = await prisma.tipoProceso.findUnique({
-      where: { id: req.params.id },
-      include: tipoInclude,
-    });
-    if (!tipo || !esVisible(tipo, req.empresaId ?? null)) {
-      throw new HttpError(404, "Tipo de proceso no encontrado");
-    }
-    res.json(serializeTipo(tipo));
+    res.json(await catalog.getTipo(tenant(req), req.params.id));
   }),
 );
 
-/**
- * POST /catalogo/tipos-proceso — crea un tipo. Un ADMIN de plataforma crea uno
- * GLOBAL (empresaId null); un USUARIO con esAdminEmpresa crea uno PROPIO de su
- * despacho. Cualquier otro: 403.
- */
+/** POST /catalogo/tipos-proceso — crea un tipo (ADMIN global / esAdminEmpresa propio). */
 catalogRoutes.post(
   "/tipos-proceso",
   requireAuth,
   validate({ body: createTipoProcesoSchema }),
   asyncHandler(async (req, res) => {
-    const { empresaId, empresaKey } = destinoCatalogo(req);
-    const { areaSlugs, ...data } = req.body;
-    const areaIds = await resolverAreas(areaSlugs);
-    await validarAccionesDestino(data.etapas);
-
-    try {
-      const tipo = await prisma.tipoProceso.create({
-        data: {
-          nombre: data.nombre,
-          descripcion: data.descripcion,
-          jurisdiccion: data.jurisdiccion,
-          esJudicial: data.esJudicial ?? true,
-          esquemaFormulario: data.esquemaFormulario,
-          etapas: data.etapas,
-          empresaId,
-          empresaKey,
-          areas: { create: areaIds.map((areaId) => ({ areaId })) },
-        },
-        include: tipoInclude,
-      });
-      res.status(201).json(serializeTipo(tipo));
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        throw new HttpError(409, "Ya existe un tipo de proceso con ese nombre");
-      }
-      throw err;
-    }
+    res.status(201).json(await catalog.createTipo(tenant(req), req.body));
   }),
 );
 
@@ -217,63 +106,22 @@ catalogRoutes.patch(
   requireAuth,
   validate({ params: tipoIdParams, body: updateTipoProcesoSchema }),
   asyncHandler(async (req, res) => {
-    const actual = await prisma.tipoProceso.findUnique({ where: { id: req.params.id } });
-    if (!actual || !esVisible(actual, req.empresaId ?? null)) {
-      throw new HttpError(404, "Tipo de proceso no encontrado");
-    }
-    autorizarEscritura(req, actual.empresaId);
-    const { areaSlugs, ...data } = req.body;
-    const areaIds = await resolverAreas(areaSlugs);
-    await validarAccionesDestino(data.etapas);
-
-    const tipo = await prisma.$transaction(async (tx) => {
-      await tx.tipoProcesoArea.deleteMany({ where: { tipoProcesoId: actual.id } });
-      return tx.tipoProceso.update({
-        where: { id: actual.id },
-        data: {
-          nombre: data.nombre,
-          descripcion: data.descripcion,
-          jurisdiccion: data.jurisdiccion,
-          ...(data.esJudicial !== undefined ? { esJudicial: data.esJudicial } : {}),
-          esquemaFormulario: data.esquemaFormulario,
-          etapas: data.etapas,
-          esquemaVersion: { increment: 1 },
-          areas: { create: areaIds.map((areaId) => ({ areaId })) },
-        },
-        include: tipoInclude,
-      });
-    });
-    res.json(serializeTipo(tipo));
+    res.json(await catalog.updateTipo(tenant(req), req.params.id, req.body));
   }),
 );
 
-/** DELETE /catalogo/tipos-proceso/:id — elimina un tipo (si no está en uso). */
+/** DELETE /catalogo/tipos-proceso/:id — elimina un tipo (409 si está en uso). */
 catalogRoutes.delete(
   "/tipos-proceso/:id",
   requireAuth,
   validate({ params: tipoIdParams }),
   asyncHandler(async (req, res) => {
-    const actual = await prisma.tipoProceso.findUnique({ where: { id: req.params.id } });
-    if (!actual || !esVisible(actual, req.empresaId ?? null)) {
-      throw new HttpError(404, "Tipo de proceso no encontrado");
-    }
-    autorizarEscritura(req, actual.empresaId);
-    try {
-      await prisma.tipoProceso.delete({ where: { id: actual.id } });
-      res.status(204).end();
-    } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        (err.code === "P2003" || err.code === "P2014")
-      ) {
-        throw new HttpError(409, "No se puede eliminar: hay procesos de este tipo");
-      }
-      throw err;
-    }
+    await catalog.deleteTipo(tenant(req), req.params.id);
+    res.status(204).end();
   }),
 );
 
-// ===================== PLANTILLAS DE DOCUMENTO (por tipo) =====================
+// --- Plantillas de documento (por tipo) ---
 
 /** GET /catalogo/tipos-proceso/:id/plantillas — plantillas de un tipo visible. */
 catalogRoutes.get(
@@ -281,27 +129,17 @@ catalogRoutes.get(
   requireAuth,
   validate({ params: tipoIdParams }),
   asyncHandler(async (req, res) => {
-    await cargarTipoVisible(req, req.params.id);
-    const plantillas = await prisma.plantillaDocumento.findMany({
-      where: { tipoProcesoId: req.params.id },
-      orderBy: { nombre: "asc" },
-    });
-    res.json(plantillas);
+    res.json(await catalog.listPlantillas(tenant(req), req.params.id));
   }),
 );
 
-/** POST /catalogo/tipos-proceso/:id/plantillas — crea una plantilla (ADMIN global / esAdminEmpresa propio). */
+/** POST /catalogo/tipos-proceso/:id/plantillas — crea una plantilla. */
 catalogRoutes.post(
   "/tipos-proceso/:id/plantillas",
   requireAuth,
   validate({ params: tipoIdParams, body: createPlantillaSchema }),
   asyncHandler(async (req, res) => {
-    const tipo = await cargarTipoVisible(req, req.params.id);
-    autorizarEscritura(req, tipo.empresaId);
-    const plantilla = await prisma.plantillaDocumento.create({
-      data: { tipoProcesoId: tipo.id, nombre: req.body.nombre, contenido: req.body.contenido },
-    });
-    res.status(201).json(plantilla);
+    res.status(201).json(await catalog.createPlantilla(tenant(req), req.params.id, req.body));
   }),
 );
 
@@ -311,15 +149,7 @@ catalogRoutes.patch(
   requireAuth,
   validate({ params: plantillaIdParams, body: updatePlantillaSchema }),
   asyncHandler(async (req, res) => {
-    const plantilla = await cargarPlantillaEditable(req);
-    const actualizada = await prisma.plantillaDocumento.update({
-      where: { id: plantilla.id },
-      data: {
-        ...(req.body.nombre !== undefined ? { nombre: req.body.nombre } : {}),
-        ...(req.body.contenido !== undefined ? { contenido: req.body.contenido } : {}),
-      },
-    });
-    res.json(actualizada);
+    res.json(await catalog.updatePlantilla(tenant(req), req.params.plantillaId, req.body));
   }),
 );
 
@@ -329,107 +159,7 @@ catalogRoutes.delete(
   requireAuth,
   validate({ params: plantillaIdParams }),
   asyncHandler(async (req, res) => {
-    const plantilla = await cargarPlantillaEditable(req);
-    await prisma.plantillaDocumento.delete({ where: { id: plantilla.id } });
+    await catalog.deletePlantilla(tenant(req), req.params.plantillaId);
     res.status(204).end();
   }),
 );
-
-// --- Helpers ---
-
-/** Carga un tipo y exige que sea visible para el despacho (404 si no). */
-async function cargarTipoVisible(req: import("express").Request, tipoId: string) {
-  const tipo = await prisma.tipoProceso.findUnique({ where: { id: tipoId } });
-  if (!tipo || !esVisible(tipo, req.empresaId ?? null)) {
-    throw new HttpError(404, "Tipo de proceso no encontrado");
-  }
-  return tipo;
-}
-
-/** Carga una plantilla, verifica visibilidad del tipo y autoriza la escritura. */
-async function cargarPlantillaEditable(req: import("express").Request) {
-  const plantilla = await prisma.plantillaDocumento.findUnique({
-    where: { id: req.params.plantillaId },
-  });
-  if (!plantilla) throw new HttpError(404, "Plantilla no encontrada");
-  const tipo = await cargarTipoVisible(req, plantilla.tipoProcesoId);
-  autorizarEscritura(req, tipo.empresaId);
-  return plantilla;
-}
-
-function esVisible(tipo: { empresaId: string | null }, empresaId: string | null): boolean {
-  return tipo.empresaId === null || tipo.empresaId === empresaId;
-}
-
-/** Determina si la creación es global (ADMIN) o del despacho (esAdminEmpresa). */
-function destinoCatalogo(req: import("express").Request): {
-  empresaId: string | null;
-  empresaKey: string;
-} {
-  if (req.user?.rol === Rol.ADMIN) return { empresaId: null, empresaKey: "" };
-  if (req.empresaId && req.esAdminEmpresa) {
-    return { empresaId: req.empresaId, empresaKey: req.empresaId };
-  }
-  throw new HttpError(403, "No autorizado para crear tipos de proceso");
-}
-
-/** Autoriza editar/eliminar: ADMIN sobre globales, esAdminEmpresa sobre los suyos. */
-function autorizarEscritura(req: import("express").Request, empresaIdDelTipo: string | null): void {
-  if (empresaIdDelTipo === null) {
-    if (req.user?.rol !== Rol.ADMIN) throw new HttpError(403, "Solo ADMIN edita tipos globales");
-    return;
-  }
-  if (!(req.esAdminEmpresa && empresaIdDelTipo === empresaIdRequerido(req))) {
-    throw new HttpError(403, "No autorizado");
-  }
-}
-
-async function resolverAreas(slugs: string[]): Promise<string[]> {
-  const unicos = [...new Set(slugs)];
-  const areas = await prisma.areaPractica.findMany({ where: { slug: { in: unicos } } });
-  if (areas.length !== unicos.length) {
-    throw new HttpError(400, "Una o más áreas de práctica no existen");
-  }
-  return areas.map((a) => a.id);
-}
-
-/** Deriva un slug estable a partir del nombre y le garantiza unicidad (-2, -3…). */
-async function slugAreaUnico(nombre: string): Promise<string> {
-  const base =
-    nombre
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "area";
-  let slug = base;
-  for (let i = 2; await prisma.areaPractica.findUnique({ where: { slug } }); i++) {
-    slug = `${base}-${i}`;
-  }
-  return slug;
-}
-
-/** Próximo `orden` (al final de la lista) para un área nueva sin orden explícito. */
-async function siguienteOrdenArea(): Promise<number> {
-  const max = await prisma.areaPractica.aggregate({ _max: { orden: true } });
-  return (max._max.orden ?? 0) + 1;
-}
-
-/** Toda acción `crearDerivado` debe apuntar a un tipo de proceso GLOBAL existente. */
-async function validarAccionesDestino(
-  etapas: { accion?: { tipoDestinoNombre?: string } }[],
-): Promise<void> {
-  const destinos = [
-    ...new Set(etapas.flatMap((e) => (e.accion?.tipoDestinoNombre ? [e.accion.tipoDestinoNombre] : []))),
-  ];
-  if (destinos.length === 0) return;
-  const existentes = await prisma.tipoProceso.findMany({
-    where: { empresaId: null, nombre: { in: destinos } },
-    select: { nombre: true },
-  });
-  const set = new Set(existentes.map((t) => t.nombre));
-  const faltan = destinos.filter((n) => !set.has(n));
-  if (faltan.length) {
-    throw new HttpError(422, `La acción crearDerivado apunta a un tipo global inexistente: ${faltan.join(", ")}`);
-  }
-}

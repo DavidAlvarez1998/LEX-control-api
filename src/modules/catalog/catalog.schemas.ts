@@ -163,3 +163,10 @@ export const updateAreaSchema = z.object({
 });
 
 export const areaIdParams = z.object({ id: z.string().min(1) });
+
+export type CreateTipoProcesoInput = z.infer<typeof createTipoProcesoSchema>;
+export type UpdateTipoProcesoInput = z.infer<typeof updateTipoProcesoSchema>;
+export type CreatePlantillaInput = z.infer<typeof createPlantillaSchema>;
+export type UpdatePlantillaInput = z.infer<typeof updatePlantillaSchema>;
+export type CreateAreaInput = z.infer<typeof createAreaSchema>;
+export type UpdateAreaInput = z.infer<typeof updateAreaSchema>;
