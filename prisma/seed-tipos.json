@@ -1967,166 +1967,42 @@
     ]
   },
   {
-    "nombre": "Proceso declarativo verbal",
-    "descripcion": "Trámite declarativo de mayor y menor cuantía para todo asunto contencioso sin trámite especial (arts. 368, 372 y 373 CGP – Ley 1564/2012).",
+    "nombre": "Proceso verbal",
+    "descripcion": "Proceso declarativo verbal de mayor o menor cuantía (CGP arts. 368-373). Doble instancia (apelable), dos audiencias (inicial art. 372 e instrucción y juzgamiento art. 373). Se elige rol (demandante/demandado). Términos: traslado 20 días hábiles, subsanación 5, recurso 3.",
     "jurisdiccion": "ORDINARIA_CIVIL",
     "areaSlugs": [
       "civil",
       "comercial-societario"
     ],
     "esquemaFormulario": [
+      {
+        "key": "rol",
+        "label": "Rol en el proceso",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Demandante",
+          "Demandado"
+        ],
+        "ayuda": "¿Representamos a quien demanda o a quien es demandado? Solo el demandante califica la demanda."
+      },
       {
         "key": "tipoPretension",
         "label": "Tipo de pretensión",
         "tipo": "select",
-        "requerido": true,
+        "requerido": false,
         "opciones": [
-          "Responsabilidad civil contractual",
-          "Responsabilidad civil extracontractual",
-          "Resolución / cumplimiento de contrato",
-          "Nulidad de contrato",
-          "Reivindicación",
-          "Servidumbre",
-          "Rendición de cuentas",
-          "Simulación",
-          "Otra"
+          "Declarativa",
+          "Constitutiva",
+          "De condena",
+          "Mixta"
         ]
       },
       {
         "key": "relacionJuridica",
-        "label": "Relación jurídica o contrato que origina el litigio",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "hechos",
-        "label": "Hechos del caso",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "pretensiones",
-        "label": "Pretensiones declarativas y de condena",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "cuantia",
-        "label": "Cuantía estimada",
-        "tipo": "numero",
-        "requerido": true
-      },
-      {
-        "key": "estimacionJuramentada",
-        "label": "Estimación razonada de perjuicios (juramento estimatorio)",
-        "tipo": "numero",
-        "requerido": false,
-        "ayuda": "Art. 206 CGP."
-      },
-      {
-        "key": "fechaHechos",
-        "label": "Fecha de los hechos",
-        "tipo": "fecha",
-        "requerido": true
-      },
-      {
-        "key": "pruebasOfrecidas",
-        "label": "Pruebas que se aportan o solicitan",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "solicitaMedidasCautelares",
-        "label": "¿Solicita medidas cautelares?",
-        "tipo": "boolean",
+        "label": "Relación jurídica",
+        "tipo": "texto",
         "requerido": false
-      },
-      {
-        "key": "conciliacionPrevia",
-        "label": "¿Se agotó conciliación extrajudicial como requisito?",
-        "tipo": "boolean",
-        "requerido": false
-      }
-    ],
-    "etapas": [
-      {
-        "key": "demanda",
-        "nombre": "Presentación y admisión de la demanda",
-        "orden": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "tipoPretension",
-            "hechos",
-            "pretensiones",
-            "cuantia"
-          ]
-        }
-      },
-      {
-        "key": "traslado",
-        "nombre": "Traslado y contestación de la demanda",
-        "orden": 2,
-        "reglas": {
-          "plazoDias": 20
-        }
-      },
-      {
-        "key": "audienciaInicial",
-        "nombre": "Audiencia inicial (art. 372)",
-        "orden": 3,
-        "reglas": {
-          "camposRequeridos": [
-            "pruebasOfrecidas"
-          ]
-        }
-      },
-      {
-        "key": "audienciaInstruccion",
-        "nombre": "Audiencia de instrucción y juzgamiento (art. 373)",
-        "orden": 4,
-        "reglas": {
-          "camposRequeridos": [
-            "pruebasOfrecidas"
-          ]
-        }
-      },
-      {
-        "key": "sentencia",
-        "nombre": "Sentencia",
-        "orden": 5,
-        "terminal": true,
-        "resultado": "Decisión de fondo sobre las pretensiones"
-      }
-    ]
-  },
-  {
-    "nombre": "Proceso verbal sumario",
-    "descripcion": "Trámite de única instancia para asuntos de mínima cuantía y los señalados por su naturaleza (arts. 390 y 391 CGP – Ley 1564/2012).",
-    "jurisdiccion": "ORDINARIA_CIVIL",
-    "areaSlugs": [
-      "civil",
-      "comercial-societario"
-    ],
-    "esquemaFormulario": [
-      {
-        "key": "asuntoNaturaleza",
-        "label": "Asunto por razón de la naturaleza o mínima cuantía",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Mínima cuantía",
-          "Propiedad horizontal (Ley 675/2001)",
-          "Servidumbre",
-          "Lanzamiento por ocupación de hecho",
-          "Controversias societarias menores",
-          "Otro asunto de única instancia"
-        ]
-      },
-      {
-        "key": "hechos",
-        "label": "Hechos del caso",
-        "tipo": "textoLargo",
-        "requerido": true
       },
       {
         "key": "pretensiones",
@@ -2136,75 +2012,1598 @@
       },
       {
         "key": "cuantia",
-        "label": "Cuantía estimada",
+        "label": "Cuantía",
         "tipo": "numero",
-        "requerido": true,
-        "ayuda": "Mínima cuantía: hasta 40 SMLMV."
+        "requerido": false
+      },
+      {
+        "key": "cuantiaTipo",
+        "label": "Tipo de cuantía",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Mayor",
+          "Menor"
+        ],
+        "ayuda": "Ambas son de doble instancia (apelable)."
+      },
+      {
+        "key": "estimacionJuramentada",
+        "label": "Estimación juramentada",
+        "tipo": "textoLargo",
+        "requerido": false
       },
       {
         "key": "fechaHechos",
         "label": "Fecha de los hechos",
         "tipo": "fecha",
-        "requerido": true
+        "requerido": false
       },
       {
-        "key": "fundamentoDerecho",
-        "label": "Fundamentos de derecho",
+        "key": "hechos",
+        "label": "Hechos",
         "tipo": "textoLargo",
         "requerido": false
       },
       {
         "key": "pruebasOfrecidas",
-        "label": "Pruebas aportadas o solicitadas",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "observaciones",
-        "label": "Observaciones adicionales",
+        "label": "Pruebas ofrecidas",
         "tipo": "textoLargo",
         "requerido": false
+      },
+      {
+        "key": "solicitaMedidasCautelares",
+        "label": "¿Solicita medidas cautelares?",
+        "tipo": "boolean",
+        "requerido": false
+      },
+      {
+        "key": "conciliacionPrevia",
+        "label": "¿Hubo conciliación previa (requisito de procedibilidad)?",
+        "tipo": "boolean",
+        "requerido": false
+      },
+      {
+        "key": "requierePoder",
+        "label": "¿Requiere poder?",
+        "tipo": "boolean",
+        "requerido": false,
+        "ayuda": "Si se actúa por apoderado, adjunta el poder."
+      },
+      {
+        "key": "decisionAuto",
+        "label": "Decisión del auto de calificación",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "ADMISIÓN",
+          "INADMISIÓN",
+          "RECHAZO"
+        ],
+        "mostrarSi": {
+          "campo": "rol",
+          "igualA": "Demandante"
+        },
+        "soloFicha": true,
+        "ayuda": "Lo que resuelve el juez: admite, inadmite (corregir) o rechaza."
+      },
+      {
+        "key": "fechaAuto",
+        "label": "Fecha del auto",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "decisionTrasSubsanacion",
+        "label": "Decisión tras la subsanación",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "ADMITIR",
+          "RECHAZAR"
+        ],
+        "mostrarSi": {
+          "campo": "decisionAuto",
+          "igualA": "INADMISIÓN"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaSubsanacion",
+        "label": "Fecha en que se subsanó",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "decisionAuto",
+          "igualA": "INADMISIÓN"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaAdmisionTrasSubsanacion",
+        "label": "Fecha del auto de admisión (tras subsanar)",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "decisionTrasSubsanacion",
+          "igualA": "ADMITIR"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoRechazo",
+        "label": "Recurso contra el rechazo",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "NO",
+          "REPOSICIÓN",
+          "APELACIÓN"
+        ],
+        "mostrarSi": {
+          "alguna": [
+            {
+              "campo": "decisionAuto",
+              "igualA": "RECHAZO"
+            },
+            {
+              "todas": [
+                {
+                  "campo": "decisionAuto",
+                  "igualA": "INADMISIÓN"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "RECHAZAR"
+                }
+              ]
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaRecursoRechazo",
+        "label": "Fecha del recurso",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "todas": [
+            {
+              "alguna": [
+                {
+                  "campo": "decisionAuto",
+                  "igualA": "RECHAZO"
+                },
+                {
+                  "todas": [
+                    {
+                      "campo": "decisionAuto",
+                      "igualA": "INADMISIÓN"
+                    },
+                    {
+                      "campo": "decisionTrasSubsanacion",
+                      "igualA": "RECHAZAR"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "campo": "recursoRechazo",
+              "igualA": [
+                "REPOSICIÓN",
+                "APELACIÓN"
+              ]
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "decisionRecursoRechazo",
+        "label": "Decisión del recurso",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "FAVORABLE",
+          "DESFAVORABLE"
+        ],
+        "mostrarSi": {
+          "todas": [
+            {
+              "alguna": [
+                {
+                  "campo": "decisionAuto",
+                  "igualA": "RECHAZO"
+                },
+                {
+                  "todas": [
+                    {
+                      "campo": "decisionAuto",
+                      "igualA": "INADMISIÓN"
+                    },
+                    {
+                      "campo": "decisionTrasSubsanacion",
+                      "igualA": "RECHAZAR"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "campo": "recursoRechazo",
+              "igualA": [
+                "REPOSICIÓN",
+                "APELACIÓN"
+              ]
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "observacionesRecursoRechazo",
+        "label": "Observaciones del recurso",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "todas": [
+            {
+              "alguna": [
+                {
+                  "campo": "decisionAuto",
+                  "igualA": "RECHAZO"
+                },
+                {
+                  "todas": [
+                    {
+                      "campo": "decisionAuto",
+                      "igualA": "INADMISIÓN"
+                    },
+                    {
+                      "campo": "decisionTrasSubsanacion",
+                      "igualA": "RECHAZAR"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "campo": "recursoRechazo",
+              "igualA": [
+                "REPOSICIÓN",
+                "APELACIÓN"
+              ]
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "hayRetiro",
+        "label": "¿Hay retiro de la demanda?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true,
+        "ayuda": "Sí → se archiva el proceso."
+      },
+      {
+        "key": "fechaNotificacion",
+        "label": "Fecha de la notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true,
+        "ayuda": "Desde aquí corren los 20 días hábiles para contestar."
+      },
+      {
+        "key": "contestaron",
+        "label": "¿Contestaron la demanda?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "fechaContestacion",
+        "label": "Fecha de la contestación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "contestaron",
+          "igualA": "SI"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "excepcionesMerito",
+        "label": "Excepciones de mérito",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true,
+        "ayuda": "Se resuelven en la sentencia."
+      },
+      {
+        "key": "hayReconvencion",
+        "label": "¿Se presentó demanda de reconvención?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "fechaReconvencion",
+        "label": "Fecha de la reconvención",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "SI"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "decisionReconvencion",
+        "label": "Decisión del juez sobre la reconvención",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "ADMITIR",
+          "INADMITIR",
+          "RECHAZAR"
+        ],
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "SI"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "llamamientoGarantia",
+        "label": "¿Llamamiento en garantía / litisconsorte?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "conciliaResultado",
+        "label": "¿Se concilió en la audiencia inicial?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "acuerdoConciliacion",
+        "label": "Acuerdo de conciliación",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "conciliaResultado",
+          "igualA": "SI"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "excepcionesPrevias",
+        "label": "Excepciones previas (art. 372)",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "saneamiento",
+        "label": "Saneamiento del proceso",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "fijacionLitigio",
+        "label": "Fijación del litigio",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "decretoPruebas",
+        "label": "Decreto de pruebas",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "practicaPruebas",
+        "label": "Práctica de pruebas (art. 373)",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "alegatos",
+        "label": "Alegatos de conclusión",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "fechaSentencia",
+        "label": "Fecha de la sentencia",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "decisionSentencia",
+        "label": "Decisión de la sentencia",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "FAVORABLE",
+          "DESFAVORABLE"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "hayRecurso",
+        "label": "¿Se interpone apelación contra la sentencia?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true,
+        "ayuda": "Apelación: en audiencia o por escrito dentro de 3 días."
+      },
+      {
+        "key": "formaRecurso",
+        "label": "Forma del recurso",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "EN AUDIENCIA",
+          "POR ESCRITO (3 DÍAS)"
+        ],
+        "mostrarSi": {
+          "campo": "hayRecurso",
+          "igualA": "SI"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaRecursoSentencia",
+        "label": "Fecha del recurso",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "formaRecurso",
+          "igualA": "POR ESCRITO (3 DÍAS)"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "concedeApelacion",
+        "label": "¿El juez concede la apelación?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "mostrarSi": {
+          "campo": "hayRecurso",
+          "igualA": "SI"
+        },
+        "soloFicha": true,
+        "ayuda": "Si la concede, el expediente sube al Tribunal (2ª instancia)."
+      },
+      {
+        "key": "fechaRemision2inst",
+        "label": "Fecha de remisión / reparto al Tribunal",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "radicado2inst",
+        "label": "N.º de radicado en 2ª instancia",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaSustentacion",
+        "label": "Fecha de sustentación del recurso",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaAudiencia2inst",
+        "label": "Fecha de la audiencia de 2ª instancia",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaSentencia2inst",
+        "label": "Fecha de la sentencia de 2ª instancia",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "decisionSegundaInstancia",
+        "label": "Decisión de 2ª instancia",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "CONFIRMA",
+          "REVOCA",
+          "MODIFICA"
+        ],
+        "mostrarSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "soloFicha": true
       }
     ],
     "etapas": [
       {
-        "key": "demanda",
-        "nombre": "Presentación y admisión de la demanda",
-        "orden": 1,
+        "key": "presentacion",
+        "nombre": "Presentación de la demanda",
+        "orden": 0,
+        "fase": 1,
         "reglas": {
           "camposRequeridos": [
-            "asuntoNaturaleza",
-            "hechos",
-            "pretensiones"
+            "rol",
+            "pretensiones",
+            "cuantia"
+          ],
+          "documentosRequeridos": [
+            "demanda.pdf"
+          ],
+          "documentosOpcionales": [
+            "pruebas.pdf",
+            "anexos.pdf"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "requierePoder",
+                "igualA": "true"
+              },
+              "documentosRequeridos": [
+                "poder.pdf"
+              ]
+            }
           ]
         }
       },
       {
-        "key": "traslado",
-        "nombre": "Traslado y contestación (verbal o escrita)",
-        "orden": 2,
+        "key": "calificacion",
+        "nombre": "Calificación de la demanda (auto)",
+        "orden": 1,
+        "fase": 1,
+        "disponibleSi": {
+          "campo": "rol",
+          "igualA": "Demandante"
+        },
         "reglas": {
+          "camposRequeridos": [
+            "fechaAuto"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "rol",
+                "igualA": "Demandante"
+              },
+              "camposRequeridos": [
+                "decisionAuto"
+              ]
+            }
+          ],
+          "documentosRequeridos": [
+            "auto-calificacion.pdf"
+          ]
+        }
+      },
+      {
+        "key": "subsanacion",
+        "nombre": "Subsanación (inadmisión)",
+        "orden": 2,
+        "fase": 1,
+        "disponibleSi": {
+          "todas": [
+            {
+              "campo": "rol",
+              "igualA": "Demandante"
+            },
+            {
+              "campo": "decisionAuto",
+              "igualA": "INADMISIÓN"
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "decisionTrasSubsanacion",
+            "fechaSubsanacion"
+          ],
+          "documentosRequeridos": [
+            "subsanacion.pdf"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "decisionTrasSubsanacion",
+                "igualA": "ADMITIR"
+              },
+              "camposRequeridos": [
+                "fechaAdmisionTrasSubsanacion"
+              ],
+              "documentosRequeridos": [
+                "auto-admision-tras-subsanacion.pdf"
+              ]
+            }
+          ],
+          "plazoDesdeCampo": "fechaAuto",
+          "plazoTipoDias": "habiles",
+          "plazoDias": 5
+        }
+      },
+      {
+        "key": "recurso_rechazo",
+        "nombre": "Recurso contra el rechazo",
+        "orden": 3,
+        "fase": 1,
+        "disponibleSi": {
+          "todas": [
+            {
+              "campo": "rol",
+              "igualA": "Demandante"
+            },
+            {
+              "alguna": [
+                {
+                  "campo": "decisionAuto",
+                  "igualA": "RECHAZO"
+                },
+                {
+                  "todas": [
+                    {
+                      "campo": "decisionAuto",
+                      "igualA": "INADMISIÓN"
+                    },
+                    {
+                      "campo": "decisionTrasSubsanacion",
+                      "igualA": "RECHAZAR"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "recursoRechazo"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "recursoRechazo",
+                "igualA": [
+                  "REPOSICIÓN",
+                  "APELACIÓN"
+                ]
+              },
+              "camposRequeridos": [
+                "fechaRecursoRechazo",
+                "decisionRecursoRechazo"
+              ]
+            }
+          ],
+          "plazoDesdeCampo": "fechaAuto",
+          "plazoTipoDias": "habiles",
+          "plazoDias": 3
+        }
+      },
+      {
+        "key": "archivado_rechazo",
+        "nombre": "Archivo por rechazo de la demanda",
+        "orden": 4,
+        "fase": 1,
+        "disponibleSi": {
+          "todas": [
+            {
+              "campo": "rol",
+              "igualA": "Demandante"
+            },
+            {
+              "alguna": [
+                {
+                  "campo": "decisionAuto",
+                  "igualA": "RECHAZO"
+                },
+                {
+                  "todas": [
+                    {
+                      "campo": "decisionAuto",
+                      "igualA": "INADMISIÓN"
+                    },
+                    {
+                      "campo": "decisionTrasSubsanacion",
+                      "igualA": "RECHAZAR"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "alguna": [
+                {
+                  "campo": "recursoRechazo",
+                  "igualA": "NO"
+                },
+                {
+                  "campo": "decisionRecursoRechazo",
+                  "igualA": "DESFAVORABLE"
+                }
+              ]
+            }
+          ]
+        },
+        "terminal": true,
+        "resultado": "Demanda rechazada / recurso desfavorable — proceso archivado."
+      },
+      {
+        "key": "retiro",
+        "nombre": "¿Retiro de la demanda?",
+        "orden": 5,
+        "fase": 1,
+        "reglas": {
+          "camposRequeridos": [
+            "hayRetiro"
+          ]
+        }
+      },
+      {
+        "key": "archivado",
+        "nombre": "Archivo por retiro de la demanda",
+        "orden": 6,
+        "fase": 1,
+        "disponibleSi": {
+          "campo": "hayRetiro",
+          "igualA": "SI"
+        },
+        "terminal": true,
+        "resultado": "Demanda retirada y archivada."
+      },
+      {
+        "key": "traslado",
+        "nombre": "Traslado y notificación",
+        "orden": 6,
+        "fase": 2,
+        "disponibleSi": {
+          "campo": "hayRetiro",
+          "igualA": "NO"
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "fechaNotificacion"
+          ],
+          "documentosRequeridos": [
+            "notificacion.pdf"
+          ],
+          "plazoDesdeCampo": "fechaNotificacion",
+          "plazoTipoDias": "habiles",
+          "plazoDias": 20
+        }
+      },
+      {
+        "key": "contestacion",
+        "nombre": "Contestación (reconvención / excepciones)",
+        "orden": 7,
+        "fase": 2,
+        "reglas": {
+          "camposRequeridos": [
+            "contestaron"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "contestaron",
+                "igualA": "SI"
+              },
+              "documentosRequeridos": [
+                "contestacion.pdf"
+              ]
+            },
+            {
+              "si": {
+                "campo": "contestaron",
+                "igualA": "NO"
+              },
+              "documentosRequeridos": [
+                "auto-silencio.pdf"
+              ]
+            }
+          ],
+          "opcionalesSi": [
+            {
+              "si": {
+                "campo": "hayReconvencion",
+                "igualA": "SI"
+              },
+              "documentosOpcionales": [
+                "reconvencion.pdf"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "audienciaInicial",
+        "nombre": "Audiencia inicial (art. 372)",
+        "orden": 8,
+        "fase": 3,
+        "reglas": {
+          "camposRequeridos": [
+            "conciliaResultado"
+          ],
+          "documentosOpcionales": [
+            "acta-art372.pdf"
+          ]
+        }
+      },
+      {
+        "key": "audienciaInstruccion",
+        "nombre": "Audiencia de instrucción y juzgamiento (art. 373)",
+        "orden": 9,
+        "fase": 4,
+        "disponibleSi": {
+          "campo": "conciliaResultado",
+          "igualA": "NO"
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "fechaSentencia",
+            "decisionSentencia"
+          ],
+          "documentosRequeridos": [
+            "sentencia.pdf"
+          ],
+          "documentosOpcionales": [
+            "acta-art373.pdf"
+          ]
+        }
+      },
+      {
+        "key": "terminada_conciliacion",
+        "nombre": "Terminado por conciliación",
+        "orden": 9,
+        "fase": 6,
+        "disponibleSi": {
+          "campo": "conciliaResultado",
+          "igualA": "SI"
+        },
+        "terminal": true,
+        "resultado": "Proceso conciliado — acuerdo de las partes."
+      },
+      {
+        "key": "recurso",
+        "nombre": "Apelación contra la sentencia",
+        "orden": 10,
+        "fase": 4,
+        "reglas": {
+          "camposRequeridos": [
+            "hayRecurso"
+          ],
+          "opcionalesSi": [
+            {
+              "si": {
+                "campo": "formaRecurso",
+                "igualA": "POR ESCRITO (3 DÍAS)"
+              },
+              "documentosOpcionales": [
+                "recurso.pdf"
+              ]
+            }
+          ],
+          "plazoDesdeCampo": "fechaSentencia",
+          "plazoTipoDias": "habiles",
+          "plazoDias": 3
+        }
+      },
+      {
+        "key": "remision2inst",
+        "nombre": "Remisión al Tribunal (2ª instancia)",
+        "orden": 11,
+        "fase": 5,
+        "disponibleSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "fechaRemision2inst",
+            "radicado2inst"
+          ]
+        }
+      },
+      {
+        "key": "sustentacion2inst",
+        "nombre": "Sustentación del recurso (2ª instancia)",
+        "orden": 12,
+        "fase": 5,
+        "disponibleSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "fechaSustentacion"
+          ],
+          "documentosRequeridos": [
+            "escrito-sustentacion.pdf"
+          ],
+          "documentosOpcionales": [
+            "auto-2inst.pdf"
+          ]
+        }
+      },
+      {
+        "key": "audiencia2inst",
+        "nombre": "Audiencia de 2ª instancia",
+        "orden": 13,
+        "fase": 5,
+        "disponibleSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "fechaAudiencia2inst"
+          ],
+          "documentosOpcionales": [
+            "acta-2inst.pdf"
+          ]
+        }
+      },
+      {
+        "key": "sentencia2inst",
+        "nombre": "Sentencia de 2ª instancia",
+        "orden": 14,
+        "fase": 5,
+        "disponibleSi": {
+          "todas": [
+            {
+              "campo": "hayRecurso",
+              "igualA": "SI"
+            },
+            {
+              "campo": "concedeApelacion",
+              "igualA": "SI"
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "fechaSentencia2inst",
+            "decisionSegundaInstancia"
+          ],
+          "documentosRequeridos": [
+            "sentencia-2inst.pdf"
+          ]
+        }
+      },
+      {
+        "key": "terminada",
+        "nombre": "Terminación",
+        "orden": 15,
+        "fase": 6,
+        "terminal": true,
+        "resultado": "Proceso verbal terminado."
+      }
+    ],
+    "grupo": "JUDICIAL",
+    "esJudicial": true,
+    "actualizado": true
+  },
+  {
+    "nombre": "Proceso verbal sumario",
+    "descripcion": "Proceso verbal sumario de única instancia (CGP arts. 390-392): mínima cuantía y asuntos del art. 390. Una sola audiencia (art. 392); la sentencia queda en firme (no procede apelación ni reposición). Traslado 10 días hábiles. Sin reconvención, excepciones previas, incidentes ni terceros.",
+    "jurisdiccion": "ORDINARIA_CIVIL",
+    "areaSlugs": [
+      "civil",
+      "comercial-societario"
+    ],
+    "esquemaFormulario": [
+      {
+        "key": "asuntoNaturaleza",
+        "label": "Asunto / naturaleza (art. 390)",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Mínima cuantía",
+          "Restitución de inmueble arrendado",
+          "Servidumbres",
+          "Posesorios",
+          "Propiedad horizontal",
+          "Pago por consignación",
+          "Impugnación de actos de asambleas/juntas",
+          "Otro del art. 390"
+        ]
+      },
+      {
+        "key": "pretensiones",
+        "label": "Pretensiones",
+        "tipo": "textoLargo",
+        "requerido": true
+      },
+      {
+        "key": "cuantia",
+        "label": "Cuantía",
+        "tipo": "numero",
+        "requerido": false
+      },
+      {
+        "key": "fundamentoDerecho",
+        "label": "Fundamento de derecho",
+        "tipo": "textoLargo",
+        "requerido": false
+      },
+      {
+        "key": "fechaHechos",
+        "label": "Fecha de los hechos",
+        "tipo": "fecha",
+        "requerido": false
+      },
+      {
+        "key": "hechos",
+        "label": "Hechos",
+        "tipo": "textoLargo",
+        "requerido": false
+      },
+      {
+        "key": "pruebasOfrecidas",
+        "label": "Pruebas ofrecidas",
+        "tipo": "textoLargo",
+        "requerido": false
+      },
+      {
+        "key": "requierePoder",
+        "label": "¿Requiere poder?",
+        "tipo": "boolean",
+        "requerido": false
+      },
+      {
+        "key": "observaciones",
+        "label": "Observaciones",
+        "tipo": "textoLargo",
+        "requerido": false
+      },
+      {
+        "key": "decisionAuto",
+        "label": "Decisión del auto de calificación",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "ADMISIÓN",
+          "INADMISIÓN",
+          "RECHAZO"
+        ],
+        "soloFicha": true,
+        "ayuda": "Lo que resuelve el juez: admite, inadmite (corregir) o rechaza."
+      },
+      {
+        "key": "fechaAuto",
+        "label": "Fecha del auto",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "decisionTrasSubsanacion",
+        "label": "Decisión tras la subsanación",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "ADMITIR",
+          "RECHAZAR"
+        ],
+        "mostrarSi": {
+          "campo": "decisionAuto",
+          "igualA": "INADMISIÓN"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaSubsanacion",
+        "label": "Fecha en que se subsanó",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "decisionAuto",
+          "igualA": "INADMISIÓN"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaAdmisionTrasSubsanacion",
+        "label": "Fecha del auto de admisión (tras subsanar)",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "decisionTrasSubsanacion",
+          "igualA": "ADMITIR"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "hayRetiro",
+        "label": "¿Hay retiro de la demanda?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true,
+        "ayuda": "Sí → se archiva el proceso."
+      },
+      {
+        "key": "fechaNotificacion",
+        "label": "Fecha de la notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true,
+        "ayuda": "Desde aquí corren los 10 días hábiles para contestar."
+      },
+      {
+        "key": "contestaron",
+        "label": "¿Contestaron la demanda?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "fechaContestacion",
+        "label": "Fecha de la contestación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "contestaron",
+          "igualA": "SI"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "conciliaResultado",
+        "label": "¿Se concilió en la audiencia?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "SI",
+          "NO"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "acuerdoConciliacion",
+        "label": "Acuerdo de conciliación",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "conciliaResultado",
+          "igualA": "SI"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "excepciones",
+        "label": "Excepciones (se resuelven en la audiencia)",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "practicaPruebas",
+        "label": "Práctica de pruebas",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "alegatos",
+        "label": "Alegatos",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "fechaSentencia",
+        "label": "Fecha de la sentencia",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "conciliaResultado",
+          "igualA": "NO"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "decisionSentencia",
+        "label": "Decisión de la sentencia",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "FAVORABLE",
+          "DESFAVORABLE"
+        ],
+        "mostrarSi": {
+          "campo": "conciliaResultado",
+          "igualA": "NO"
+        },
+        "soloFicha": true
+      }
+    ],
+    "etapas": [
+      {
+        "key": "presentacion",
+        "nombre": "Presentación de la demanda",
+        "orden": 0,
+        "fase": 1,
+        "reglas": {
+          "camposRequeridos": [
+            "asuntoNaturaleza",
+            "pretensiones"
+          ],
+          "documentosRequeridos": [
+            "demanda.pdf"
+          ],
+          "documentosOpcionales": [
+            "pruebas.pdf",
+            "anexos.pdf"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "requierePoder",
+                "igualA": "true"
+              },
+              "documentosRequeridos": [
+                "poder.pdf"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "calificacion",
+        "nombre": "Calificación de la demanda (auto)",
+        "orden": 1,
+        "fase": 1,
+        "reglas": {
+          "camposRequeridos": [
+            "decisionAuto",
+            "fechaAuto"
+          ],
+          "documentosRequeridos": [
+            "auto-calificacion.pdf"
+          ]
+        }
+      },
+      {
+        "key": "subsanacion",
+        "nombre": "Subsanación (inadmisión)",
+        "orden": 2,
+        "fase": 1,
+        "disponibleSi": {
+          "campo": "decisionAuto",
+          "igualA": "INADMISIÓN"
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "decisionTrasSubsanacion",
+            "fechaSubsanacion"
+          ],
+          "documentosRequeridos": [
+            "subsanacion.pdf"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "decisionTrasSubsanacion",
+                "igualA": "ADMITIR"
+              },
+              "camposRequeridos": [
+                "fechaAdmisionTrasSubsanacion"
+              ],
+              "documentosRequeridos": [
+                "auto-admision-tras-subsanacion.pdf"
+              ]
+            }
+          ],
+          "plazoDesdeCampo": "fechaAuto",
+          "plazoTipoDias": "habiles",
+          "plazoDias": 5
+        }
+      },
+      {
+        "key": "archivado_rechazo",
+        "nombre": "Archivo por rechazo de la demanda",
+        "orden": 3,
+        "fase": 1,
+        "disponibleSi": {
+          "alguna": [
+            {
+              "campo": "decisionAuto",
+              "igualA": "RECHAZO"
+            },
+            {
+              "todas": [
+                {
+                  "campo": "decisionAuto",
+                  "igualA": "INADMISIÓN"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "RECHAZAR"
+                }
+              ]
+            }
+          ]
+        },
+        "terminal": true,
+        "resultado": "Demanda rechazada — proceso archivado."
+      },
+      {
+        "key": "retiro",
+        "nombre": "¿Retiro de la demanda?",
+        "orden": 4,
+        "fase": 1,
+        "reglas": {
+          "camposRequeridos": [
+            "hayRetiro"
+          ]
+        }
+      },
+      {
+        "key": "archivado",
+        "nombre": "Archivo por retiro de la demanda",
+        "orden": 5,
+        "fase": 1,
+        "disponibleSi": {
+          "campo": "hayRetiro",
+          "igualA": "SI"
+        },
+        "terminal": true,
+        "resultado": "Demanda retirada y archivada."
+      },
+      {
+        "key": "traslado",
+        "nombre": "Traslado y notificación",
+        "orden": 5,
+        "fase": 2,
+        "disponibleSi": {
+          "campo": "hayRetiro",
+          "igualA": "NO"
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "fechaNotificacion"
+          ],
+          "documentosRequeridos": [
+            "notificacion.pdf"
+          ],
+          "plazoDesdeCampo": "fechaNotificacion",
+          "plazoTipoDias": "habiles",
           "plazoDias": 10
+        }
+      },
+      {
+        "key": "contestacion",
+        "nombre": "Contestación",
+        "orden": 6,
+        "fase": 2,
+        "reglas": {
+          "camposRequeridos": [
+            "contestaron"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "contestaron",
+                "igualA": "SI"
+              },
+              "documentosRequeridos": [
+                "contestacion.pdf"
+              ]
+            },
+            {
+              "si": {
+                "campo": "contestaron",
+                "igualA": "NO"
+              },
+              "documentosRequeridos": [
+                "auto-silencio.pdf"
+              ]
+            }
+          ]
         }
       },
       {
         "key": "audienciaUnica",
         "nombre": "Audiencia única (art. 392)",
-        "orden": 3,
+        "orden": 7,
+        "fase": 3,
         "reglas": {
           "camposRequeridos": [
-            "pruebasOfrecidas"
+            "conciliaResultado"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "conciliaResultado",
+                "igualA": "NO"
+              },
+              "camposRequeridos": [
+                "fechaSentencia",
+                "decisionSentencia"
+              ],
+              "documentosRequeridos": [
+                "sentencia.pdf"
+              ]
+            }
+          ],
+          "documentosOpcionales": [
+            "acta-audiencia.pdf"
           ]
         }
       },
       {
-        "key": "sentencia",
-        "nombre": "Sentencia de única instancia",
-        "orden": 4,
+        "key": "terminada_conciliacion",
+        "nombre": "Terminado por conciliación",
+        "orden": 7,
+        "fase": 6,
+        "disponibleSi": {
+          "campo": "conciliaResultado",
+          "igualA": "SI"
+        },
         "terminal": true,
-        "resultado": "Decisión inapelable (procede reposición)"
+        "resultado": "Proceso conciliado — acuerdo de las partes."
+      },
+      {
+        "key": "terminada",
+        "nombre": "Terminación (sentencia en firme)",
+        "orden": 8,
+        "fase": 6,
+        "terminal": true,
+        "resultado": "Proceso de única instancia terminado — sentencia en firme."
       }
-    ]
+    ],
+    "grupo": "JUDICIAL",
+    "esJudicial": true,
+    "actualizado": true
   },
   {
     "nombre": "Proceso de sucesión (jurisdicción civil)",

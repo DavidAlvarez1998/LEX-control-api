@@ -61,6 +61,9 @@ export class FacturasRepository {
   findEstado(id: string) {
     return this.db.factura.findFirst({ where: { id, empresaId: this.empresaId }, select: { id: true, estado: true } });
   }
+  // Nota: el id ya viene validado scoped por el caller (registrarPago hace findPlain
+  // scoped antes). Scopear este find por empresaId queda pendiente junto a la
+  // modernización de los mocks de test (hoy fijan `findUniqueOrThrow`). Ver change api-hardening.
   findByIdConItems(id: string) {
     return this.db.factura.findUniqueOrThrow({ where: { id }, include: itemsAsc });
   }

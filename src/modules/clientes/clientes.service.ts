@@ -152,6 +152,7 @@ export async function convertirClienteUseCase(t: TenantContext, id: string) {
   if (!cliente) throw new HttpError(404, "Cliente no encontrado");
   return prisma.$transaction(async (tx) => {
     await convertirCliente(tx, cliente);
-    return tx.cliente.findUnique({ where: { id: cliente.id } });
+    // Scoped (defense-in-depth): aunque el id ya está validado, no leemos por solo `{ id }`.
+    return tx.cliente.findFirst({ where: { id: cliente.id, empresaId } });
   });
 }

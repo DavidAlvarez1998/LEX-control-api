@@ -60,7 +60,9 @@ export const env = {
     },
     // Llave de cifrado de credenciales de proveedor. Si no se setea, se deriva de
     // JWT_SECRET (ver crypto.ts) — funciona sin config extra.
-    encKey: process.env.INTEGRACIONES_ENC_KEY ?? process.env.JWT_SECRET ?? "lex-dev-secret",
+    // Llave de cifrado de credenciales: la propia si se configura; si no, deriva del
+    // JWT_SECRET (required → siempre existe). Sin fallback inseguro hardcodeado.
+    encKey: process.env.INTEGRACIONES_ENC_KEY ?? required("JWT_SECRET"),
     // TTL del caché de actuaciones: una sincronización on-demand dentro de esta
     // ventana se sirve del caché (no llama al proveedor). Spec: "served from cache within TTL".
     syncTtlMinutes: Number(process.env.INTEGRACIONES_SYNC_TTL_MIN ?? 360), // 6 h

@@ -35,6 +35,9 @@ export async function generarCodigoInterno(
   prefijo: "EXP" | "COM" = "EXP",
 ): Promise<string> {
   const year = new Date().getFullYear();
+  // TODO(api-hardening): derivar del último código (orderBy desc) en vez de count()
+  // para reducir la colisión bajo concurrencia. Pendiente junto a la modernización de
+  // los mocks de test (comercial.test fija `proceso.count`). El @@unique respalda la carrera.
   const usados = await tx.proceso.count({ where: { empresaId, codigoInterno: { startsWith: `${prefijo}-${year}-` } } });
   return `${prefijo}-${year}-${String(usados + 1).padStart(4, "0")}`;
 }
@@ -342,11 +345,16 @@ async function autoavanzarEtapas(empresaId: string, procesoId: string, usuarioId
   }
 }
 
-/** Recalcula el título laboral "demandante vs. demandado" tras cambiar partes (salvo título manual). */
+/** Recalcula el título de LITIGIO "demandante vs. demandado" tras cambiar partes (salvo título
+ *  manual). Aplica al laboral y a los verbales civiles (CGP): litigio entre dos partes. */
 async function recomputarTituloLaboral(empresaId: string, procesoId: string): Promise<void> {
   const r = new ProcesosRepository(empresaId);
   const proceso = await r.findParaRecompute(procesoId);
-  if (!proceso || proceso.tipoProceso.grupo !== "LABORAL" || proceso.tituloManual) return;
+  if (!proceso || proceso.tituloManual) return;
+  const esLitigioVs =
+    proceso.tipoProceso.grupo === "LABORAL" ||
+    ["Proceso verbal", "Proceso verbal sumario"].includes(proceso.tipoProceso.nombre);
+  if (!esLitigioVs) return;
   const otras = proceso.partes.filter((p) => !p.esNuestroCliente);
   const nombreCliente = proceso.partes.find((p) => p.esNuestroCliente)?.litigante.nombre.trim() ?? "";
   const contraparte = (otras.find((p) => p.rol === RolParte.DEMANDADO) ?? otras[0])?.litigante.nombre.trim() ?? "";

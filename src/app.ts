@@ -1,5 +1,7 @@
 import cors from "cors";
 import express, { type Express } from "express";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { env } from "./config/env";
 import { errorHandler, notFound } from "./middleware/error";
 import { requestId } from "./shared/logger";
@@ -27,16 +29,27 @@ import { agendaRoutes, comisionRoutes, equipoComercialRoutes, prospectoRoutes, s
  * JSON parsing, the health check, and the 404 + error handlers. Feature routers
  * (auth, servicios) are mounted here in later batches.
  */
+// Rate limit de superficies SIN auth (anti brute-force / spam). Se omite en test
+// (la suite hace muchos logins) y NO toca /auth/me (lo llama el front al refrescar).
+const noTest = () => env.nodeEnv === "test";
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, skip: noTest });
+const publicoLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false, skip: noTest });
+
 export function createApp(): Express {
   const app = express();
 
+  app.use(helmet());
   app.use(cors({ origin: env.corsOrigins, credentials: true }));
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" }));
   app.use(requestId);
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
   });
+
+  // Rate limit en las superficies de credenciales/registro (no autenticadas).
+  app.use("/auth/login", authLimiter);
+  app.use("/auth/set-password", authLimiter);
 
   // Feature routers:
   app.use("/auth", authRoutes);
@@ -67,7 +80,7 @@ export function createApp(): Express {
   app.use("/procesos", procesoRoutes);
   // Integraciones estatales (Fase A: jurisprudencia de la Corte Constitucional).
   app.use("/integraciones", integracionRoutes);
-  app.use("/publico", publicoRoutes);
+  app.use("/publico", publicoLimiter, publicoRoutes);
 
   app.use(notFound);
   app.use(errorHandler);
