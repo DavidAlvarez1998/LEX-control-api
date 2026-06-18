@@ -1,4 +1,5 @@
 // Acceso a datos de Servicios (catálogo GLOBAL de plataforma — sin empresaId).
+import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 export class ServiciosRepository {
@@ -10,11 +11,11 @@ export class ServiciosRepository {
   findById(id: string) {
     return this.db.servicio.findUnique({ where: { id } });
   }
-  create(data: Record<string, unknown>) {
-    return this.db.servicio.create({ data: data as never });
+  create(data: Prisma.ServicioUncheckedCreateInput) {
+    return this.db.servicio.create({ data });
   }
-  update(id: string, data: Record<string, unknown>) {
-    return this.db.servicio.update({ where: { id }, data: data as never });
+  update(id: string, data: Prisma.ServicioUncheckedUpdateInput) {
+    return this.db.servicio.update({ where: { id }, data });
   }
   delete(id: string) {
     return this.db.servicio.delete({ where: { id } });

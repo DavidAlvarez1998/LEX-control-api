@@ -1,5 +1,6 @@
 // Acceso a datos de Facturación. Tenant-scoped (empresaId forzado al construir).
 // Acepta client opcional para correr dentro de la transacción del servicio.
+import { Prisma, type EstadoFactura } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 import { n } from "./facturacion.dto";
 
@@ -38,7 +39,7 @@ export class FacturasRepository {
     return this.db.factura.findMany({
       where: {
         empresaId: this.empresaId,
-        ...(filtros.estado ? { estado: filtros.estado as never } : {}),
+        ...(filtros.estado ? { estado: filtros.estado as EstadoFactura } : {}),
         ...(filtros.clienteId ? { clienteId: filtros.clienteId } : {}),
       },
       include: { cliente: { select: { nombre: true } } },
@@ -72,14 +73,14 @@ export class FacturasRepository {
     return this.db.ingreso.findMany({ where: { empresaId: this.empresaId, facturaId }, orderBy: { fechaIngreso: "desc" } });
   }
 
-  create(data: Record<string, unknown>) {
-    return this.db.factura.create({ data: data as never, include: itemsAsc });
+  create(data: Prisma.FacturaUncheckedCreateInput) {
+    return this.db.factura.create({ data, include: itemsAsc });
   }
   deleteItems(facturaId: string) {
     return this.db.facturaItem.deleteMany({ where: { facturaId } });
   }
-  update(id: string, data: Record<string, unknown>) {
-    return this.db.factura.update({ where: { id }, data: data as never, include: itemsAsc });
+  update(id: string, data: Prisma.FacturaUncheckedUpdateInput) {
+    return this.db.factura.update({ where: { id }, data, include: itemsAsc });
   }
   delete(id: string) {
     return this.db.factura.delete({ where: { id } });
@@ -92,7 +93,7 @@ export class FacturasRepository {
       select: { numero: true },
     });
   }
-  createIngreso(data: Record<string, unknown>) {
-    return this.db.ingreso.create({ data: data as never });
+  createIngreso(data: Prisma.IngresoUncheckedCreateInput) {
+    return this.db.ingreso.create({ data });
   }
 }

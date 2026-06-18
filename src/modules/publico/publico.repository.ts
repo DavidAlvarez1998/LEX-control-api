@@ -1,5 +1,6 @@
 // Acceso a datos de los endpoints públicos (landing; sin auth/tenant). Proyección
 // MÍNIMA (nada de ids internos/suscripciones/empresa).
+import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 export class PublicoRepository {
@@ -19,7 +20,7 @@ export class PublicoRepository {
   findPlanByClave(clave: string) {
     return this.db.plan.findUnique({ where: { clave }, select: { id: true } });
   }
-  createProspecto(data: Record<string, unknown>) {
-    return this.db.prospecto.create({ data: data as never });
+  createProspecto(data: Prisma.ProspectoUncheckedCreateInput) {
+    return this.db.prospecto.create({ data });
   }
 }

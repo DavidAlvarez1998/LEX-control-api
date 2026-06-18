@@ -1,4 +1,5 @@
 // Acceso a datos de Integraciones estatales. Tenant-scoped (empresaId forzado).
+import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 export class IntegracionesRepository {
@@ -19,11 +20,15 @@ export class IntegracionesRepository {
   listProviderConfigs() {
     return this.db.providerConfig.findMany({ where: { empresaId: this.empresaId }, orderBy: { proveedor: "asc" } });
   }
-  upsertProviderConfig(proveedor: string, create: Record<string, unknown>, update: Record<string, unknown>) {
+  upsertProviderConfig(
+    proveedor: string,
+    create: Omit<Prisma.ProviderConfigUncheckedCreateInput, "empresaId" | "proveedor">,
+    update: Prisma.ProviderConfigUncheckedUpdateInput,
+  ) {
     return this.db.providerConfig.upsert({
       where: { empresaId_proveedor: { empresaId: this.empresaId, proveedor } },
-      create: { ...create, empresaId: this.empresaId, proveedor } as never,
-      update: update as never,
+      create: { ...create, empresaId: this.empresaId, proveedor },
+      update,
     });
   }
 }

@@ -1,7 +1,7 @@
 // Acceso a datos del módulo Comercial (embudo). Tenant-scoped (empresaId forzado al
 // construir). Acepta client opcional para las transacciones del servicio (mover fase,
 // asignar solicitud → materializa Proceso + ParteProceso).
-import type { Prisma } from "@prisma/client";
+import { Prisma, type EstadoCliente, type EstadoSolicitud, type EstadoComisionDespacho } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 const CLIENTE_RESUMEN = { id: true, nombre: true, telefono: true } as const;
@@ -34,11 +34,11 @@ export class ComercialRepository {
       orderBy: { fechaContacto: "desc" },
     });
   }
-  createSeguimiento(data: Record<string, unknown>) {
-    return this.db.seguimientoComercial.create({ data: data as never });
+  createSeguimiento(data: Prisma.SeguimientoComercialUncheckedCreateInput) {
+    return this.db.seguimientoComercial.create({ data });
   }
-  async updateSeguimiento(id: string, data: Record<string, unknown>) {
-    return (await this.db.seguimientoComercial.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateSeguimiento(id: string, data: Prisma.SeguimientoComercialUncheckedUpdateManyInput) {
+    return (await this.db.seguimientoComercial.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   findSeguimiento(id: string) {
     return this.db.seguimientoComercial.findUnique({ where: { id } });
@@ -87,22 +87,22 @@ export class ComercialRepository {
   cerrarFasesAbiertas(clienteId: string) {
     return this.db.faseComercialHistorial.updateMany({ where: { clienteId, fechaCierreFase: null }, data: { fechaCierreFase: new Date() } });
   }
-  createFase(data: Record<string, unknown>) {
-    return this.db.faseComercialHistorial.create({ data: data as never });
+  createFase(data: Prisma.FaseComercialHistorialUncheckedCreateInput) {
+    return this.db.faseComercialHistorial.create({ data });
   }
-  updateClienteEstado(id: string, estado: string) {
-    return this.db.cliente.update({ where: { id }, data: { estado: estado as never } });
+  updateClienteEstado(id: string, estado: EstadoCliente) {
+    return this.db.cliente.update({ where: { id }, data: { estado } });
   }
 
   // --- cotización ---
   listCotizaciones(clienteId?: string) {
     return this.db.cotizacion.findMany({ where: { empresaId: this.e, ...(clienteId ? { clienteId } : {}) }, orderBy: { createdAt: "desc" } });
   }
-  createCotizacion(data: Record<string, unknown>) {
-    return this.db.cotizacion.create({ data: data as never });
+  createCotizacion(data: Prisma.CotizacionUncheckedCreateInput) {
+    return this.db.cotizacion.create({ data });
   }
-  async updateCotizacion(id: string, data: Record<string, unknown>) {
-    return (await this.db.cotizacion.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateCotizacion(id: string, data: Prisma.CotizacionUncheckedUpdateManyInput) {
+    return (await this.db.cotizacion.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   findCotizacion(id: string) {
     return this.db.cotizacion.findUnique({ where: { id } });
@@ -115,11 +115,11 @@ export class ComercialRepository {
   listContratos(clienteId?: string) {
     return this.db.contratoComercial.findMany({ where: { empresaId: this.e, ...(clienteId ? { clienteId } : {}) }, orderBy: { createdAt: "desc" } });
   }
-  createContrato(data: Record<string, unknown>) {
-    return this.db.contratoComercial.create({ data: data as never });
+  createContrato(data: Prisma.ContratoComercialUncheckedCreateInput) {
+    return this.db.contratoComercial.create({ data });
   }
-  async updateContrato(id: string, data: Record<string, unknown>) {
-    return (await this.db.contratoComercial.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateContrato(id: string, data: Prisma.ContratoComercialUncheckedUpdateManyInput) {
+    return (await this.db.contratoComercial.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   findContrato(id: string) {
     return this.db.contratoComercial.findUnique({ where: { id } });
@@ -133,11 +133,11 @@ export class ComercialRepository {
   findConfigCobro(contratoId: string) {
     return this.db.configuracionCobro.findUnique({ where: { contratoId } });
   }
-  upsertConfigCobro(contratoId: string, clienteId: string, data: Record<string, unknown>) {
+  upsertConfigCobro(contratoId: string, clienteId: string, data: Prisma.ConfiguracionCobroUncheckedUpdateInput) {
     return this.db.configuracionCobro.upsert({
       where: { contratoId },
-      update: data as never,
-      create: { ...data, contratoId, clienteId, empresaId: this.e } as never,
+      update: data,
+      create: { ...data, contratoId, clienteId, empresaId: this.e } as Prisma.ConfiguracionCobroUncheckedCreateInput,
     });
   }
 
@@ -200,11 +200,11 @@ export class ComercialRepository {
       select: { id: true, estadoContrato: true, estadoPoder: true, tipoCobroAcordado: true, valorAcordado: true, porcentajeAcordado: true },
     });
   }
-  createSolicitud(data: Record<string, unknown>) {
-    return this.db.solicitudAsignacionProceso.create({ data: data as never });
+  createSolicitud(data: Prisma.SolicitudAsignacionProcesoUncheckedCreateInput) {
+    return this.db.solicitudAsignacionProceso.create({ data });
   }
   listSolicitudes(estado?: string) {
-    return this.db.solicitudAsignacionProceso.findMany({ where: { empresaId: this.e, ...(estado ? { estado: estado as never } : {}) }, orderBy: { fechaSolicitud: "desc" } });
+    return this.db.solicitudAsignacionProceso.findMany({ where: { empresaId: this.e, ...(estado ? { estado: estado as EstadoSolicitud } : {}) }, orderBy: { fechaSolicitud: "desc" } });
   }
   findSolicitud(id: string) {
     return this.db.solicitudAsignacionProceso.findFirst({ where: { id, empresaId: this.e } });
@@ -221,14 +221,14 @@ export class ComercialRepository {
   updateClienteLitigante(id: string, litiganteId: string) {
     return this.db.cliente.update({ where: { id }, data: { litiganteId } });
   }
-  createProceso(data: Record<string, unknown>) {
-    return this.db.proceso.create({ data: data as never });
+  createProceso(data: Prisma.ProcesoUncheckedCreateInput) {
+    return this.db.proceso.create({ data });
   }
-  createParte(data: Record<string, unknown>) {
-    return this.db.parteProceso.create({ data: data as never });
+  createParte(data: Prisma.ParteProcesoUncheckedCreateInput) {
+    return this.db.parteProceso.create({ data });
   }
-  updateSolicitud(id: string, data: Record<string, unknown>) {
-    return this.db.solicitudAsignacionProceso.update({ where: { id }, data: data as never });
+  updateSolicitud(id: string, data: Prisma.SolicitudAsignacionProcesoUncheckedUpdateInput) {
+    return this.db.solicitudAsignacionProceso.update({ where: { id }, data });
   }
   async rechazarSolicitud(id: string, motivoRechazo: string) {
     return (await this.db.solicitudAsignacionProceso.updateMany({
@@ -245,15 +245,15 @@ export class ComercialRepository {
   // --- comisiones ---
   listComisiones(dueño: { comercialId?: string }, clienteId?: string, estado?: string) {
     return this.db.comisionDespacho.findMany({
-      where: { empresaId: this.e, ...dueño, ...(clienteId ? { clienteId } : {}), ...(estado ? { estado: estado as never } : {}) },
+      where: { empresaId: this.e, ...dueño, ...(clienteId ? { clienteId } : {}), ...(estado ? { estado: estado as EstadoComisionDespacho } : {}) },
       orderBy: { createdAt: "desc" },
     });
   }
-  createComision(data: Record<string, unknown>) {
-    return this.db.comisionDespacho.create({ data: data as never });
+  createComision(data: Prisma.ComisionDespachoUncheckedCreateInput) {
+    return this.db.comisionDespacho.create({ data });
   }
-  async updateComision(id: string, data: Record<string, unknown>) {
-    return (await this.db.comisionDespacho.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateComision(id: string, data: Prisma.ComisionDespachoUncheckedUpdateManyInput) {
+    return (await this.db.comisionDespacho.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   findComision(id: string) {
     return this.db.comisionDespacho.findUnique({ where: { id } });

@@ -2,7 +2,7 @@
 // por empresa; el alcance por COMERCIAL (scope) lo decide el service y se pasa como
 // filtro. Acepta client opcional para la transacción de "ganar".
 import { prisma, type PrismaLike } from "../../shared/prisma";
-import { Rol } from "@prisma/client";
+import { Prisma, Rol } from "@prisma/client";
 
 type Scope = { comercialId?: string };
 
@@ -23,11 +23,11 @@ export class VentasRepository {
   }
 
   // --- prospectos ---
-  listProspectos(where: Record<string, unknown>) {
-    return this.db.prospecto.findMany({ where: where as never, orderBy: { createdAt: "desc" } });
+  listProspectos(where: Prisma.ProspectoWhereInput) {
+    return this.db.prospecto.findMany({ where, orderBy: { createdAt: "desc" } });
   }
-  createProspecto(data: Record<string, unknown>) {
-    return this.db.prospecto.create({ data: data as never });
+  createProspecto(data: Prisma.ProspectoUncheckedCreateInput) {
+    return this.db.prospecto.create({ data });
   }
   findProspectoScoped(id: string, scope: Scope) {
     return this.db.prospecto.findFirst({ where: { id, ...scope } });
@@ -38,11 +38,11 @@ export class VentasRepository {
   comisionByProspecto(prospectoId: string) {
     return this.db.comision.findUnique({ where: { prospectoId } });
   }
-  updateProspectoScoped(id: string, scope: Scope, data: Record<string, unknown>) {
-    return this.db.prospecto.updateMany({ where: { id, ...scope }, data: data as never });
+  updateProspectoScoped(id: string, scope: Scope, data: Prisma.ProspectoUncheckedUpdateManyInput) {
+    return this.db.prospecto.updateMany({ where: { id, ...scope }, data });
   }
-  updateProspecto(id: string, data: Record<string, unknown>) {
-    return this.db.prospecto.update({ where: { id }, data: data as never });
+  updateProspecto(id: string, data: Prisma.ProspectoUncheckedUpdateInput) {
+    return this.db.prospecto.update({ where: { id }, data });
   }
   reassignPendingSeguimientos(prospectoId: string, comercialId: string | null) {
     return this.db.seguimientoProspecto.updateMany({
@@ -56,22 +56,22 @@ export class VentasRepository {
   }
 
   // --- ganar (tx): empresa + suscripcion + prospecto + comision ---
-  createEmpresa(data: Record<string, unknown>) {
-    return this.db.empresa.create({ data: data as never });
+  createEmpresa(data: Prisma.EmpresaUncheckedCreateInput) {
+    return this.db.empresa.create({ data });
   }
-  createSuscripcion(data: Record<string, unknown>) {
-    return this.db.suscripcion.create({ data: data as never });
+  createSuscripcion(data: Prisma.SuscripcionUncheckedCreateInput) {
+    return this.db.suscripcion.create({ data });
   }
-  createComision(data: Record<string, unknown>) {
-    return this.db.comision.create({ data: data as never });
+  createComision(data: Prisma.ComisionUncheckedCreateInput) {
+    return this.db.comision.create({ data });
   }
 
   // --- seguimientos ---
   listSeguimientos(prospectoId: string) {
     return this.db.seguimientoProspecto.findMany({ where: { prospectoId }, orderBy: { createdAt: "desc" } });
   }
-  createSeguimiento(data: Record<string, unknown>) {
-    return this.db.seguimientoProspecto.create({ data: data as never });
+  createSeguimiento(data: Prisma.SeguimientoProspectoUncheckedCreateInput) {
+    return this.db.seguimientoProspecto.create({ data });
   }
   findSeguimiento(id: string) {
     return this.db.seguimientoProspecto.findUnique({ where: { id } });
@@ -79,8 +79,8 @@ export class VentasRepository {
   prospectoEnScope(id: string, scope: Scope) {
     return this.db.prospecto.findFirst({ where: { id, ...scope }, select: { id: true } });
   }
-  updateSeguimiento(id: string, data: Record<string, unknown>) {
-    return this.db.seguimientoProspecto.update({ where: { id }, data: data as never });
+  updateSeguimiento(id: string, data: Prisma.SeguimientoProspectoUncheckedUpdateInput) {
+    return this.db.seguimientoProspecto.update({ where: { id }, data });
   }
   deleteSeguimiento(id: string) {
     return this.db.seguimientoProspecto.delete({ where: { id } });
@@ -119,13 +119,13 @@ export class VentasRepository {
   }
 
   // --- comisiones ---
-  listComisiones(where: Record<string, unknown>) {
-    return this.db.comision.findMany({ where: where as never, orderBy: { createdAt: "desc" } });
+  listComisiones(where: Prisma.ComisionWhereInput) {
+    return this.db.comision.findMany({ where, orderBy: { createdAt: "desc" } });
   }
   findComisionId(id: string) {
     return this.db.comision.findUnique({ where: { id }, select: { id: true } });
   }
-  updateComision(id: string, data: Record<string, unknown>) {
-    return this.db.comision.update({ where: { id }, data: data as never });
+  updateComision(id: string, data: Prisma.ComisionUncheckedUpdateInput) {
+    return this.db.comision.update({ where: { id }, data });
   }
 }

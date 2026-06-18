@@ -1,6 +1,6 @@
 // Acceso a datos de Planes (plataforma; sin empresaId). Acepta un client opcional
 // para correr dentro de la transacción del servicio (create/update reemplazan sets).
-import type { RolEmpresa } from "@prisma/client";
+import { Prisma, type RolEmpresa } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 const incl = { modulos: { include: { modulo: { select: { clave: true } } } }, cuotas: true } as const;
@@ -55,8 +55,8 @@ export class PlanesRepository {
   createPlan(data: { clave: string; nombre: string; precioMensual: number; orden: number; activo: boolean }) {
     return this.db.plan.create({ data });
   }
-  updatePlan(id: string, data: Record<string, unknown>) {
-    return this.db.plan.update({ where: { id }, data: data as never });
+  updatePlan(id: string, data: Prisma.PlanUncheckedUpdateInput) {
+    return this.db.plan.update({ where: { id }, data });
   }
   createPlanModulo(planId: string, moduloId: string) {
     return this.db.planModulo.create({ data: { planId, moduloId } });

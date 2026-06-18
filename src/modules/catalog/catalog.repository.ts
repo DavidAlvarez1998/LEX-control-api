@@ -1,7 +1,7 @@
 // Acceso a datos del Catálogo (áreas, tipos de proceso, plantillas). Catálogo
 // HÍBRIDO (global empresaId=null + propio del despacho): la visibilidad/autorización
 // la decide el service; el repo expone las queries (acepta client para tx).
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 export const tipoInclude = { areas: { include: { area: true } } } as const;
@@ -31,11 +31,11 @@ export class CatalogRepository {
   maxAreaOrden() {
     return this.db.areaPractica.aggregate({ _max: { orden: true } });
   }
-  createArea(data: Record<string, unknown>) {
-    return this.db.areaPractica.create({ data: data as never });
+  createArea(data: Prisma.AreaPracticaCreateInput) {
+    return this.db.areaPractica.create({ data });
   }
-  updateArea(id: string, data: Record<string, unknown>) {
-    return this.db.areaPractica.update({ where: { id }, data: data as never });
+  updateArea(id: string, data: Prisma.AreaPracticaUpdateInput) {
+    return this.db.areaPractica.update({ where: { id }, data });
   }
   deleteArea(id: string) {
     return this.db.areaPractica.delete({ where: { id } });
@@ -51,11 +51,11 @@ export class CatalogRepository {
   findTipoRaw(id: string) {
     return this.db.tipoProceso.findUnique({ where: { id } });
   }
-  createTipo(data: Record<string, unknown>) {
-    return this.db.tipoProceso.create({ data: data as never, include: tipoInclude });
+  createTipo(data: Prisma.TipoProcesoUncheckedCreateInput) {
+    return this.db.tipoProceso.create({ data, include: tipoInclude });
   }
-  updateTipo(id: string, data: Record<string, unknown>) {
-    return this.db.tipoProceso.update({ where: { id }, data: data as never, include: tipoInclude });
+  updateTipo(id: string, data: Prisma.TipoProcesoUncheckedUpdateInput) {
+    return this.db.tipoProceso.update({ where: { id }, data, include: tipoInclude });
   }
   deleteTipoAreas(tipoProcesoId: string) {
     return this.db.tipoProcesoArea.deleteMany({ where: { tipoProcesoId } });
@@ -77,8 +77,8 @@ export class CatalogRepository {
   createPlantilla(data: { tipoProcesoId: string; nombre: string; contenido: string }) {
     return this.db.plantillaDocumento.create({ data });
   }
-  updatePlantilla(id: string, data: Record<string, unknown>) {
-    return this.db.plantillaDocumento.update({ where: { id }, data: data as never });
+  updatePlantilla(id: string, data: Prisma.PlantillaDocumentoUpdateInput) {
+    return this.db.plantillaDocumento.update({ where: { id }, data });
   }
   deletePlantilla(id: string) {
     return this.db.plantillaDocumento.delete({ where: { id } });

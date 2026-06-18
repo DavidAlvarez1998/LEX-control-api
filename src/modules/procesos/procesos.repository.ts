@@ -1,7 +1,7 @@
 // Acceso a datos del módulo Procesos (el más grande). Tenant-scoped (empresaId
 // forzado al construir). Acepta client opcional para las transacciones del servicio
 // (crear, mover etapa, derivar). El motor de etapas es PURO (maquina-etapas.ts).
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 export const detalleInclude = {
@@ -88,20 +88,20 @@ export class ProcesosRepository {
   findClienteScoped(id: string) {
     return this.db.cliente.findFirst({ where: { id, empresaId: this.e } });
   }
-  createCliente(data: Record<string, unknown>) {
-    return this.db.cliente.create({ data: { ...data, empresaId: this.e } as never });
+  createCliente(data: Omit<Prisma.ClienteUncheckedCreateInput, "empresaId">) {
+    return this.db.cliente.create({ data: { ...data, empresaId: this.e } });
   }
   findLitiganteScoped(id: string) {
     return this.db.litigante.findFirst({ where: { id, empresaId: this.e }, select: { id: true } });
   }
-  createLitigante(data: Record<string, unknown>) {
-    return this.db.litigante.create({ data: { ...data, empresaId: this.e } as never });
+  createLitigante(data: Omit<Prisma.LitiganteUncheckedCreateInput, "empresaId">) {
+    return this.db.litigante.create({ data: { ...data, empresaId: this.e } });
   }
-  createProceso(data: Record<string, unknown>) {
-    return this.db.proceso.create({ data: data as never });
+  createProceso(data: Prisma.ProcesoUncheckedCreateInput) {
+    return this.db.proceso.create({ data });
   }
-  createParte(data: Record<string, unknown>) {
-    return this.db.parteProceso.create({ data: data as never });
+  createParte(data: Prisma.ParteProcesoUncheckedCreateInput) {
+    return this.db.parteProceso.create({ data });
   }
 
   // --- mover etapa / derivar / autoavance ---
@@ -123,8 +123,8 @@ export class ProcesosRepository {
       select: { id: true, etapaActual: true, datos: true, estado: true, tipoProceso: { select: { etapas: true } }, documentos: { select: { nombre: true } } },
     });
   }
-  createEtapa(data: Record<string, unknown>) {
-    return this.db.etapaProceso.create({ data: data as never });
+  createEtapa(data: Prisma.EtapaProcesoUncheckedCreateInput) {
+    return this.db.etapaProceso.create({ data });
   }
   updateProcesoConDetalle(id: string, data: Prisma.ProcesoUpdateInput) {
     return this.db.proceso.update({ where: { id }, data, include: detalleInclude });
@@ -135,8 +135,8 @@ export class ProcesosRepository {
   findBaseDocs(procesoId: string) {
     return this.db.documentoProceso.findMany({ where: { procesoId } });
   }
-  createManyDocs(data: Record<string, unknown>[]) {
-    return this.db.documentoProceso.createMany({ data: data as never });
+  createManyDocs(data: Prisma.DocumentoProcesoCreateManyInput[]) {
+    return this.db.documentoProceso.createMany({ data });
   }
 
   // --- patch /:id ---
@@ -162,11 +162,11 @@ export class ProcesosRepository {
   findParteParaBorrar(parteId: string, procesoId: string) {
     return this.db.parteProceso.findFirst({ where: { id: parteId, proceso: { id: procesoId, empresaId: this.e } }, select: { id: true, esNuestroCliente: true } });
   }
-  updateLitigante(id: string, data: Record<string, unknown>) {
-    return this.db.litigante.update({ where: { id }, data: data as never });
+  updateLitigante(id: string, data: Prisma.LitiganteUncheckedUpdateInput) {
+    return this.db.litigante.update({ where: { id }, data });
   }
-  updateParte(id: string, data: Record<string, unknown>) {
-    return this.db.parteProceso.update({ where: { id }, data: data as never });
+  updateParte(id: string, data: Prisma.ParteProcesoUncheckedUpdateInput) {
+    return this.db.parteProceso.update({ where: { id }, data });
   }
   deleteParte(id: string) {
     return this.db.parteProceso.delete({ where: { id } });
@@ -191,14 +191,14 @@ export class ProcesosRepository {
   findCasoBase(casoRelacionadoId: string) {
     return this.db.proceso.findFirst({ where: { id: casoRelacionadoId, empresaId: this.e }, include: { partes: { include: { litigante: true } } } });
   }
-  createDocumento(data: Record<string, unknown>) {
-    return this.db.documentoProceso.create({ data: data as never });
+  createDocumento(data: Prisma.DocumentoProcesoUncheckedCreateInput) {
+    return this.db.documentoProceso.create({ data });
   }
   findDocumento(docId: string, procesoId: string) {
     return this.db.documentoProceso.findFirst({ where: { id: docId, proceso: { id: procesoId, empresaId: this.e } } });
   }
-  updateDocumento(id: string, data: Record<string, unknown>) {
-    return this.db.documentoProceso.update({ where: { id }, data: data as never });
+  updateDocumento(id: string, data: Prisma.DocumentoProcesoUncheckedUpdateInput) {
+    return this.db.documentoProceso.update({ where: { id }, data });
   }
   deleteDocumento(id: string) {
     return this.db.documentoProceso.delete({ where: { id } });

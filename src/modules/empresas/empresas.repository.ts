@@ -1,5 +1,6 @@
 // Acceso a datos de Empresas (gestión ADMIN de plataforma; sin scoping por tenant).
 // Acepta client opcional para correr dentro de la transacción del servicio.
+import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 const empresaConServicios = { servicios: { include: { servicio: true } } } as const;
@@ -32,11 +33,11 @@ export class EmpresasRepository {
     return this.db.servicio.findMany({ where: { id: { in: ids } } });
   }
 
-  create(data: Record<string, unknown>) {
-    return this.db.empresa.create({ data: data as never });
+  create(data: Prisma.EmpresaUncheckedCreateInput) {
+    return this.db.empresa.create({ data });
   }
-  update(id: string, data: Record<string, unknown>) {
-    return this.db.empresa.update({ where: { id }, data: data as never });
+  update(id: string, data: Prisma.EmpresaUncheckedUpdateInput) {
+    return this.db.empresa.update({ where: { id }, data });
   }
   delete(id: string) {
     return this.db.empresa.delete({ where: { id } });
@@ -45,8 +46,8 @@ export class EmpresasRepository {
     return this.db.empresa.findUnique({ where: { id }, include: empresaConServicios });
   }
 
-  createManyEmpresaServicio(rows: Record<string, unknown>[]) {
-    return this.db.empresaServicio.createMany({ data: rows as never });
+  createManyEmpresaServicio(rows: Prisma.EmpresaServicioUncheckedCreateInput[]) {
+    return this.db.empresaServicio.createMany({ data: rows });
   }
   deleteEmpresaServiciosNotIn(empresaId: string, servicioIds: string[]) {
     return this.db.empresaServicio.deleteMany({ where: { empresaId, servicioId: { notIn: servicioIds } } });
@@ -54,13 +55,13 @@ export class EmpresasRepository {
   upsertEmpresaServicio(
     empresaId: string,
     servicioId: string,
-    create: Record<string, unknown>,
-    update: Record<string, unknown>,
+    create: Prisma.EmpresaServicioUncheckedCreateInput,
+    update: Prisma.EmpresaServicioUncheckedUpdateInput,
   ) {
     return this.db.empresaServicio.upsert({
       where: { empresaId_servicioId: { empresaId, servicioId } },
-      create: create as never,
-      update: update as never,
+      create,
+      update,
     });
   }
 }

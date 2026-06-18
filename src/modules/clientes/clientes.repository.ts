@@ -2,6 +2,7 @@
 // el `empresaId` se fija al construir el repositorio (scoping multi-tenant forzado;
 // un caller no puede olvidarlo). Acepta un client opcional para correr dentro de
 // una transacción del servicio.
+import { Prisma, type EstadoCliente } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 type ListOpts = { estado?: string; mios?: boolean; usuarioId: string };
@@ -21,7 +22,7 @@ export class ClientesRepository {
     return this.db.cliente.findMany({
       where: {
         empresaId: this.empresaId,
-        ...(estado ? { estado: estado as never } : {}),
+        ...(estado ? { estado: estado as EstadoCliente } : {}),
         ...(mios
           ? {
               OR: [
@@ -49,12 +50,12 @@ export class ClientesRepository {
     return this.db.cliente.findFirst({ where: { id, empresaId: this.empresaId } });
   }
 
-  create(data: Record<string, unknown>) {
-    return this.db.cliente.create({ data: { ...data, empresaId: this.empresaId } as never });
+  create(data: Omit<Prisma.ClienteUncheckedCreateInput, "empresaId">) {
+    return this.db.cliente.create({ data: { ...data, empresaId: this.empresaId } });
   }
 
-  update(id: string, data: Record<string, unknown>) {
-    return this.db.cliente.update({ where: { id }, data: data as never });
+  update(id: string, data: Prisma.ClienteUncheckedUpdateInput) {
+    return this.db.cliente.update({ where: { id }, data });
   }
 
   // --- Lookups para validar FK salientes (misma empresa) ---

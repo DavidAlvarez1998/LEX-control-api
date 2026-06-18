@@ -1,4 +1,5 @@
 // Acceso a datos de Auth (plataforma; login por email, sin tenant).
+import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 const userInclude = {
@@ -18,7 +19,7 @@ export class AuthRepository {
   findByActivationToken(hash: string) {
     return this.db.usuario.findUnique({ where: { activationToken: hash } });
   }
-  activate(id: string, data: Record<string, unknown>) {
-    return this.db.usuario.update({ where: { id }, data: data as never });
+  activate(id: string, data: Prisma.UsuarioUncheckedUpdateInput) {
+    return this.db.usuario.update({ where: { id }, data });
   }
 }

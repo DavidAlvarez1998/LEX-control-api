@@ -1,6 +1,6 @@
 // Acceso a datos del módulo Mi Empresa (portal del cliente; SCOPED a la empresa del
 // solicitante: empresaId forzado al construir). Acepta client opcional para tx.
-import type { RolEmpresa } from "@prisma/client";
+import { Prisma, type RolEmpresa } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 import { PUBLIC_SELECT } from "../usuarios/usuarios.shared";
 
@@ -37,8 +37,8 @@ export class MiEmpresaRepository {
     });
   }
 
-  createMiembro(data: Record<string, unknown>) {
-    return this.db.usuario.create({ data: data as never, select: PUBLIC_SELECT });
+  createMiembro(data: Prisma.UsuarioUncheckedCreateInput) {
+    return this.db.usuario.create({ data, select: PUBLIC_SELECT });
   }
 
   createRolEmpresa(usuarioId: string, rolEmpresa: RolEmpresa, asignadoPorId: string) {
@@ -48,8 +48,8 @@ export class MiEmpresaRepository {
   }
 
   /** Update scoped por empresa; devuelve filas afectadas (0 = no es de esta empresa). */
-  async updateScoped(id: string, data: Record<string, unknown>): Promise<number> {
-    const { count } = await this.db.usuario.updateMany({ where: { id, empresaId: this.empresaId }, data: data as never });
+  async updateScoped(id: string, data: Prisma.UsuarioUncheckedUpdateManyInput): Promise<number> {
+    const { count } = await this.db.usuario.updateMany({ where: { id, empresaId: this.empresaId }, data });
     return count;
   }
 

@@ -1,6 +1,7 @@
 // Acceso a datos del módulo Contable. Tenant-scoped (empresaId forzado al construir).
 // Agrupa todas las queries de ingresos/egresos/nómina/caja/servicios-fijos/cuentas/
 // cartera/reportes; los saldos se DERIVAN en el service a partir de estas sumas.
+import { Prisma, type CategoriaEgreso } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 export class ContableRepository {
@@ -33,22 +34,22 @@ export class ContableRepository {
       orderBy: { fechaIngreso: "desc" },
     });
   }
-  createIngreso(data: Record<string, unknown>) {
-    return this.db.ingreso.create({ data: data as never });
+  createIngreso(data: Prisma.IngresoUncheckedCreateInput) {
+    return this.db.ingreso.create({ data });
   }
 
   // --- egresos ---
   listEgresos(f: { categoria?: string; procesoId?: string }) {
     return this.db.egreso.findMany({
-      where: { empresaId: this.e, ...(f.categoria ? { categoriaGasto: f.categoria as never } : {}), ...(f.procesoId ? { procesoId: f.procesoId } : {}) },
+      where: { empresaId: this.e, ...(f.categoria ? { categoriaGasto: f.categoria as CategoriaEgreso } : {}), ...(f.procesoId ? { procesoId: f.procesoId } : {}) },
       orderBy: { fechaGasto: "desc" },
     });
   }
-  createEgreso(data: Record<string, unknown>) {
-    return this.db.egreso.create({ data: data as never });
+  createEgreso(data: Prisma.EgresoUncheckedCreateInput) {
+    return this.db.egreso.create({ data });
   }
-  async updateEgreso(id: string, data: Record<string, unknown>) {
-    return (await this.db.egreso.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateEgreso(id: string, data: Prisma.EgresoUncheckedUpdateInput) {
+    return (await this.db.egreso.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   findEgreso(id: string) {
     return this.db.egreso.findUnique({ where: { id } });
@@ -65,11 +66,11 @@ export class ContableRepository {
       orderBy: [{ estado: "asc" }, { nombreCompleto: "asc" }],
     });
   }
-  createNomina(data: Record<string, unknown>) {
-    return this.db.nomina.create({ data: data as never });
+  createNomina(data: Prisma.NominaUncheckedCreateInput) {
+    return this.db.nomina.create({ data });
   }
-  async updateNomina(id: string, data: Record<string, unknown>) {
-    return (await this.db.nomina.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateNomina(id: string, data: Prisma.NominaUncheckedUpdateInput) {
+    return (await this.db.nomina.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   findNomina(id: string) {
     return this.db.nomina.findUnique({ where: { id } });
@@ -82,8 +83,8 @@ export class ContableRepository {
   cajaMovsGroupBy() {
     return this.db.cajaMenorMovimiento.groupBy({ by: ["cajaId", "tipoMovimiento"], _sum: { valor: true }, where: { empresaId: this.e } });
   }
-  createCaja(data: Record<string, unknown>) {
-    return this.db.cajaMenor.create({ data: data as never });
+  createCaja(data: Prisma.CajaMenorUncheckedCreateInput) {
+    return this.db.cajaMenor.create({ data });
   }
   findCaja(id: string) {
     return this.db.cajaMenor.findFirst({ where: { id, empresaId: this.e } });
@@ -97,25 +98,25 @@ export class ContableRepository {
   listCajaMovs(cajaId: string) {
     return this.db.cajaMenorMovimiento.findMany({ where: { cajaId }, orderBy: { fechaMovimiento: "asc" } });
   }
-  createMovimiento(data: Record<string, unknown>) {
-    return this.db.cajaMenorMovimiento.create({ data: data as never });
+  createMovimiento(data: Prisma.CajaMenorMovimientoUncheckedCreateInput) {
+    return this.db.cajaMenorMovimiento.create({ data });
   }
-  async updateCaja(id: string, data: Record<string, unknown>) {
-    return (await this.db.cajaMenor.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateCaja(id: string, data: Prisma.CajaMenorUncheckedUpdateInput) {
+    return (await this.db.cajaMenor.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
 
   // --- servicios fijos ---
   listServiciosFijos(periodo?: string) {
     return this.db.servicioFijo.findMany({ where: { empresaId: this.e, ...(periodo ? { periodo } : {}) }, orderBy: { periodo: "desc" } });
   }
-  createServicioFijo(data: Record<string, unknown>) {
-    return this.db.servicioFijo.create({ data: data as never });
+  createServicioFijo(data: Prisma.ServicioFijoUncheckedCreateInput) {
+    return this.db.servicioFijo.create({ data });
   }
-  createManyServicioFijo(data: Record<string, unknown>[]) {
-    return this.db.servicioFijo.createMany({ data: data as never, skipDuplicates: true });
+  createManyServicioFijo(data: Prisma.ServicioFijoUncheckedCreateInput[]) {
+    return this.db.servicioFijo.createMany({ data, skipDuplicates: true });
   }
-  async updateServicioFijo(id: string, data: Record<string, unknown>) {
-    return (await this.db.servicioFijo.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateServicioFijo(id: string, data: Prisma.ServicioFijoUncheckedUpdateInput) {
+    return (await this.db.servicioFijo.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   findServicioFijo(id: string) {
     return this.db.servicioFijo.findUnique({ where: { id } });
@@ -128,11 +129,11 @@ export class ContableRepository {
   listRecurrentesActivas() {
     return this.db.servicioFijoRecurrente.findMany({ where: { empresaId: this.e, activo: true } });
   }
-  createRecurrente(data: Record<string, unknown>) {
-    return this.db.servicioFijoRecurrente.create({ data: data as never });
+  createRecurrente(data: Prisma.ServicioFijoRecurrenteUncheckedCreateInput) {
+    return this.db.servicioFijoRecurrente.create({ data });
   }
-  async updateRecurrente(id: string, data: Record<string, unknown>) {
-    return (await this.db.servicioFijoRecurrente.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateRecurrente(id: string, data: Prisma.ServicioFijoRecurrenteUncheckedUpdateInput) {
+    return (await this.db.servicioFijoRecurrente.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   findRecurrente(id: string) {
     return this.db.servicioFijoRecurrente.findUnique({ where: { id } });
@@ -142,8 +143,8 @@ export class ContableRepository {
   listCuentas() {
     return this.db.cuentaBancaria.findMany({ where: { empresaId: this.e }, orderBy: { createdAt: "desc" } });
   }
-  createCuenta(data: Record<string, unknown>) {
-    return this.db.cuentaBancaria.create({ data: data as never });
+  createCuenta(data: Prisma.CuentaBancariaUncheckedCreateInput) {
+    return this.db.cuentaBancaria.create({ data });
   }
   findCuenta(id: string) {
     return this.db.cuentaBancaria.findFirst({ where: { id, empresaId: this.e } });
@@ -154,8 +155,8 @@ export class ContableRepository {
   findCuentaById(id: string) {
     return this.db.cuentaBancaria.findUnique({ where: { id } });
   }
-  async updateCuenta(id: string, data: Record<string, unknown>) {
-    return (await this.db.cuentaBancaria.updateMany({ where: { id, empresaId: this.e }, data: data as never })).count;
+  async updateCuenta(id: string, data: Prisma.CuentaBancariaUncheckedUpdateInput) {
+    return (await this.db.cuentaBancaria.updateMany({ where: { id, empresaId: this.e }, data })).count;
   }
   deleteCuenta(id: string) {
     return this.db.cuentaBancaria.delete({ where: { id } });
@@ -211,14 +212,14 @@ export class ContableRepository {
   findConfigById(id: string) {
     return this.db.configuracionCobro.findUnique({ where: { id } });
   }
-  createCartera(data: Record<string, unknown>) {
-    return this.db.cartera.create({ data: data as never });
+  createCartera(data: Prisma.CarteraUncheckedCreateInput) {
+    return this.db.cartera.create({ data });
   }
   findCartera(id: string) {
     return this.db.cartera.findFirst({ where: { id, empresaId: this.e } });
   }
-  updateCartera(id: string, data: Record<string, unknown>) {
-    return this.db.cartera.update({ where: { id }, data: data as never });
+  updateCartera(id: string, data: Prisma.CarteraUncheckedUpdateInput) {
+    return this.db.cartera.update({ where: { id }, data });
   }
 
   // --- reportes (mensual) ---

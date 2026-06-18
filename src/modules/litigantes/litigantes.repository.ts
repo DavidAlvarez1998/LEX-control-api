@@ -1,4 +1,5 @@
 // Acceso a datos de Litigantes. empresaId forzado al construir (scoping multi-tenant).
+import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
 const conProcesos = {
@@ -31,15 +32,15 @@ export class LitigantesRepository {
     return this.db.litigante.findFirst({ where: { id, empresaId: this.empresaId }, select: { id: true } });
   }
 
-  create(data: Record<string, unknown>) {
-    return this.db.litigante.create({ data: { ...data, empresaId: this.empresaId } as never });
+  create(data: Omit<Prisma.LitiganteUncheckedCreateInput, "empresaId">) {
+    return this.db.litigante.create({ data: { ...data, empresaId: this.empresaId } });
   }
 
   /** Update scoped por empresa; devuelve el nº de filas afectadas (0 = no encontrado). */
-  async updateScoped(id: string, data: Record<string, unknown>): Promise<number> {
+  async updateScoped(id: string, data: Prisma.LitiganteUncheckedUpdateManyInput): Promise<number> {
     const { count } = await this.db.litigante.updateMany({
       where: { id, empresaId: this.empresaId },
-      data: data as never,
+      data,
     });
     return count;
   }

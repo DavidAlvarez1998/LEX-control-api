@@ -1,6 +1,6 @@
 // Acceso a datos de Usuarios (gestión ADMIN de plataforma). Acepta client opcional
 // para correr dentro de la transacción del servicio (alta con cupo + rol de empresa).
-import type { RolEmpresa } from "@prisma/client";
+import { Prisma, type RolEmpresa } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 import { PUBLIC_SELECT } from "./usuarios.shared";
 
@@ -16,8 +16,8 @@ export class UsuariosRepository {
     });
   }
 
-  create(data: Record<string, unknown>) {
-    return this.db.usuario.create({ data: data as never, select: PUBLIC_SELECT });
+  create(data: Prisma.UsuarioUncheckedCreateInput) {
+    return this.db.usuario.create({ data, select: PUBLIC_SELECT });
   }
 
   createRolEmpresa(usuarioId: string, rolEmpresa: RolEmpresa, empresaId: string) {
@@ -29,13 +29,13 @@ export class UsuariosRepository {
   }
 
   /** Update devolviendo los campos públicos (PATCH). */
-  update(id: string, data: Record<string, unknown>) {
-    return this.db.usuario.update({ where: { id }, data: data as never, select: PUBLIC_SELECT });
+  update(id: string, data: Prisma.UsuarioUncheckedUpdateInput) {
+    return this.db.usuario.update({ where: { id }, data, select: PUBLIC_SELECT });
   }
 
   /** Update devolviendo solo el rol (reset-password: arma la URL de activación). */
-  updateForReset(id: string, data: Record<string, unknown>) {
-    return this.db.usuario.update({ where: { id }, data: data as never, select: { rol: true } });
+  updateForReset(id: string, data: Prisma.UsuarioUncheckedUpdateInput) {
+    return this.db.usuario.update({ where: { id }, data, select: { rol: true } });
   }
 
   delete(id: string) {
