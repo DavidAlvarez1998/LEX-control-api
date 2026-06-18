@@ -100,6 +100,58 @@ export const moverEtapaSchema = z.object({
 
 export const procesoIdParams = z.object({ id: z.string().min(1) });
 
+// --- Partes del proceso (gestión post-creación, desde la ficha) ---
+// Agregar una contraparte/tercero a un proceso ya creado: o referencia un litigante
+// existente (`litiganteId`) o crea uno nuevo inline. Tolera `null` en los campos
+// opcionales (la ficha envía null para un documento/teléfono vacío). `esNuestroCliente`
+// se fuerza a false en el handler (el cliente se define al crear el proceso).
+export const addParteSchema = z
+  .object({
+    litiganteId: z.string().min(1).optional(),
+    litigante: z
+      .object({
+        tipoPersona: z.nativeEnum(TipoPersona).default(TipoPersona.NATURAL),
+        nombre: z.string().min(1),
+        tipoDocumento: z.nativeEnum(TipoDocumento).nullish(),
+        numeroDocumento: z.string().nullish(),
+        telefono: z.string().nullish(),
+        email: z.string().email().nullish(),
+        correos: z.array(z.string().trim().email()).optional(),
+      })
+      .optional(),
+    rol: z.nativeEnum(RolParte),
+    rolEtiqueta: z.string().optional(),
+  })
+  .refine((p) => p.litiganteId != null || p.litigante != null, {
+    message: "Cada parte requiere litiganteId o litigante",
+  });
+
+// Editar una parte existente: su rol/etiqueta y/o los datos de su litigante.
+export const updateParteSchema = z
+  .object({
+    rol: z.nativeEnum(RolParte).optional(),
+    rolEtiqueta: z.string().nullable().optional(),
+    litigante: z
+      .object({
+        tipoPersona: z.nativeEnum(TipoPersona).optional(),
+        nombre: z.string().min(1).optional(),
+        tipoDocumento: z.nativeEnum(TipoDocumento).nullable().optional(),
+        numeroDocumento: z.string().nullable().optional(),
+        telefono: z.string().nullable().optional(),
+        email: z.string().email().nullable().optional(),
+        correos: z.array(z.string().trim().email()).optional(),
+      })
+      .optional(),
+  })
+  .refine((p) => p.rol !== undefined || p.rolEtiqueta !== undefined || p.litigante !== undefined, {
+    message: "Nada que actualizar",
+  });
+
+export const parteIdParams = z.object({
+  id: z.string().min(1),
+  parteId: z.string().min(1),
+});
+
 // --- Documentos del proceso ---
 // Adjuntar un archivo externo (enlace) al expediente.
 export const adjuntarDocumentoSchema = z.object({

@@ -1,12 +1,19 @@
 import { Jurisdiccion, TipoAreaPractica } from "@prisma/client";
 import { z } from "zod";
-import { CAMPO_TIPOS } from "../procesos/esquema";
+import { CAMPO_TIPOS, camposDeCondicion, type Condicion } from "../procesos/esquema";
 
-// --- Condición de igualdad sobre otro campo (mostrarSi/requeridoSi/disponibleSi) ---
-const condicionSchema = z.object({
-  campo: z.string().min(1),
-  igualA: z.union([z.string(), z.array(z.string()).min(1)]),
-});
+// --- Condición (mostrarSi/requeridoSi/disponibleSi): hoja {campo,igualA} o
+//     compuesta {todas:[...]} (AND) / {alguna:[...]} (OR), recursiva. ---
+const condicionSchema: z.ZodType<Condicion> = z.lazy(() =>
+  z.union([
+    z.object({
+      campo: z.string().min(1),
+      igualA: z.union([z.string(), z.array(z.string()).min(1)]),
+    }),
+    z.object({ todas: z.array(condicionSchema).min(1) }),
+    z.object({ alguna: z.array(condicionSchema).min(1) }),
+  ]),
+);
 
 // --- Campo del formulario dinámico ---
 const campoEsquemaSchema = z
@@ -97,22 +104,27 @@ export const createTipoProcesoSchema = z
       }
     };
 
+    // Refs de una condición (hoja o compuesta): valida TODOS los campos que toca.
+    const refCond = (cond: Condicion, contexto: string) => {
+      for (const k of camposDeCondicion(cond)) refCampo(k, contexto);
+    };
+
     // Condiciones a nivel de campo (mostrarSi/requeridoSi).
     for (const c of data.esquemaFormulario) {
-      if (c.mostrarSi) refCampo(c.mostrarSi.campo, `El campo "${c.label}" (mostrarSi)`);
-      if (c.requeridoSi) refCampo(c.requeridoSi.campo, `El campo "${c.label}" (requeridoSi)`);
+      if (c.mostrarSi) refCond(c.mostrarSi, `El campo "${c.label}" (mostrarSi)`);
+      if (c.requeridoSi) refCond(c.requeridoSi, `El campo "${c.label}" (requeridoSi)`);
     }
 
     for (const e of data.etapas) {
       const et = `La etapa "${e.nombre}"`;
       for (const k of e.reglas?.camposRequeridos ?? []) refCampo(k, et);
       for (const r of e.reglas?.requeridosSi ?? []) {
-        refCampo(r.si.campo, `${et} (requeridosSi.si)`);
+        refCond(r.si, `${et} (requeridosSi.si)`);
         for (const k of r.camposRequeridos ?? []) refCampo(k, `${et} (requeridosSi)`);
       }
       if (e.reglas?.plazoDesdeCampo) refCampo(e.reglas.plazoDesdeCampo, `${et} (plazoDesdeCampo)`);
       if (e.reglas?.plazoDiasPorValorDe) refCampo(e.reglas.plazoDiasPorValorDe.campo, `${et} (plazoDiasPorValorDe)`);
-      if (e.disponibleSi) refCampo(e.disponibleSi.campo, `${et} (disponibleSi)`);
+      if (e.disponibleSi) refCond(e.disponibleSi, `${et} (disponibleSi)`);
     }
   });
 

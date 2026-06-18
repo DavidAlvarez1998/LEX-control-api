@@ -16,14 +16,19 @@ export const CAMPO_TIPOS = [
 export type CampoTipo = (typeof CAMPO_TIPOS)[number];
 
 /**
- * Condición de igualdad sobre otro campo del formulario: se cumple si
- * `datos[campo]` (coercionado a texto) es igual a `igualA` (o está incluido,
- * cuando `igualA` es lista). Solo igualdad — sin AND/OR ni aritmética.
+ * Condición sobre los datos del formulario. Tres formas, evaluadas por
+ * `evaluarCondicion`:
+ *  - Hoja `{campo, igualA}`: igualdad sobre `datos[campo]` (coercionado a texto);
+ *    si `igualA` es lista, se cumple cuando el valor está incluido, y si el campo
+ *    es multiselect (array) cuando el array CONTIENE alguno de los objetivos.
+ *  - AND `{todas: [...]}`: se cumple si TODAS las sub-condiciones se cumplen.
+ *  - OR  `{alguna: [...]}`: se cumple si ALGUNA sub-condición se cumple.
+ * Las hojas son retro-compatibles con el formato anterior (solo `{campo, igualA}`).
  */
-export type Condicion = {
-  campo: string;
-  igualA: string | string[];
-};
+export type Condicion =
+  | { campo: string; igualA: string | string[] }
+  | { todas: Condicion[] }
+  | { alguna: Condicion[] };
 
 export type CampoEsquema = {
   key: string;
@@ -77,10 +82,40 @@ export type EtapaDef = {
  *  multiselect (array), la condición se cumple cuando el array CONTIENE alguno
  *  de los objetivos (p. ej. mostrar un campo si "Otro" está entre lo elegido). */
 export function evaluarCondicion(cond: Condicion, datos: Record<string, unknown>): boolean {
+  if ("todas" in cond) return cond.todas.every((c) => evaluarCondicion(c, datos));
+  if ("alguna" in cond) return cond.alguna.some((c) => evaluarCondicion(c, datos));
   const objetivos = Array.isArray(cond.igualA) ? cond.igualA : [cond.igualA];
   const valor = datos[cond.campo];
   if (Array.isArray(valor)) return valor.some((v) => objetivos.includes(String(v)));
   return objetivos.includes(String(valor ?? ""));
+}
+
+/** Campos que referencia una condición (hoja o compuesta), recursivamente. */
+export function camposDeCondicion(cond: Condicion): string[] {
+  if ("todas" in cond) return cond.todas.flatMap(camposDeCondicion);
+  if ("alguna" in cond) return cond.alguna.flatMap(camposDeCondicion);
+  return [cond.campo];
+}
+
+const vacioVal = (v: unknown) =>
+  v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
+
+/** ¿La condición PODRÍA volverse verdadera llenando los campos hoy vacíos? Trata
+ *  un campo vacío como comodín (podría tomar cualquier valor) y un campo lleno
+ *  como ya decidido. Sirve para distinguir "decisión pendiente" (esperar) de
+ *  "rama N/A definitiva" (saltar) en el auto-avance, también con AND/OR. */
+export function puedeSerVerdad(cond: Condicion, datos: Record<string, unknown>): boolean {
+  if ("todas" in cond) return cond.todas.every((c) => puedeSerVerdad(c, datos));
+  if ("alguna" in cond) return cond.alguna.some((c) => puedeSerVerdad(c, datos));
+  if (vacioVal(datos[cond.campo])) return true; // vacío → podría coincidir
+  return evaluarCondicion(cond, datos); // lleno → ya decidido
+}
+
+/** Una rama está "pendiente" (hay que esperar) si HOY es falsa pero PODRÍA volverse
+ *  verdadera al completar campos vacíos. Si ni siquiera con comodines puede ser
+ *  verdad, es N/A definitiva (se salta). */
+export function condicionPendiente(cond: Condicion, datos: Record<string, unknown>): boolean {
+  return !evaluarCondicion(cond, datos) && puedeSerVerdad(cond, datos);
 }
 
 /** ¿El campo es visible dado el estado actual de `datos`? */

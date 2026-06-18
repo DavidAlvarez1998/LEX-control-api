@@ -8,19 +8,23 @@ import { validate } from "../../middleware/validate";
 import {
   type CampoEsquema,
   type EtapaDef,
+  condicionPendiente,
   etapaEntrada,
   evaluarCondicion,
   validarDatosContraEsquema,
 } from "./esquema";
 import { derivarFechaLimite, sumarDiasHabiles } from "./diasHabiles";
 import {
+  addParteSchema,
   adjuntarDocumentoSchema,
   createProcesoSchema,
   documentoIdParams,
   generarDocumentoSchema,
   moverEtapaSchema,
+  parteIdParams,
   procesoIdParams,
   updateDocumentoSchema,
+  updateParteSchema,
   updateProcesoSchema,
 } from "./procesos.schemas";
 import { generarCodigoInterno } from "./procesos.service";
@@ -53,6 +57,43 @@ const detalleInclude = {
 } as const;
 
 /**
+ * Recalcula y persiste el título de un proceso LABORAL como "Tipo — demandante
+ * vs. demandado" a partir de sus partes (igual que el frontend al crear). Se
+ * llama tras agregar/editar/quitar partes para que el título siga las partes
+ * (p. ej. al sumar la contraparte). No toca procesos de otros grupos ni escribe
+ * si el título no cambia. `datos.rol` ("Demandante"/"Demandado") indica a quién
+ * representamos, para ordenar demandante-primero.
+ */
+async function recomputarTituloLaboral(empresaId: string, procesoId: string): Promise<void> {
+  const proceso = await prisma.proceso.findFirst({
+    where: { id: procesoId, empresaId },
+    select: {
+      titulo: true,
+      tituloManual: true,
+      datos: true,
+      tipoProceso: { select: { grupo: true, nombre: true } },
+      partes: { select: { esNuestroCliente: true, rol: true, litigante: { select: { nombre: true } } } },
+    },
+  });
+  // No tocar procesos de otros grupos ni los que el usuario tituló a mano.
+  if (!proceso || proceso.tipoProceso.grupo !== "LABORAL" || proceso.tituloManual) return;
+
+  const otras = proceso.partes.filter((p) => !p.esNuestroCliente);
+  const nombreCliente = proceso.partes.find((p) => p.esNuestroCliente)?.litigante.nombre.trim() ?? "";
+  const contraparte =
+    (otras.find((p) => p.rol === RolParte.DEMANDADO) ?? otras[0])?.litigante.nombre.trim() ?? "";
+  const representamosDemandado = String((proceso.datos as { rol?: unknown })?.rol ?? "") === "Demandado";
+  const demandante = representamosDemandado ? contraparte : nombreCliente;
+  const demandado = representamosDemandado ? nombreCliente : contraparte;
+  const partesTit = [demandante, demandado].filter(Boolean).join(" vs. ");
+  const titulo = [proceso.tipoProceso.nombre, partesTit].filter(Boolean).join(" — ");
+
+  if (titulo && titulo !== proceso.titulo) {
+    await prisma.proceso.update({ where: { id: procesoId }, data: { titulo } });
+  }
+}
+
+/**
  * Siguiente etapa a la que el proceso puede AVANZAR SOLO con los datos/documentos
  * actuales: la inmediata por orden, sin ambigüedad de ramas, que no sea terminal
  * ni con acción de derivar, y con todos sus campos y documentos requeridos listos.
@@ -76,7 +117,7 @@ function siguienteEtapaAuto(
     const nivel = etapas.filter((e) => e.orden === orden);
     const disponibles = nivel.filter((e) => !e.disponibleSi || evaluarCondicion(e.disponibleSi, datos));
     if (disponibles.length === 0) {
-      if (nivel.some((e) => e.disponibleSi && vacio(datos[e.disponibleSi.campo]))) return null; // pendiente → esperar
+      if (nivel.some((e) => e.disponibleSi && condicionPendiente(e.disponibleSi, datos))) return null; // pendiente → esperar
       continue; // N/A definitivo → saltar nivel
     }
     if (disponibles.length > 1) return null; // varias ramas → no auto-avanzar
@@ -99,6 +140,40 @@ function siguienteEtapaAuto(
   return null;
 }
 
+/** Salto a TERMINAL decidido (respaldo del avance conservador): si existe una etapa
+ *  terminal cuyo `disponibleSi` YA se cumple, está por delante y es la ÚNICA en esa
+ *  condición, el proceso salta directo a ella aunque falte el papeleo de las etapas
+ *  intermedias (p. ej. retiro art. 67 = SÍ archiva de una; conciliación = SÍ termina).
+ *  Respeta los requisitos PROPIOS del terminal (normalmente ninguno). Si hay dos
+ *  terminales en condición (datos contradictorios) → no salta. */
+function terminalDecidido(
+  etapas: EtapaDef[],
+  etapaActualKey: string,
+  datos: Record<string, unknown>,
+  docs: string[],
+): EtapaDef | null {
+  const vacio = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
+  const ordenActual = etapas.find((e) => e.key === etapaActualKey)?.orden ?? -1;
+  const cand = etapas.filter(
+    (e) => e.terminal && e.orden > ordenActual && e.disponibleSi && evaluarCondicion(e.disponibleSi, datos),
+  );
+  if (cand.length !== 1) return null; // ninguno o ambiguo → no salta
+  const t = cand[0];
+  const reglas = t.reglas;
+  const camposReq = [
+    ...(reglas?.camposRequeridos ?? []),
+    ...(reglas?.requeridosSi ?? []).filter((r) => evaluarCondicion(r.si, datos)).flatMap((r) => r.camposRequeridos ?? []),
+  ];
+  if ([...new Set(camposReq)].some((k) => vacio(datos[k]))) return null;
+  const docsReq = [
+    ...(reglas?.documentosRequeridos ?? []),
+    ...(reglas?.requeridosSi ?? []).filter((r) => evaluarCondicion(r.si, datos)).flatMap((r) => r.documentosRequeridos ?? []),
+  ];
+  const presentes = new Set(docs.map((d) => d.trim().toLowerCase()));
+  if ([...new Set(docsReq)].some((n) => !presentes.has(n.trim().toLowerCase()))) return null;
+  return t;
+}
+
 /** Avanza el proceso TODAS las etapas que pueda con los datos/documentos actuales
  *  (p. ej. al completar fecha+nro de radicado y la petición → pasa a "Radicación"). */
 async function autoavanzarEtapas(empresaId: string, procesoId: string, usuarioId: string): Promise<void> {
@@ -118,7 +193,10 @@ async function autoavanzarEtapas(empresaId: string, procesoId: string, usuarioId
     const etapas = p.tipoProceso?.etapas as unknown as EtapaDef[] | undefined;
     if (!Array.isArray(etapas) || etapas.length === 0) return;
     const datos = (p.datos ?? {}) as Record<string, unknown>;
-    const next = siguienteEtapaAuto(etapas, p.etapaActual, datos, (p.documentos ?? []).map((d) => d.nombre));
+    const docsNombres = (p.documentos ?? []).map((d) => d.nombre);
+    const next =
+      siguienteEtapaAuto(etapas, p.etapaActual, datos, docsNombres) ??
+      terminalDecidido(etapas, p.etapaActual, datos, docsNombres);
     if (!next) return;
     const fechaLimite = next.reglas?.plazoDesdeCampo ? derivarFechaLimite(next.reglas, datos) : undefined;
     await prisma.$transaction(async (tx) => {
@@ -303,7 +381,11 @@ procesoRoutes.post(
   "/calcular-vencimiento",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { tipoProcesoId, datos } = req.body as { tipoProcesoId?: string; datos?: Record<string, unknown> };
+    const { tipoProcesoId, datos, desdeCampo } = req.body as {
+      tipoProcesoId?: string;
+      datos?: Record<string, unknown>;
+      desdeCampo?: string; // si se indica, usa la etapa cuyo plazo corre desde ese campo
+    };
     if (!tipoProcesoId) throw new HttpError(400, "Falta tipoProcesoId");
     const empresaId = req.empresaId ?? null;
     const tipo = await prisma.tipoProceso.findUnique({
@@ -314,7 +396,9 @@ procesoRoutes.post(
       throw new HttpError(404, "Tipo de proceso no encontrado");
     }
     const etapas = tipo.etapas as unknown as EtapaDef[];
-    const conPlazo = etapas.find((e) => e.reglas?.plazoDesdeCampo);
+    const conPlazo = desdeCampo
+      ? etapas.find((e) => e.reglas?.plazoDesdeCampo === desdeCampo)
+      : etapas.find((e) => e.reglas?.plazoDesdeCampo);
     const reglas = conPlazo?.reglas;
     const datosIn = datos ?? {};
     const fechaLimite = reglas ? derivarFechaLimite(reglas, datosIn) : null;
@@ -864,7 +948,9 @@ procesoRoutes.patch(
     }
 
     const data: Prisma.ProcesoUpdateInput = {
-      ...(body.titulo !== undefined ? { titulo: body.titulo } : {}),
+      // Editar el título a mano lo marca como manual: el auto-título laboral deja
+      // de sobreescribirlo al cambiar las partes.
+      ...(body.titulo !== undefined ? { titulo: body.titulo, tituloManual: true } : {}),
       ...(body.radicado !== undefined ? { radicado: body.radicado } : {}),
       ...(body.despachoJuzgado !== undefined ? { despachoJuzgado: body.despachoJuzgado } : {}),
       ...(body.instancia !== undefined ? { instancia: body.instancia } : {}),
@@ -902,6 +988,153 @@ procesoRoutes.patch(
       include: detalleInclude,
     });
     res.json(serializeDetalle(proceso));
+  }),
+);
+
+// ===================== PARTES DEL PROCESO =====================
+// Gestión de la contraparte y otros litigantes (terceros, etc.) desde la ficha,
+// después de crear el proceso. Nuestro cliente se define al crear; aquí solo se
+// agregan/editan/quitan las demás partes (esNuestroCliente=false).
+
+/** POST /procesos/:id/partes — agrega una contraparte/tercero al proceso. */
+procesoRoutes.post(
+  "/:id/partes",
+  requireAuth,
+  requirePermiso("proceso.editar"),
+  validate({ params: procesoIdParams, body: addParteSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const proceso = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      select: { id: true },
+    });
+    if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+
+    const p = req.body as import("zod").infer<typeof addParteSchema>;
+    let litiganteId = p.litiganteId;
+    if (litiganteId) {
+      const lit = await prisma.litigante.findFirst({
+        where: { id: litiganteId, empresaId },
+        select: { id: true },
+      });
+      if (!lit) throw new HttpError(400, "El litigante no pertenece a tu despacho");
+    } else if (p.litigante) {
+      const nuevo = await prisma.litigante.create({
+        data: { ...p.litigante, ...fusionarCorreos(p.litigante), empresaId },
+      });
+      litiganteId = nuevo.id;
+    }
+
+    try {
+      await prisma.parteProceso.create({
+        data: {
+          procesoId: proceso.id,
+          litiganteId: litiganteId!,
+          rol: p.rol,
+          rolEtiqueta: p.rolEtiqueta,
+          esNuestroCliente: false,
+        },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        throw new HttpError(409, "Esa parte ya está registrada con ese rol");
+      }
+      throw e;
+    }
+
+    await recomputarTituloLaboral(empresaId, proceso.id);
+    const actualizado = await prisma.proceso.findFirst({
+      where: { id: proceso.id, empresaId },
+      include: detalleInclude,
+    });
+    res.status(201).json(serializeDetalle(actualizado));
+  }),
+);
+
+/** PATCH /procesos/:id/partes/:parteId — edita el rol/etiqueta y/o el litigante de una parte. */
+procesoRoutes.patch(
+  "/:id/partes/:parteId",
+  requireAuth,
+  requirePermiso("proceso.editar"),
+  validate({ params: parteIdParams, body: updateParteSchema }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const parte = await prisma.parteProceso.findFirst({
+      where: { id: req.params.parteId, proceso: { id: req.params.id, empresaId } },
+      select: { id: true, litiganteId: true },
+    });
+    if (!parte) throw new HttpError(404, "Parte no encontrada");
+
+    const body = req.body as import("zod").infer<typeof updateParteSchema>;
+
+    if (body.litigante) {
+      const l = body.litigante;
+      // Solo recalcular el par correos/email si el cliente tocó alguno de los dos
+      // (si no, no se sobreescribe la lista existente con [] / null).
+      const correosPatch = l.correos !== undefined || l.email !== undefined ? fusionarCorreos(l) : {};
+      await prisma.litigante.update({
+        where: { id: parte.litiganteId },
+        data: {
+          ...(l.nombre !== undefined ? { nombre: l.nombre } : {}),
+          ...(l.tipoPersona !== undefined ? { tipoPersona: l.tipoPersona } : {}),
+          ...(l.tipoDocumento !== undefined ? { tipoDocumento: l.tipoDocumento } : {}),
+          ...(l.numeroDocumento !== undefined ? { numeroDocumento: l.numeroDocumento } : {}),
+          ...(l.telefono !== undefined ? { telefono: l.telefono } : {}),
+          ...correosPatch,
+        },
+      });
+    }
+
+    if (body.rol !== undefined || body.rolEtiqueta !== undefined) {
+      try {
+        await prisma.parteProceso.update({
+          where: { id: parte.id },
+          data: {
+            ...(body.rol !== undefined ? { rol: body.rol } : {}),
+            ...(body.rolEtiqueta !== undefined ? { rolEtiqueta: body.rolEtiqueta } : {}),
+          },
+        });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new HttpError(409, "Esa parte ya está registrada con ese rol");
+        }
+        throw e;
+      }
+    }
+
+    await recomputarTituloLaboral(empresaId, req.params.id);
+    const actualizado = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      include: detalleInclude,
+    });
+    res.json(serializeDetalle(actualizado));
+  }),
+);
+
+/** DELETE /procesos/:id/partes/:parteId — quita una parte (no a nuestro cliente). */
+procesoRoutes.delete(
+  "/:id/partes/:parteId",
+  requireAuth,
+  requirePermiso("proceso.editar"),
+  validate({ params: parteIdParams }),
+  asyncHandler(async (req, res) => {
+    const empresaId = empresaIdRequerido(req);
+    const parte = await prisma.parteProceso.findFirst({
+      where: { id: req.params.parteId, proceso: { id: req.params.id, empresaId } },
+      select: { id: true, esNuestroCliente: true },
+    });
+    if (!parte) throw new HttpError(404, "Parte no encontrada");
+    if (parte.esNuestroCliente) {
+      throw new HttpError(400, "No se puede quitar a nuestro cliente del proceso");
+    }
+    await prisma.parteProceso.delete({ where: { id: parte.id } });
+
+    await recomputarTituloLaboral(empresaId, req.params.id);
+    const actualizado = await prisma.proceso.findFirst({
+      where: { id: req.params.id, empresaId },
+      include: detalleInclude,
+    });
+    res.json(serializeDetalle(actualizado));
   }),
 );
 

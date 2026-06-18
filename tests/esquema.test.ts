@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   campoEfectivamenteRequerido,
   campoVisible,
+  camposDeCondicion,
+  condicionPendiente,
   evaluarCondicion,
+  puedeSerVerdad,
   validarDatosContraEsquema,
   type CampoEsquema,
 } from "../src/modules/procesos/esquema";
@@ -29,6 +32,50 @@ describe("evaluarCondicion", () => {
     expect(evaluarCondicion({ campo: "q", igualA: "Otro" }, { q: ["Información"] })).toBe(false);
     expect(evaluarCondicion({ campo: "q", igualA: ["Queja", "Otro"] }, { q: ["Salud", "Queja"] })).toBe(true);
     expect(evaluarCondicion({ campo: "q", igualA: "Otro" }, { q: [] })).toBe(false);
+  });
+  it("AND (todas): todas las sub-condiciones se cumplen", () => {
+    const c = { todas: [{ campo: "rol", igualA: "Demandado" }, { campo: "inst", igualA: "Única" }] };
+    expect(evaluarCondicion(c, { rol: "Demandado", inst: "Única" })).toBe(true);
+    expect(evaluarCondicion(c, { rol: "Demandado", inst: "Doble" })).toBe(false);
+  });
+  it("OR (alguna): alguna sub-condición se cumple (admisión laboral)", () => {
+    const c = { alguna: [{ campo: "rol", igualA: "Demandante" }, { campo: "inst", igualA: "Doble" }] };
+    expect(evaluarCondicion(c, { rol: "Demandante", inst: "Única" })).toBe(true); // demandante
+    expect(evaluarCondicion(c, { rol: "Demandado", inst: "Doble" })).toBe(true); // doble
+    expect(evaluarCondicion(c, { rol: "Demandado", inst: "Única" })).toBe(false); // ni uno ni otro
+  });
+  it("AND/OR anida", () => {
+    const c = { todas: [{ alguna: [{ campo: "a", igualA: "1" }, { campo: "b", igualA: "1" }] }, { campo: "c", igualA: "1" }] };
+    expect(evaluarCondicion(c, { a: "1", c: "1" })).toBe(true);
+    expect(evaluarCondicion(c, { b: "1", c: "1" })).toBe(true);
+    expect(evaluarCondicion(c, { a: "1", c: "0" })).toBe(false);
+  });
+});
+
+describe("camposDeCondicion / puedeSerVerdad / condicionPendiente", () => {
+  it("camposDeCondicion recoge los campos de hojas y compuestas", () => {
+    expect(camposDeCondicion({ campo: "x", igualA: "1" })).toEqual(["x"]);
+    expect(camposDeCondicion({ alguna: [{ campo: "rol", igualA: "D" }, { campo: "inst", igualA: "Doble" }] })).toEqual(["rol", "inst"]);
+  });
+  it("puedeSerVerdad: campo vacío es comodín; lleno es decisión final", () => {
+    // decisionAuto vacío → la rama AÚN podría volverse verdad
+    expect(puedeSerVerdad({ campo: "decisionAuto", igualA: "INADMISIÓN" }, {})).toBe(true);
+    // decisionAuto lleno ≠ objetivo → ya decidido, no puede ser verdad
+    expect(puedeSerVerdad({ campo: "decisionAuto", igualA: "INADMISIÓN" }, { decisionAuto: "ADMISIÓN" })).toBe(false);
+  });
+  it("condicionPendiente: el caso demandado+única NO espera por decisionAuto", () => {
+    // subsanación del laboral: {todas:[ {alguna:[rol=Dte, inst=Doble]}, decisionAuto=INADMISIÓN ]}
+    const subsanacion = {
+      todas: [
+        { alguna: [{ campo: "rol", igualA: "Demandante" }, { campo: "tipoInstancia", igualA: "Doble instancia" }] },
+        { campo: "decisionAuto", igualA: "INADMISIÓN" },
+      ],
+    };
+    // demandado+única: el {alguna} ya es falso definitivo (rol e instancia llenos) →
+    // la rama NO está pendiente aunque decisionAuto esté vacío (no se cuelga).
+    expect(condicionPendiente(subsanacion, { rol: "Demandado", tipoInstancia: "Única instancia" })).toBe(false);
+    // demandante con decisionAuto aún sin decidir → sí está pendiente (esperar).
+    expect(condicionPendiente(subsanacion, { rol: "Demandante", tipoInstancia: "Única instancia" })).toBe(true);
   });
 });
 

@@ -316,6 +316,11 @@ model TipoProceso {
   // trámites dirigidos al propio despacho (p. ej. Derecho de Petición recibido):
   // el cliente puede quedar vacío (solo se vincula si se atiende en su nombre).
   clienteOpcional   Boolean      @default(false)
+  // ¿El formulario/flujo de este tipo ya fue curado contra su procedimiento real?
+  // false (default) → muestra el badge "No actualizado" en el portal y vive en el
+  // bucket genérico "Procesos judiciales". Se pone true al curar el tipo (en
+  // seed-tipos.json) para "graduarlo". Default derivado: los no-judiciales = true.
+  actualizado       Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -364,6 +369,9 @@ model Proceso {
   creadoPorId        String?
   responsableId      String?
   titulo             String
+  // true si el usuario editó el título a mano: el auto-título (p. ej. laboral
+  // "X vs. Y" al cambiar partes) ya no lo sobreescribe.
+  tituloManual       Boolean       @default(false)
   datos              Json
   etapaActual        String
   estado             EstadoProceso @default(ABIERTO)

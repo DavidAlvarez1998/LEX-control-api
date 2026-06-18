@@ -40,6 +40,7 @@ function serializeTipo(t: TipoConAreas) {
     esJudicial: t.esJudicial,
     clienteOpcional: t.clienteOpcional,
     grupo: t.grupo,
+    actualizado: t.actualizado,
     areaSlugs: t.areas.map((a) => a.area.slug),
   };
 }
