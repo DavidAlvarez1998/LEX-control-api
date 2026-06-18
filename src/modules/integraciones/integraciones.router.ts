@@ -1,169 +1,70 @@
+// Integraciones estatales. Router FINO: HTTP + auth/requirePermiso/validate; la
+// lógica (jurisprudencia, sync, config cifrada) vive en integraciones.service.
 import { Router } from "express";
 import { asyncHandler } from "../../middleware/async";
-import { empresaIdRequerido, requireAuth, requirePermiso } from "../../middleware/auth";
-import { HttpError } from "../../middleware/error";
+import { requireAuth, requirePermiso } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
-import { Prisma } from "@prisma/client";
-import { prisma } from "../../index";
-import { corteConstitucionalAdapter } from "./corteConstitucional.client";
-import { sincronizarActuaciones } from "./actuacionesSync.service";
-import { resolverProveedorActuaciones } from "./proveedores";
-import { cifrarCredencial } from "./crypto";
+import { tenant } from "../../shared/tenant";
 import {
-  jurisprudenciaQuerySchema,
-  procesoIdParams,
-  providerConfigBodySchema,
-  providerConfigParams,
-  sincronizarQuerySchema,
+  jurisprudenciaQuerySchema, procesoIdParams, providerConfigBodySchema,
+  providerConfigParams, sincronizarQuerySchema,
 } from "./integraciones.schemas";
+import * as integraciones from "./integraciones.service";
 
 export const integracionRoutes: Router = Router();
 
-/**
- * GET /integraciones/jurisprudencia?q=&limite= — consulta jurisprudencia de la
- * Corte Constitucional (proveedor `api`, datos.gov.co). Devuelve resultados
- * normalizados (JurisprudenciaDTO). Solo lectura; cualquier usuario autenticado.
- */
+/** GET /integraciones/jurisprudencia?q=&limite= — jurisprudencia de la Corte Constitucional. */
 integracionRoutes.get(
   "/jurisprudencia",
   requireAuth,
   validate({ query: jurisprudenciaQuerySchema }),
   asyncHandler(async (req, res) => {
     const { q, limite } = jurisprudenciaQuerySchema.parse(req.query);
-    const resultados = await corteConstitucionalAdapter.buscarJurisprudencia(q, limite);
-    res.json({ fuente: corteConstitucionalAdapter.nombre, total: resultados.length, resultados });
+    res.json(await integraciones.buscarJurisprudencia(q, limite));
   }),
 );
 
-/** Resuelve un proceso del despacho (token) o 404 (también si es de otro despacho). */
-async function procesoDelDespacho(req: import("express").Request) {
-  const empresaId = empresaIdRequerido(req);
-  const proceso = await prisma.proceso.findFirst({
-    where: { id: req.params.id, empresaId },
-    select: { id: true, empresaId: true, radicado: true },
-  });
-  if (!proceso) throw new HttpError(404, "Proceso no encontrado");
-  return proceso;
-}
-
-/**
- * POST /integraciones/procesos/:id/sincronizar?forzar= — sincroniza las
- * actuaciones del proceso desde el proveedor habilitado del despacho. On-demand:
- * dentro del TTL se sirve del caché salvo `forzar=true`. Requiere `proceso.editar`.
- */
+/** POST /integraciones/procesos/:id/sincronizar?forzar= — sincroniza actuaciones. */
 integracionRoutes.post(
   "/procesos/:id/sincronizar",
   requireAuth,
   requirePermiso("proceso.editar"),
   validate({ params: procesoIdParams, query: sincronizarQuerySchema }),
   asyncHandler(async (req, res) => {
-    const proceso = await procesoDelDespacho(req);
     const { forzar } = sincronizarQuerySchema.parse(req.query);
-
-    const proveedor = await resolverProveedorActuaciones(proceso.empresaId);
-    if (!proveedor) {
-      res.json({ proveedor: null, estado: "SIN_PROVEEDOR", itemsFetched: 0, itemsNew: 0, fromCache: false });
-      return;
-    }
-    const resumen = await sincronizarActuaciones(proceso, proveedor, { forzar });
-    res.json({ proveedor: proveedor.nombre, ...resumen });
+    res.json(await integraciones.sincronizar(tenant(req), req.params.id, !!forzar));
   }),
 );
 
-/**
- * GET /integraciones/procesos/:id/actuaciones — actuaciones ya sincronizadas del
- * proceso (servidas del caché/BD; no llama al proveedor). Requiere `proceso.ver`.
- */
+/** GET /integraciones/procesos/:id/actuaciones — actuaciones sincronizadas (caché/BD). */
 integracionRoutes.get(
   "/procesos/:id/actuaciones",
   requireAuth,
   requirePermiso("proceso.ver"),
   validate({ params: procesoIdParams }),
-  asyncHandler(async (req, res) => {
-    const proceso = await procesoDelDespacho(req);
-    const actuaciones = await prisma.actuacionJudicial.findMany({
-      where: { procesoId: proceso.id },
-      orderBy: [{ fechaActuacion: "desc" }, { createdAt: "desc" }],
-    });
-    res.json({ total: actuaciones.length, actuaciones });
-  }),
+  asyncHandler(async (req, res) => res.json(await integraciones.listActuaciones(tenant(req), req.params.id))),
 );
 
-/** GET /integraciones/procesos/:id/sync-logs — bitácora de sincronizaciones del
- *  proceso (auditoría). Requiere `proceso.ver`. */
+/** GET /integraciones/procesos/:id/sync-logs — bitácora de sincronizaciones. */
 integracionRoutes.get(
   "/procesos/:id/sync-logs",
   requireAuth,
   requirePermiso("proceso.ver"),
   validate({ params: procesoIdParams }),
-  asyncHandler(async (req, res) => {
-    const proceso = await procesoDelDespacho(req);
-    const logs = await prisma.integrationSyncLog.findMany({
-      where: { procesoId: proceso.id, empresaId: proceso.empresaId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
-    res.json(logs);
-  }),
+  asyncHandler(async (req, res) => res.json(await integraciones.listSyncLogs(tenant(req), req.params.id))),
 );
 
-/** Solo el administrador de empresa gestiona la configuración de proveedores. */
-function soloAdminEmpresa(req: import("express").Request) {
-  if (!req.esAdminEmpresa) throw new HttpError(403, "Solo el administrador de la empresa configura las integraciones");
-}
-
-/**
- * GET /integraciones/config — configuración de proveedores del despacho. NUNCA
- * devuelve la credencial; solo `tieneCredencial`. Requiere admin de empresa.
- */
+/** GET /integraciones/config — config de proveedores del despacho (sin credencial). */
 integracionRoutes.get(
   "/config",
   requireAuth,
-  asyncHandler(async (req, res) => {
-    soloAdminEmpresa(req);
-    const empresaId = empresaIdRequerido(req);
-    const configs = await prisma.providerConfig.findMany({
-      where: { empresaId },
-      orderBy: { proveedor: "asc" },
-    });
-    res.json(configs.map(({ credencialCifrada, ...rest }) => ({ ...rest, tieneCredencial: !!credencialCifrada })));
-  }),
+  asyncHandler(async (req, res) => res.json(await integraciones.listConfig(tenant(req)))),
 );
 
-/**
- * PUT /integraciones/config/:proveedor — upsert de la configuración de un
- * proveedor. La credencial se CIFRA antes de guardar (o se borra con null).
- * Requiere admin de empresa.
- */
+/** PUT /integraciones/config/:proveedor — upsert de config (credencial CIFRADA). */
 integracionRoutes.put(
   "/config/:proveedor",
   requireAuth,
   validate({ params: providerConfigParams, body: providerConfigBodySchema }),
-  asyncHandler(async (req, res) => {
-    soloAdminEmpresa(req);
-    const empresaId = empresaIdRequerido(req);
-    const { proveedor } = req.params;
-    const body = providerConfigBodySchema.parse(req.body);
-
-    // credencial: undefined = no tocar; null = borrar; string = cifrar.
-    const credencialCifrada =
-      body.credencial === undefined ? undefined : body.credencial === null ? null : cifrarCredencial(body.credencial);
-
-    const datos = {
-      ...(body.habilitado !== undefined ? { habilitado: body.habilitado } : {}),
-      ...(credencialCifrada !== undefined ? { credencialCifrada } : {}),
-      ...(body.configuracion !== undefined
-        ? { configuracion: (body.configuracion ?? Prisma.JsonNull) as Prisma.InputJsonValue }
-        : {}),
-    };
-
-    const config = await prisma.providerConfig.upsert({
-      where: { empresaId_proveedor: { empresaId, proveedor } },
-      create: { empresaId, proveedor, habilitado: body.habilitado ?? true, credencialCifrada: credencialCifrada ?? null },
-      update: datos,
-    });
-    const { credencialCifrada: _omit, ...rest } = config;
-    void _omit;
-    res.json({ ...rest, tieneCredencial: !!config.credencialCifrada });
-  }),
+  asyncHandler(async (req, res) => res.json(await integraciones.setConfig(tenant(req), req.params.proveedor, req.body))),
 );

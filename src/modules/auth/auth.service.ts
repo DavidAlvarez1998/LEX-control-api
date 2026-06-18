@@ -3,6 +3,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { Rol } from "@prisma/client";
 import { env } from "../../config/env";
+import { HttpError } from "../../middleware/error";
+import { AuthRepository } from "./auth.repository";
+import { toAuthUser } from "./auth.dto";
+import type { LoginInput, SetPasswordInput } from "./auth.schemas";
 
 const SALT_ROUNDS = 10;
 // Vida absoluta del JWT: la sesión caduca 8h después del login, sin importar la
@@ -44,4 +48,49 @@ export function hashActivationToken(raw: string): string {
 export function generateActivationToken(): { raw: string; hash: string } {
   const raw = randomBytes(32).toString("hex");
   return { raw, hash: hashActivationToken(raw) };
+}
+
+// ===================== CASOS DE USO =====================
+
+/** Verifica credenciales (con separación estricta de portales) y devuelve JWT + user. */
+export async function login(body: LoginInput) {
+  // Mensaje genérico: no revela si falló el email, la contraseña o el estado.
+  const invalidas = new HttpError(401, "Credenciales inválidas");
+  const usuario = await new AuthRepository().findByEmail(body.email);
+  if (!usuario || !usuario.activo) throw invalidas;
+  if (usuario.activationToken) throw invalidas; // pendiente: la contraseña vieja ya no sirve
+  if (usuario.empresa && !usuario.empresa.activo) throw invalidas; // empresa desactivada
+  if (!(await verifyPassword(body.password, usuario.password))) throw invalidas;
+
+  // Portal admin (audience ADMIN) admite ADMIN+COMERCIAL; portal cliente solo USUARIO.
+  if (body.audience) {
+    const rolesDelPortal = body.audience === "USUARIO" ? ["USUARIO"] : ["ADMIN", "COMERCIAL"];
+    if (!rolesDelPortal.includes(usuario.rol)) throw invalidas;
+  }
+  const token = signToken({ sub: usuario.id, rol: usuario.rol, tv: usuario.tokenVersion });
+  return { token, user: toAuthUser(usuario) };
+}
+
+/** Usuario autenticado con datos FRESCOS de BD (refresca la sesión sin re-login). */
+export async function me(userId: string) {
+  const usuario = await new AuthRepository().findById(userId);
+  if (!usuario) throw new HttpError(401, "Token inválido o expirado");
+  return toAuthUser(usuario);
+}
+
+/** Activa la cuenta con el token y define la contraseña (revoca tokens previos). */
+export async function setPassword(body: SetPasswordInput) {
+  const repo = new AuthRepository();
+  const usuario = await repo.findByActivationToken(hashActivationToken(body.token));
+  if (!usuario || !usuario.activationExpires || usuario.activationExpires < new Date()) {
+    throw new HttpError(400, "El enlace de activación es inválido o expiró");
+  }
+  await repo.activate(usuario.id, {
+    password: await hashPassword(body.password),
+    activationToken: null,
+    activationExpires: null,
+    activo: true,
+    tokenVersion: { increment: 1 },
+  });
+  return { ok: true };
 }
