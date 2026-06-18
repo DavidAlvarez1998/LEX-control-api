@@ -52,3 +52,7 @@ export const pagoFacturaSchema = z.object({
   numeroComprobante: z.string().trim().min(1).optional(),
   observaciones: z.string().trim().min(1).optional(),
 });
+
+export type CreateFacturaInput = z.infer<typeof createFacturaSchema>;
+export type UpdateFacturaInput = z.infer<typeof updateFacturaSchema>;
+export type PagoFacturaInput = z.infer<typeof pagoFacturaSchema>;
