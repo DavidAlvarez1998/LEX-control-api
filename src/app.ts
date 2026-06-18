@@ -2,6 +2,7 @@ import cors from "cors";
 import express, { type Express } from "express";
 import { env } from "./config/env";
 import { errorHandler, notFound } from "./middleware/error";
+import { requestId } from "./shared/logger";
 import { authRoutes } from "./modules/auth/auth.router";
 import { buscarRoutes } from "./modules/buscar/buscar.router";
 import { catalogRoutes } from "./modules/catalog/catalog.router";
@@ -31,6 +32,7 @@ export function createApp(): Express {
 
   app.use(cors({ origin: env.corsOrigins, credentials: true }));
   app.use(express.json());
+  app.use(requestId);
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });

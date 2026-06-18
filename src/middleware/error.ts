@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { isProd } from "../config/env";
+import { mapPrismaError } from "../shared/errors";
+import { logger } from "../shared/logger";
 
 /** Error with an HTTP status. Handlers throw these; the error middleware maps them to JSON. */
 export class HttpError extends Error {
@@ -22,22 +24,29 @@ export function notFound(_req: Request, res: Response): void {
 /** Central error handler — produces the uniform { error: { message, issues? } } shape. */
 export function errorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
-  if (err instanceof HttpError) {
-    res.status(err.status).json({
+  // Permite mapear errores conocidos de Prisma (P2002/P2025/P2003) que lleguen sin
+  // manejar; el manejo explícito de un router ya viaja como HttpError y tiene prioridad.
+  const mapped = err instanceof HttpError ? err : mapPrismaError(err);
+
+  if (mapped instanceof HttpError) {
+    res.status(mapped.status).json({
       error: {
-        message: err.message,
-        ...(err.issues !== undefined ? { issues: err.issues } : {}),
+        message: mapped.message,
+        ...(mapped.issues !== undefined ? { issues: mapped.issues } : {}),
       },
     });
     return;
   }
 
-  if (!isProd) {
-    console.error(err);
-  }
+  logger.error("unhandled_error", {
+    reqId: req.id,
+    method: req.method,
+    path: req.path,
+    err: !isProd ? err : undefined,
+  });
   res.status(500).json({ error: { message: "Internal Server Error" } });
 }
