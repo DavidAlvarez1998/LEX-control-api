@@ -1,7 +1,7 @@
 // Lógica reutilizable de Cliente, extraída del router para que la consuman el
 // embudo comercial (fase FIRMADO) y el puente de asignación de procesos.
 // Ver openspec/changes/comercial-funnel/ (fix F3: antes estaba inline en /convertir).
-import { Prisma } from "@prisma/client";
+import { Prisma, type TipoDocumento } from "@prisma/client";
 import { fusionarCorreos } from "../../correos";
 import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
@@ -50,14 +50,14 @@ export async function findOrCreateLitiganteByDoc(
       where: {
         empresaId_tipoDocumento_numeroDocumento: {
           empresaId: cliente.empresaId,
-          tipoDocumento: cliente.tipoDocumento as never,
+          tipoDocumento: cliente.tipoDocumento as TipoDocumento,
           numeroDocumento: cliente.numeroDocumento,
         },
       },
       update: {},
       create: {
         ...base,
-        tipoDocumento: cliente.tipoDocumento as never,
+        tipoDocumento: cliente.tipoDocumento as TipoDocumento,
         numeroDocumento: cliente.numeroDocumento,
       },
     });

@@ -1,7 +1,7 @@
 // Casos de uso de Ventas (CRM de plataforma: prospectos + comisiones). Datos sin
 // tenancy por empresa; el alcance es por COMERCIAL (un COMERCIAL solo ve lo suyo,
 // el ADMIN ve todo). Sin Express; recibe TenantContext (rol + userId).
-import { Prisma, Rol } from "@prisma/client";
+import { Prisma, Rol, type CanalEntrada, type EstadoComision, type EstadoProspecto } from "@prisma/client";
 import type { z } from "zod";
 import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
@@ -44,8 +44,8 @@ async function cargarSeguimiento(t: TenantContext, r: VentasRepository, id: stri
 export function listProspectos(t: TenantContext, f: { estado?: string; canal?: string; comercialId?: string }) {
   return repo().listProspectos({
     ...scope(t),
-    ...(f.estado ? { estado: f.estado as never } : {}),
-    ...(f.canal ? { canalEntrada: f.canal as never } : {}),
+    ...(f.estado ? { estado: f.estado as EstadoProspecto } : {}),
+    ...(f.canal ? { canalEntrada: f.canal as CanalEntrada } : {}),
     ...(!esComercial(t) && f.comercialId ? { comercialId: f.comercialId } : {}),
   });
 }
@@ -219,7 +219,7 @@ export async function equipoComercial() {
 export function listComisiones(t: TenantContext, f: { estado?: string; comercialId?: string }) {
   return repo().listComisiones({
     ...scope(t),
-    ...(f.estado ? { estado: f.estado as never } : {}),
+    ...(f.estado ? { estado: f.estado as EstadoComision } : {}),
     ...(!esComercial(t) && f.comercialId ? { comercialId: f.comercialId } : {}),
   });
 }

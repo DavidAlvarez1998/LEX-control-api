@@ -1,7 +1,7 @@
 // Servicio del módulo Procesos: casos de uso + orquestación (transacciones, motor
 // de etapas, auto-título). El motor decisorio es PURO (maquina-etapas.ts), el acceso
 // a datos vive en procesos.repository, la forma de salida en procesos.dto. Sin Express.
-import { Prisma, RolEmpresa, RolParte } from "@prisma/client";
+import { Prisma, RolEmpresa, RolParte, type EstadoProceso } from "@prisma/client";
 import type { z } from "zod";
 import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
@@ -56,7 +56,7 @@ export async function listProcesos(t: TenantContext, query: Record<string, unkno
   const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 20));
   const q = typeof query.q === "string" ? query.q.trim() : "";
   const where: Prisma.ProcesoWhereInput = {
-    ...(query.estado ? { estado: query.estado as never } : {}),
+    ...(query.estado ? { estado: query.estado as EstadoProceso } : {}),
     ...(query.responsableId ? { responsableId: String(query.responsableId) } : {}),
     ...(query.radicado ? { radicado: String(query.radicado) } : {}),
     ...(query.area ? { tipoProceso: { areas: { some: { area: { slug: String(query.area) } } } } } : {}),
