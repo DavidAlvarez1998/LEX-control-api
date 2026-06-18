@@ -1,100 +1,35 @@
-// Módulo CRM: clientes/prospectos del despacho. Scoped por empresa (empresaId
-// SIEMPRE del token). Protegido por requirePermiso("cliente.*") — puerta de
-// módulo (comercial contratado) + RBAC. Ver
-// openspec/changes/foundations-roles-plans-clientes/.
+// Módulo CRM: clientes/prospectos del despacho. Router FINO — solo HTTP: auth/RBAC,
+// validación, llamar al service y mapear con el DTO. La lógica vive en
+// clientes.service y el acceso a datos en clientes.repository (empresaId forzado).
+// Ver openspec/changes/api-arquitectura-refactor (Fase 1, piloto).
 import { Router } from "express";
-import { prisma } from "../../index";
 import { asyncHandler } from "../../middleware/async";
-import { empresaIdRequerido, requireAuth, requirePermiso } from "../../middleware/auth";
-import { HttpError } from "../../middleware/error";
+import { requireAuth, requirePermiso } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
+import { tenant } from "../../shared/tenant";
 import {
   clienteIdParams,
   createClienteSchema,
   updateClienteSchema,
 } from "./clientes.schemas";
-import { convertirCliente } from "./clientes.service";
-import { fusionarCorreos } from "../../correos";
+import * as clientes from "./clientes.service";
+import { toClienteDTO } from "./clientes.dto";
 
 export const clienteRoutes: Router = Router();
 
 /**
- * Valida que las FK salientes de un Cliente apunten a la MISMA empresa (B3): no
- * hay constraint en BD que lo impida, así que se exige en la app. El
- * `necesidadTipoProcesoId` puede ser un tipo global (empresaId null) o del propio
- * despacho.
- */
-async function assertSameEmpresa(
-  empresaId: string,
-  data: {
-    responsableComercialId?: string | null;
-    necesidadTipoProcesoId?: string | null;
-    litiganteId?: string | null;
-  },
-) {
-  if (data.responsableComercialId) {
-    const u = await prisma.usuario.findUnique({
-      where: { id: data.responsableComercialId },
-      select: { empresaId: true },
-    });
-    if (!u || u.empresaId !== empresaId) {
-      throw new HttpError(400, "El responsable comercial no pertenece a tu empresa");
-    }
-  }
-  if (data.litiganteId) {
-    const l = await prisma.litigante.findUnique({
-      where: { id: data.litiganteId },
-      select: { empresaId: true },
-    });
-    if (!l || l.empresaId !== empresaId) {
-      throw new HttpError(400, "El litigante no pertenece a tu empresa");
-    }
-  }
-  if (data.necesidadTipoProcesoId) {
-    const t = await prisma.tipoProceso.findUnique({
-      where: { id: data.necesidadTipoProcesoId },
-      select: { empresaId: true },
-    });
-    // Global (null) o de la propia empresa.
-    if (!t || (t.empresaId !== null && t.empresaId !== empresaId)) {
-      throw new HttpError(400, "El tipo de proceso no es válido para tu empresa");
-    }
-  }
-}
-
-/**
- * GET /clientes — lista del despacho.
- * Filtros opcionales: `?estado=`. Con `?mios=true` solo los del usuario actual:
- * los que lleva comercialmente (responsableComercial) o de los que es abogado
- * responsable en algún proceso — la unión, no un muro de visibilidad.
+ * GET /clientes — lista del despacho. Filtros: `?estado=`, `?mios=true`
+ * (los que el usuario lleva comercialmente o como abogado responsable).
  */
 clienteRoutes.get(
   "/",
   requireAuth,
   requirePermiso("cliente.ver"),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    const estado =
-      typeof req.query.estado === "string" ? req.query.estado : undefined;
+    const estado = typeof req.query.estado === "string" ? req.query.estado : undefined;
     const mios = req.query.mios === "true";
-    const usuarioId = req.user!.sub;
-    const clientes = await prisma.cliente.findMany({
-      where: {
-        empresaId,
-        ...(estado ? { estado: estado as never } : {}),
-        ...(mios
-          ? {
-              OR: [
-                { responsableComercialId: usuarioId },
-                { procesos: { some: { responsableId: usuarioId } } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: { fechaIngreso: "desc" },
-      include: { responsableComercial: { select: { id: true, nombre: true } } },
-    });
-    res.json(clientes);
+    const lista = await clientes.listClientes(tenant(req), { estado, mios });
+    res.json(lista.map(toClienteDTO));
   }),
 );
 
@@ -105,95 +40,43 @@ clienteRoutes.get(
   requirePermiso("cliente.ver"),
   validate({ params: clienteIdParams }),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    const cliente = await prisma.cliente.findFirst({
-      where: { id: req.params.id, empresaId },
-      include: { responsableComercial: { select: { id: true, nombre: true } } },
-    });
-    if (!cliente) throw new HttpError(404, "Cliente no encontrado");
-    res.json(cliente);
+    const cliente = await clientes.getCliente(tenant(req), req.params.id);
+    res.json(toClienteDTO(cliente));
   }),
 );
 
-/** POST /clientes — crea un prospecto. empresaId del token; FK validadas. */
+/** POST /clientes — crea un prospecto. */
 clienteRoutes.post(
   "/",
   requireAuth,
   requirePermiso("cliente.crear"),
   validate({ body: createClienteSchema }),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    await assertSameEmpresa(empresaId, req.body);
-    // `correos` (lista) es la fuente; `email` queda como espejo del principal.
-    const { correos, email } = fusionarCorreos(req.body);
-    const cliente = await prisma.cliente.create({
-      // El responsable por defecto es quien lo crea (queda "dueño" para atribución
-      // y para el filtro "Míos"); el admin puede asignar otro vía el body.
-      data: {
-        ...req.body,
-        correos,
-        email,
-        empresaId, // estado=PROSPECTO por default del schema
-        responsableComercialId: req.body.responsableComercialId ?? req.user!.sub,
-      },
-    });
-    res.status(201).json(cliente);
+    const cliente = await clientes.createCliente(tenant(req), req.body);
+    res.status(201).json(toClienteDTO(cliente));
   }),
 );
 
-/** PATCH /clientes/:id — edita un cliente del despacho (no convierte a CLIENTE). */
+/** PATCH /clientes/:id — edita un cliente (no convierte a CLIENTE). */
 clienteRoutes.patch(
   "/:id",
   requireAuth,
   requirePermiso("cliente.editar"),
   validate({ params: clienteIdParams, body: updateClienteSchema }),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    const actual = await prisma.cliente.findFirst({
-      where: { id: req.params.id, empresaId },
-      select: { id: true },
-    });
-    if (!actual) throw new HttpError(404, "Cliente no encontrado");
-    await assertSameEmpresa(empresaId, req.body);
-    // Solo re-derivar el espejo correos↔email si el body trae alguno de los dos
-    // (en un PATCH parcial que no los toca, se dejan intactos).
-    const data: Record<string, unknown> = { ...req.body };
-    if (req.body.correos !== undefined || req.body.email !== undefined) {
-      const { correos, email } = fusionarCorreos(req.body);
-      data.correos = correos;
-      data.email = email;
-    }
-    const cliente = await prisma.cliente.update({
-      where: { id: actual.id },
-      data,
-    });
-    res.json(cliente);
+    const cliente = await clientes.updateCliente(tenant(req), req.params.id, req.body);
+    res.json(toClienteDTO(cliente));
   }),
 );
 
-/**
- * POST /clientes/:id/convertir — PROSPECTO → CLIENTE. Vincula (find-or-create)
- * un Litigante por (empresaId, tipoDocumento, numeroDocumento); si el cliente no
- * tiene documento, crea un Litigante nuevo. Estampa `convertidoEn`.
- */
+/** POST /clientes/:id/convertir — PROSPECTO → CLIENTE (vincula Litigante). */
 clienteRoutes.post(
   "/:id/convertir",
   requireAuth,
   requirePermiso("cliente.convertir"),
   validate({ params: clienteIdParams }),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    const cliente = await prisma.cliente.findFirst({
-      where: { id: req.params.id, empresaId },
-    });
-    if (!cliente) throw new HttpError(404, "Cliente no encontrado");
-
-    // Lógica compartida (find-or-create Litigante + estado=CLIENTE), también
-    // usada por la fase FIRMADO y el puente de asignación de procesos.
-    const actualizado = await prisma.$transaction(async (tx) => {
-      await convertirCliente(tx, cliente);
-      return tx.cliente.findUnique({ where: { id: cliente.id } });
-    });
-    res.json(actualizado);
+    const cliente = await clientes.convertirClienteUseCase(tenant(req), req.params.id);
+    res.json(toClienteDTO(cliente));
   }),
 );
