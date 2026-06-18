@@ -13,3 +13,6 @@ export const createLitiganteSchema = z.object({
 export const updateLitiganteSchema = createLitiganteSchema.partial();
 
 export const litiganteIdParams = z.object({ id: z.string().min(1) });
+
+export type CreateLitiganteInput = z.infer<typeof createLitiganteSchema>;
+export type UpdateLitiganteInput = z.infer<typeof updateLitiganteSchema>;

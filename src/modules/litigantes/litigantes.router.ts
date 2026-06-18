@@ -1,15 +1,17 @@
+// Litigantes (personas en procesos). Router FINO: HTTP + auth/validate; la lógica
+// vive en litigantes.service y el Prisma en litigantes.repository (empresaId forzado).
 import { Router } from "express";
-import { Prisma } from "@prisma/client";
-import { prisma } from "../../index";
 import { asyncHandler } from "../../middleware/async";
-import { empresaIdRequerido, requireAuth } from "../../middleware/auth";
-import { HttpError } from "../../middleware/error";
+import { requireAuth } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
+import { tenant } from "../../shared/tenant";
 import {
   createLitiganteSchema,
   litiganteIdParams,
   updateLitiganteSchema,
 } from "./litigantes.schemas";
+import * as litigantes from "./litigantes.service";
+import { toLitiganteDTO } from "./litigantes.dto";
 
 export const litiganteRoutes: Router = Router();
 
@@ -18,16 +20,9 @@ litiganteRoutes.get(
   "/",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
     const q = req.query.q ? String(req.query.q) : undefined;
-    const litigantes = await prisma.litigante.findMany({
-      where: {
-        empresaId,
-        ...(q ? { nombre: { contains: q } } : {}),
-      },
-      orderBy: { nombre: "asc" },
-    });
-    res.json(litigantes);
+    const lista = await litigantes.listLitigantes(tenant(req), q);
+    res.json(lista.map(toLitiganteDTO));
   }),
 );
 
@@ -37,13 +32,8 @@ litiganteRoutes.get(
   requireAuth,
   validate({ params: litiganteIdParams }),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    const litigante = await prisma.litigante.findFirst({
-      where: { id: req.params.id, empresaId },
-      include: { partes: { include: { proceso: { select: { id: true, titulo: true, codigoInterno: true } } } } },
-    });
-    if (!litigante) throw new HttpError(404, "Litigante no encontrado");
-    res.json(litigante);
+    const litigante = await litigantes.getLitigante(tenant(req), req.params.id);
+    res.json(toLitiganteDTO(litigante));
   }),
 );
 
@@ -53,11 +43,8 @@ litiganteRoutes.post(
   requireAuth,
   validate({ body: createLitiganteSchema }),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    const litigante = await prisma.litigante.create({
-      data: { ...req.body, empresaId },
-    });
-    res.status(201).json(litigante);
+    const litigante = await litigantes.createLitigante(tenant(req), req.body);
+    res.status(201).json(toLitiganteDTO(litigante));
   }),
 );
 
@@ -67,14 +54,8 @@ litiganteRoutes.patch(
   requireAuth,
   validate({ params: litiganteIdParams, body: updateLitiganteSchema }),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    const { count } = await prisma.litigante.updateMany({
-      where: { id: req.params.id, empresaId },
-      data: req.body,
-    });
-    if (count === 0) throw new HttpError(404, "Litigante no encontrado");
-    const litigante = await prisma.litigante.findUnique({ where: { id: req.params.id } });
-    res.json(litigante);
+    const litigante = await litigantes.updateLitigante(tenant(req), req.params.id, req.body);
+    res.json(toLitiganteDTO(litigante));
   }),
 );
 
@@ -84,23 +65,7 @@ litiganteRoutes.delete(
   requireAuth,
   validate({ params: litiganteIdParams }),
   asyncHandler(async (req, res) => {
-    const empresaId = empresaIdRequerido(req);
-    const litigante = await prisma.litigante.findFirst({
-      where: { id: req.params.id, empresaId },
-      select: { id: true },
-    });
-    if (!litigante) throw new HttpError(404, "Litigante no encontrado");
-    try {
-      await prisma.litigante.delete({ where: { id: litigante.id } });
-      res.status(204).end();
-    } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        (err.code === "P2003" || err.code === "P2014")
-      ) {
-        throw new HttpError(409, "No se puede eliminar: el litigante está vinculado a un proceso");
-      }
-      throw err;
-    }
+    await litigantes.deleteLitigante(tenant(req), req.params.id);
+    res.status(204).end();
   }),
 );
