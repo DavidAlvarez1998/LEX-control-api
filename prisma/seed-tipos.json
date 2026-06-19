@@ -1049,7 +1049,7 @@
       },
       {
         "key": "contestada",
-        "label": "¿Se contestó la tutela?",
+        "label": "¿Se respondió la tutela?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
@@ -1059,7 +1059,7 @@
       },
       {
         "key": "fechaContestacion",
-        "label": "Fecha de la contestación",
+        "label": "Fecha de la respuesta",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
