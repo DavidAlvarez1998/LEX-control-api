@@ -65,6 +65,7 @@ export async function listProcesos(t: TenantContext, query: Record<string, unkno
   const where: Prisma.ProcesoWhereInput = {
     ...(query.estado ? { estado: query.estado as EstadoProceso } : {}),
     ...(query.responsableId ? { responsableId: String(query.responsableId) } : {}),
+    ...(query.clienteId ? { clienteId: String(query.clienteId) } : {}),
     ...(query.radicado ? { radicado: String(query.radicado) } : {}),
     ...(query.area ? { tipoProceso: { areas: { some: { area: { slug: String(query.area) } } } } } : {}),
     ...(query.litiganteId ? { partes: { some: { litiganteId: String(query.litiganteId) } } } : {}),
