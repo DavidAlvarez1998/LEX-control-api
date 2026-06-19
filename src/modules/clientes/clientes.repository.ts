@@ -4,6 +4,7 @@
 // una transacción del servicio.
 import { Prisma, type EstadoCliente } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
+import type { PageParams } from "../../shared/pagination";
 
 type ListOpts = { estado?: string; mios?: boolean; usuarioId: string };
 
@@ -17,24 +18,37 @@ export class ClientesRepository {
     private readonly db: PrismaLike = prisma,
   ) {}
 
+  private whereList({ estado, mios, usuarioId }: ListOpts): Prisma.ClienteWhereInput {
+    return {
+      empresaId: this.empresaId,
+      ...(estado ? { estado: estado as EstadoCliente } : {}),
+      ...(mios
+        ? {
+            OR: [
+              { responsableComercialId: usuarioId },
+              { procesos: { some: { responsableId: usuarioId } } },
+            ],
+          }
+        : {}),
+    };
+  }
+
   /** Lista del despacho (orden por ingreso). `mios` = unión responsable comercial ∪ abogado de algún proceso. */
-  list({ estado, mios, usuarioId }: ListOpts) {
+  list(opts: ListOpts) {
     return this.db.cliente.findMany({
-      where: {
-        empresaId: this.empresaId,
-        ...(estado ? { estado: estado as EstadoCliente } : {}),
-        ...(mios
-          ? {
-              OR: [
-                { responsableComercialId: usuarioId },
-                { procesos: { some: { responsableId: usuarioId } } },
-              ],
-            }
-          : {}),
-      },
+      where: this.whereList(opts),
       orderBy: { fechaIngreso: "desc" },
       include: conResponsable,
     });
+  }
+
+  /** Variante paginada: total + página (mismo filtro/orden que `list`). */
+  listPaginated(opts: ListOpts, p: PageParams) {
+    const where = this.whereList(opts);
+    return Promise.all([
+      this.db.cliente.count({ where }),
+      this.db.cliente.findMany({ where, orderBy: { fechaIngreso: "desc" }, include: conResponsable, skip: p.skip, take: p.take }),
+    ]);
   }
 
   /** Un cliente del despacho (con responsable comercial), o null. */

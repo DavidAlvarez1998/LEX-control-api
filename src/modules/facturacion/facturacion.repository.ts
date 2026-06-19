@@ -72,6 +72,11 @@ export class FacturasRepository {
   listPagos(facturaId: string) {
     return this.db.ingreso.findMany({ where: { empresaId: this.empresaId, facturaId }, orderBy: { fechaIngreso: "desc" } });
   }
+  /** Idempotencia: un mismo comprobante por factura representa el MISMO pago.
+   *  Si ya existe, `registrarPago` lo devuelve en vez de duplicar el Ingreso. */
+  findIngresoPorComprobante(facturaId: string, numeroComprobante: string) {
+    return this.db.ingreso.findFirst({ where: { empresaId: this.empresaId, facturaId, numeroComprobante } });
+  }
 
   create(data: Prisma.FacturaUncheckedCreateInput) {
     return this.db.factura.create({ data, include: itemsAsc });

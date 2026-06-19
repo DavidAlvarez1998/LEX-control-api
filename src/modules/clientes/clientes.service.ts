@@ -6,6 +6,7 @@ import { fusionarCorreos } from "../../correos";
 import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
+import { paginated, type PageParams } from "../../shared/pagination";
 import { ClientesRepository } from "./clientes.repository";
 import type { CreateClienteInput, UpdateClienteInput } from "./clientes.schemas";
 
@@ -108,9 +109,13 @@ async function assertSameEmpresa(
   }
 }
 
-export async function listClientes(t: TenantContext, filtros: { estado?: string; mios?: boolean }) {
+export async function listClientes(t: TenantContext, filtros: { estado?: string; mios?: boolean; page?: PageParams | null }) {
   const repo = new ClientesRepository(empresaIdOrThrow(t));
-  return repo.list({ estado: filtros.estado, mios: filtros.mios, usuarioId: t.userId });
+  const opts = { estado: filtros.estado, mios: filtros.mios, usuarioId: t.userId };
+  // Paginación OPT-IN: sin ?page/?pageSize → lista completa (retrocompatible).
+  if (!filtros.page) return repo.list(opts);
+  const [total, items] = await repo.listPaginated(opts, filtros.page);
+  return paginated(items, total, filtros.page);
 }
 
 export async function getCliente(t: TenantContext, id: string) {

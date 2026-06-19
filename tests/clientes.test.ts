@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../src/index", () => {
   const prisma: any = {
     usuario: { findUnique: vi.fn() },
-    cliente: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    cliente: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
     litigante: { findUnique: vi.fn(), upsert: vi.fn(), create: vi.fn() },
     tipoProceso: { findUnique: vi.fn() },
     permiso: { findUnique: vi.fn() },
@@ -82,6 +82,18 @@ describe("GET /clientes", () => {
     expect(res.body).toHaveLength(1);
     expect(p.cliente.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ empresaId: "eA" }) }),
+    );
+  });
+
+  it("con ?page devuelve el sobre paginado { items, total, page, pageSize } (opt-in)", async () => {
+    p.cliente.count.mockResolvedValue(42);
+    p.cliente.findMany.mockResolvedValue([{ id: "c1", nombre: "Juan", estado: "PROSPECTO" }]);
+    const res = await request(app).get("/clientes?page=2&pageSize=10").set(auth(clienteToken));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ total: 42, page: 2, pageSize: 10 });
+    expect(res.body.items).toHaveLength(1);
+    expect(p.cliente.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 10, take: 10 }),
     );
   });
 });

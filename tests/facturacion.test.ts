@@ -13,7 +13,7 @@ vi.mock("../src/index", () => {
       findUniqueOrThrow: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
     },
     facturaItem: { deleteMany: vi.fn() },
-    ingreso: { aggregate: vi.fn(), create: vi.fn() },
+    ingreso: { aggregate: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
     permiso: { findUnique: vi.fn() },
     modulo: { findMany: vi.fn() },
     suscripcion: { findUnique: vi.fn() },
@@ -194,6 +194,17 @@ describe("pagos (= Ingreso vinculado)", () => {
     const res = await request(app).post("/facturacion/facturas/f1/pagos").set(auth(token))
       .send({ valorRecibido: 100, metodoPago: "EFECTIVO" });
     expect(res.status).toBe(409);
+  });
+
+  it("idempotente: reintento con el mismo numeroComprobante no duplica el Ingreso", async () => {
+    p.factura.findFirst.mockResolvedValue(emitida);
+    p.ingreso.findFirst.mockResolvedValue({ id: "iya", numeroComprobante: "REC-001" }); // ya existe
+    p.ingreso.aggregate.mockResolvedValue({ _sum: { valorRecibido: 400000 } });
+    p.factura.findUniqueOrThrow.mockResolvedValue({ ...emitida, items: [] });
+    const res = await request(app).post("/facturacion/facturas/f1/pagos").set(auth(token))
+      .send({ valorRecibido: 400000, metodoPago: "TRANSFERENCIA", numeroComprobante: "REC-001" });
+    expect(res.status).toBe(201);
+    expect(p.ingreso.create).not.toHaveBeenCalled(); // no se duplica
   });
 });
 

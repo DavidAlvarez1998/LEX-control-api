@@ -347,8 +347,8 @@ async function autoavanzarEtapas(empresaId: string, procesoId: string, usuarioId
 
 /** Recalcula el título de LITIGIO "demandante vs. demandado" tras cambiar partes (salvo título
  *  manual). Aplica al laboral y a los verbales civiles (CGP): litigio entre dos partes. */
-async function recomputarTituloLaboral(empresaId: string, procesoId: string): Promise<void> {
-  const r = new ProcesosRepository(empresaId);
+async function recomputarTituloLaboral(empresaId: string, procesoId: string, tx?: Prisma.TransactionClient): Promise<void> {
+  const r = new ProcesosRepository(empresaId, tx);
   const proceso = await r.findParaRecompute(procesoId);
   if (!proceso || proceso.tituloManual) return;
   const esLitigioVs =
@@ -376,12 +376,15 @@ export async function agregarParte(t: TenantContext, procesoId: string, p: In<ty
     litiganteId = (await r.createLitigante({ ...p.litigante, ...fusionarCorreos(p.litigante) })).id;
   }
   try {
-    await r.createParte({ procesoId, litiganteId: litiganteId!, rol: p.rol, rolEtiqueta: p.rolEtiqueta, esNuestroCliente: false });
+    // alta de parte + recálculo del título en una sola transacción (consistencia)
+    await prisma.$transaction(async (tx) => {
+      await new ProcesosRepository(empresaId, tx).createParte({ procesoId, litiganteId: litiganteId!, rol: p.rol, rolEtiqueta: p.rolEtiqueta, esNuestroCliente: false });
+      await recomputarTituloLaboral(empresaId, procesoId, tx);
+    });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new HttpError(409, "Esa parte ya está registrada con ese rol");
     throw err;
   }
-  await recomputarTituloLaboral(empresaId, procesoId);
   return serializeDetalle(await r.findDetalle(procesoId));
 }
 
@@ -390,27 +393,31 @@ export async function editarParte(t: TenantContext, procesoId: string, parteId: 
   const r = repo(t);
   const parte = await r.findParte(parteId, procesoId);
   if (!parte) throw new HttpError(404, "Parte no encontrada");
-  if (body.litigante) {
-    const l = body.litigante;
-    const correosPatch = l.correos !== undefined || l.email !== undefined ? fusionarCorreos(l) : {};
-    await r.updateLitigante(parte.litiganteId, {
-      ...(l.nombre !== undefined ? { nombre: l.nombre } : {}),
-      ...(l.tipoPersona !== undefined ? { tipoPersona: l.tipoPersona } : {}),
-      ...(l.tipoDocumento !== undefined ? { tipoDocumento: l.tipoDocumento } : {}),
-      ...(l.numeroDocumento !== undefined ? { numeroDocumento: l.numeroDocumento } : {}),
-      ...(l.telefono !== undefined ? { telefono: l.telefono } : {}),
-      ...correosPatch,
+  const l = body.litigante;
+  const correosPatch = l && (l.correos !== undefined || l.email !== undefined) ? fusionarCorreos(l) : {};
+  try {
+    // edición de litigante/rol + recálculo del título en una sola transacción
+    await prisma.$transaction(async (tx) => {
+      const rt = new ProcesosRepository(empresaId, tx);
+      if (l) {
+        await rt.updateLitigante(parte.litiganteId, {
+          ...(l.nombre !== undefined ? { nombre: l.nombre } : {}),
+          ...(l.tipoPersona !== undefined ? { tipoPersona: l.tipoPersona } : {}),
+          ...(l.tipoDocumento !== undefined ? { tipoDocumento: l.tipoDocumento } : {}),
+          ...(l.numeroDocumento !== undefined ? { numeroDocumento: l.numeroDocumento } : {}),
+          ...(l.telefono !== undefined ? { telefono: l.telefono } : {}),
+          ...correosPatch,
+        });
+      }
+      if (body.rol !== undefined || body.rolEtiqueta !== undefined) {
+        await rt.updateParte(parte.id, { ...(body.rol !== undefined ? { rol: body.rol } : {}), ...(body.rolEtiqueta !== undefined ? { rolEtiqueta: body.rolEtiqueta } : {}) });
+      }
+      await recomputarTituloLaboral(empresaId, procesoId, tx);
     });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new HttpError(409, "Esa parte ya está registrada con ese rol");
+    throw err;
   }
-  if (body.rol !== undefined || body.rolEtiqueta !== undefined) {
-    try {
-      await r.updateParte(parte.id, { ...(body.rol !== undefined ? { rol: body.rol } : {}), ...(body.rolEtiqueta !== undefined ? { rolEtiqueta: body.rolEtiqueta } : {}) });
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new HttpError(409, "Esa parte ya está registrada con ese rol");
-      throw err;
-    }
-  }
-  await recomputarTituloLaboral(empresaId, procesoId);
   return serializeDetalle(await r.findDetalle(procesoId));
 }
 
@@ -420,8 +427,11 @@ export async function eliminarParte(t: TenantContext, procesoId: string, parteId
   const parte = await r.findParteParaBorrar(parteId, procesoId);
   if (!parte) throw new HttpError(404, "Parte no encontrada");
   if (parte.esNuestroCliente) throw new HttpError(400, "No se puede quitar a nuestro cliente del proceso");
-  await r.deleteParte(parte.id);
-  await recomputarTituloLaboral(empresaId, procesoId);
+  await prisma.$transaction(async (tx) => {
+    const rt = new ProcesosRepository(empresaId, tx);
+    await rt.deleteParte(parte.id);
+    await recomputarTituloLaboral(empresaId, procesoId, tx);
+  });
   return serializeDetalle(await r.findDetalle(procesoId));
 }
 

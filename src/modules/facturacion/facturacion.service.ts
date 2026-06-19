@@ -144,29 +144,40 @@ export async function anularFactura(t: TenantContext, id: string, motivo: string
 
 export async function registrarPago(t: TenantContext, id: string, b: PagoFacturaInput) {
   const empresaId = empresaIdOrThrow(t);
-  const repo = new FacturasRepository(empresaId);
-  const factura = await repo.findPlain(id);
-  if (!factura) throw new HttpError(404, "Factura no encontrada");
-  if (factura.estado !== "EMITIDA") throw new HttpError(409, "Solo se puede pagar una factura emitida");
-  if (b.cuentaId) await assertCuenta(repo, b.cuentaId);
+  // Read-check-write (estado + saldo + creación del Ingreso) en una sola transacción
+  // para que dos pagos concurrentes no puedan exceder el saldo entre la lectura y la
+  // escritura. La idempotencia por `numeroComprobante` corta reintentos/doble-submit:
+  // el mismo comprobante por factura es el MISMO pago, no uno nuevo.
+  await prisma.$transaction(async (tx) => {
+    const r = new FacturasRepository(empresaId, tx);
+    const factura = await r.findPlain(id);
+    if (!factura) throw new HttpError(404, "Factura no encontrada");
+    if (factura.estado !== "EMITIDA") throw new HttpError(409, "Solo se puede pagar una factura emitida");
+    if (b.cuentaId) await assertCuenta(r, b.cuentaId);
 
-  const pagado = await repo.pagadoSum(factura.id);
-  const saldo = n(factura.total) - pagado;
-  if (b.valorRecibido - saldo > EPS) {
-    throw new HttpError(400, `El pago (${b.valorRecibido}) excede el saldo pendiente (${saldo})`);
-  }
+    if (b.numeroComprobante && (await r.findIngresoPorComprobante(factura.id, b.numeroComprobante))) {
+      return; // pago ya registrado con ese comprobante → no-op idempotente
+    }
 
-  await repo.createIngreso({
-    empresaId, clienteId: factura.clienteId, facturaId: factura.id,
-    contratoId: factura.contratoId, configuracionCobroId: factura.configuracionCobroId,
-    procesoId: factura.procesoId, radicado: factura.radicado,
-    conceptoPago: `Pago factura ${factura.numero ?? factura.id}`,
-    tipoCobro: b.tipoCobro ?? "ABONO",
-    valorRecibido: b.valorRecibido, metodoPago: b.metodoPago,
-    fechaIngreso: b.fechaIngreso, cuentaId: b.cuentaId,
-    numeroComprobante: b.numeroComprobante, observaciones: b.observaciones,
-    estadoPago: "PAGADO", registradoPorId: t.userId,
+    const pagado = await r.pagadoSum(factura.id);
+    const saldo = n(factura.total) - pagado;
+    if (b.valorRecibido - saldo > EPS) {
+      throw new HttpError(400, `El pago (${b.valorRecibido}) excede el saldo pendiente (${saldo})`);
+    }
+
+    await r.createIngreso({
+      empresaId, clienteId: factura.clienteId, facturaId: factura.id,
+      contratoId: factura.contratoId, configuracionCobroId: factura.configuracionCobroId,
+      procesoId: factura.procesoId, radicado: factura.radicado,
+      conceptoPago: `Pago factura ${factura.numero ?? factura.id}`,
+      tipoCobro: b.tipoCobro ?? "ABONO",
+      valorRecibido: b.valorRecibido, metodoPago: b.metodoPago,
+      fechaIngreso: b.fechaIngreso, cuentaId: b.cuentaId,
+      numeroComprobante: b.numeroComprobante, observaciones: b.observaciones,
+      estadoPago: "PAGADO", registradoPorId: t.userId,
+    });
   });
-  const fresca = await repo.findByIdConItems(factura.id);
+  const repo = new FacturasRepository(empresaId);
+  const fresca = await repo.findByIdConItems(id);
   return conEstado(repo, fresca);
 }

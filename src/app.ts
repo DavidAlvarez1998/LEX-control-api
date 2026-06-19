@@ -20,6 +20,7 @@ import { planRoutes } from "./modules/planes/planes.router";
 import { servicioRoutes } from "./modules/servicios/servicios.router";
 import { procesoRoutes } from "./modules/procesos/procesos.router";
 import { integracionRoutes } from "./modules/integraciones/integraciones.router";
+import { openapiRoutes } from "./openapi/openapi.router";
 import { publicoRoutes } from "./modules/publico/publico.router";
 import { usuarioRoutes } from "./modules/usuarios/usuarios.router";
 import { agendaRoutes, comisionRoutes, equipoComercialRoutes, prospectoRoutes, seguimientoRoutes } from "./modules/ventas/ventas.router";
@@ -46,6 +47,9 @@ export function createApp(): Express {
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
   });
+
+  // Documentación de la API (OpenAPI 3 desde Zod) + Swagger UI.
+  app.use(openapiRoutes);
 
   // Rate limit en las superficies de credenciales/registro (no autenticadas).
   app.use("/auth/login", authLimiter);

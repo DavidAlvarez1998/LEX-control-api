@@ -7,6 +7,7 @@ import { asyncHandler } from "../../middleware/async";
 import { requireAuth, requirePermiso } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { tenant } from "../../shared/tenant";
+import { parsePage } from "../../shared/pagination";
 import {
   clienteIdParams,
   createClienteSchema,
@@ -28,8 +29,11 @@ clienteRoutes.get(
   asyncHandler(async (req, res) => {
     const estado = typeof req.query.estado === "string" ? req.query.estado : undefined;
     const mios = req.query.mios === "true";
-    const lista = await clientes.listClientes(tenant(req), { estado, mios });
-    res.json(lista.map(toClienteDTO));
+    const page = parsePage(req.query as Record<string, unknown>);
+    const lista = await clientes.listClientes(tenant(req), { estado, mios, page });
+    // Paginación opt-in: sobre { items, total, … } si se pidió, array plano si no.
+    if (Array.isArray(lista)) res.json(lista.map(toClienteDTO));
+    else res.json({ ...lista, items: lista.items.map(toClienteDTO) });
   }),
 );
 
