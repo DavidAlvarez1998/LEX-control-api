@@ -1968,671 +1968,1641 @@
   },
   {
     "nombre": "Proceso verbal",
+    "grupo": "JUDICIAL",
     "descripcion": "Proceso declarativo verbal de mayor o menor cuantía (CGP arts. 368-373). Doble instancia (apelable), dos audiencias (inicial art. 372 e instrucción y juzgamiento art. 373). Se elige rol (demandante/demandado). Términos: traslado 20 días hábiles, subsanación 5, recurso 3.",
     "jurisdiccion": "ORDINARIA_CIVIL",
     "areaSlugs": [
       "civil",
       "comercial-societario"
     ],
+    "esJudicial": true,
+    "actualizado": true,
     "esquemaFormulario": [
       {
-        "key": "rol",
-        "label": "Rol en el proceso",
+        "key": "calidad",
+        "label": "Calidad en que actúa el cliente",
         "tipo": "select",
         "requerido": true,
         "opciones": [
           "Demandante",
-          "Demandado"
+          "Demandado",
+          "Curador ad litem",
+          "Tercero interviniente",
+          "Litisconsorte",
+          "Apoderado sustituto",
+          "Apoderado de ambas partes en procesos diferentes"
         ],
-        "ayuda": "¿Representamos a quien demanda o a quien es demandado? Solo el demandante califica la demanda."
+        "ayuda": "Calidad procesal del cliente (CGP). No es solo demandante/demandado."
+      },
+      {
+        "key": "demandanteNombre",
+        "label": "Demandante — nombre",
+        "tipo": "texto",
+        "requerido": true
+      },
+      {
+        "key": "demandanteCedula",
+        "label": "Demandante — cédula/NIT",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandanteDireccion",
+        "label": "Demandante — dirección",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandanteCorreo",
+        "label": "Demandante — correo",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandanteTelefono",
+        "label": "Demandante — teléfono",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoNombre",
+        "label": "Demandado — nombre",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoCedula",
+        "label": "Demandado — cédula/NIT",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoDireccion",
+        "label": "Demandado — dirección",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoCorreo",
+        "label": "Demandado — correo",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoTelefono",
+        "label": "Demandado — teléfono",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "unidadMedida",
+        "label": "Unidad de medida",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "SMMLV",
+          "Pesos"
+        ]
+      },
+      {
+        "key": "cuantia",
+        "label": "Cuantía",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Mínima",
+          "Menor",
+          "Mayor",
+          "No aplica"
+        ]
       },
       {
         "key": "tipoPretension",
         "label": "Tipo de pretensión",
         "tipo": "select",
-        "requerido": false,
+        "requerido": true,
         "opciones": [
-          "Declarativa",
-          "Constitutiva",
-          "De condena",
-          "Mixta"
+          "Determinadas",
+          "Indeterminadas"
         ]
       },
       {
-        "key": "relacionJuridica",
-        "label": "Relación jurídica",
-        "tipo": "texto",
-        "requerido": false
+        "key": "montoPretensiones",
+        "label": "Monto de las pretensiones (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "tipoPretension",
+          "igualA": "Determinadas"
+        },
+        "requeridoSi": {
+          "campo": "tipoPretension",
+          "igualA": "Determinadas"
+        }
       },
       {
-        "key": "pretensiones",
-        "label": "Pretensiones",
+        "key": "montoTotal",
+        "label": "Monto total (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "tipoPretension",
+          "igualA": "Determinadas"
+        },
+        "requeridoSi": {
+          "campo": "tipoPretension",
+          "igualA": "Determinadas"
+        }
+      },
+      {
+        "key": "sintesis",
+        "label": "Síntesis de la demanda",
         "tipo": "textoLargo",
         "requerido": true
       },
       {
-        "key": "cuantia",
-        "label": "Cuantía",
-        "tipo": "numero",
-        "requerido": false
-      },
-      {
-        "key": "cuantiaTipo",
-        "label": "Tipo de cuantía",
-        "tipo": "select",
-        "requerido": false,
-        "opciones": [
-          "Mayor",
-          "Menor"
-        ],
-        "ayuda": "Ambas son de doble instancia (apelable)."
-      },
-      {
-        "key": "estimacionJuramentada",
-        "label": "Estimación juramentada",
-        "tipo": "textoLargo",
-        "requerido": false
-      },
-      {
-        "key": "fechaHechos",
-        "label": "Fecha de los hechos",
+        "key": "fechaPresentacion",
+        "label": "Fecha de presentación",
         "tipo": "fecha",
-        "requerido": false
+        "requerido": true
       },
       {
-        "key": "hechos",
-        "label": "Hechos",
-        "tipo": "textoLargo",
-        "requerido": false
+        "key": "medioRadicacion",
+        "label": "Medio de radicación",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Ventanilla",
+          "Correo",
+          "Plataforma judicial",
+          "Otro"
+        ]
       },
       {
-        "key": "pruebasOfrecidas",
-        "label": "Pruebas ofrecidas",
-        "tipo": "textoLargo",
-        "requerido": false
+        "key": "solicitaMedidaCautelar",
+        "label": "¿Solicita medida cautelar?",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "ayuda": "Si se solicita, se habilita el módulo de medidas cautelares en la ficha."
       },
       {
-        "key": "solicitaMedidasCautelares",
-        "label": "¿Solicita medidas cautelares?",
-        "tipo": "boolean",
-        "requerido": false
-      },
-      {
-        "key": "conciliacionPrevia",
-        "label": "¿Hubo conciliación previa (requisito de procedibilidad)?",
-        "tipo": "boolean",
-        "requerido": false
-      },
-      {
-        "key": "requierePoder",
-        "label": "¿Requiere poder?",
-        "tipo": "boolean",
-        "requerido": false,
-        "ayuda": "Si se actúa por apoderado, adjunta el poder."
-      },
-      {
-        "key": "decisionAuto",
-        "label": "Decisión del auto de calificación",
+        "key": "mcSolicitante",
+        "label": "Medida cautelar — solicitante",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "ADMISIÓN",
-          "INADMISIÓN",
-          "RECHAZO"
+          "Demandante",
+          "Demandado (excepción)",
+          "En la reconvención"
         ],
         "mostrarSi": {
-          "campo": "rol",
-          "igualA": "Demandante"
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
         },
-        "soloFicha": true,
-        "ayuda": "Lo que resuelve el juez: admite, inadmite (corregir) o rechaza."
+        "soloFicha": true
       },
       {
-        "key": "fechaAuto",
-        "label": "Fecha del auto",
+        "key": "mcFechaSolicitud",
+        "label": "Medida cautelar — fecha de solicitud",
         "tipo": "fecha",
         "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcTipo",
+        "label": "Tipo(s) de medida cautelar",
+        "tipo": "multiselect",
+        "requerido": false,
+        "opciones": [
+          "Inscripción de la demanda",
+          "Embargo",
+          "Secuestro",
+          "Suspensión de obra",
+          "Suspensión de actos",
+          "Innominada",
+          "Otra"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcBienAfectado",
+        "label": "Bien o derecho afectado",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcValorEstimado",
+        "label": "Valor estimado de la medida (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcObservaciones",
+        "label": "Medida cautelar — observaciones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcDecretada",
+        "label": "¿Decretada por el despacho?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No",
+          "Parcial"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcFechaAuto",
+        "label": "Fecha del auto que resuelve la medida",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcRequiereCaucion",
+        "label": "¿Requiere caución?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcValorCaucion",
+        "label": "Valor de la caución (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "mcRequiereCaucion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcCaucionConstituida",
+        "label": "¿Caución constituida?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "mcRequiereCaucion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcFechaCaucion",
+        "label": "Fecha de constitución de la caución",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "mcCaucionConstituida",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcPracticada",
+        "label": "¿Medida practicada/ejecutada?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcFechaPractica",
+        "label": "Fecha de práctica",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcEntidadOficiada",
+        "label": "Entidad oficiada (ORIP / banco / tránsito…)",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcResultadoEjecucion",
+        "label": "Resultado de la ejecución",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Exitosa",
+          "Parcial",
+          "Fallida",
+          "Pendiente"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcLevantada",
+        "label": "¿Medida levantada?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcFechaLevantamiento",
+        "label": "Fecha de levantamiento",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcMotivoLevantamiento",
+        "label": "Motivo del levantamiento",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sentencia",
+          "Desistimiento",
+          "Caución",
+          "Orden judicial",
+          "Otro"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "radicadoJudicial",
+        "label": "Radicado judicial",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "juzgado",
+        "label": "Juzgado / corporación",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "estadoDemanda",
+        "label": "Estado de la demanda",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Admitida",
+          "Inadmitida",
+          "Rechazada"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "admisionFechaAuto",
+        "label": "Admisión — fecha del auto",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Admitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "admisionFechaNotif",
+        "label": "Admisión — fecha de notificación por estado",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Admitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "inadmisionFechaAuto",
+        "label": "Inadmisión — fecha del auto",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Inadmitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "inadmisionFechaNotif",
+        "label": "Inadmisión — fecha de notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Inadmitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "subsanacionPresentada",
+        "label": "¿Subsanación presentada?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Inadmitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "subsanacionFecha",
+        "label": "Subsanación — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "subsanacionPresentada",
+          "igualA": "Sí"
+        },
         "soloFicha": true
       },
       {
         "key": "decisionTrasSubsanacion",
-        "label": "Decisión tras la subsanación",
+        "label": "Decisión del juzgado tras la subsanación",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "ADMITIR",
-          "RECHAZAR"
+          "Admisión",
+          "Rechazo"
         ],
         "mostrarSi": {
-          "campo": "decisionAuto",
-          "igualA": "INADMISIÓN"
+          "campo": "subsanacionPresentada",
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
-        "key": "fechaSubsanacion",
-        "label": "Fecha en que se subsanó",
-        "tipo": "fecha",
-        "requerido": false,
-        "mostrarSi": {
-          "campo": "decisionAuto",
-          "igualA": "INADMISIÓN"
-        },
-        "soloFicha": true
-      },
-      {
-        "key": "fechaAdmisionTrasSubsanacion",
-        "label": "Fecha del auto de admisión (tras subsanar)",
+        "key": "admisionTrasSubFecha",
+        "label": "Admisión tras subsanación — fecha",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
           "campo": "decisionTrasSubsanacion",
-          "igualA": "ADMITIR"
+          "igualA": "Admisión"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "rechazoTrasSubFecha",
+        "label": "Rechazo tras subsanación — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "decisionTrasSubsanacion",
+          "igualA": "Rechazo"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoTrasRechazo",
+        "label": "¿Recurso contra el rechazo (tras subsanación)?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No",
+          "N/A"
+        ],
+        "mostrarSi": {
+          "campo": "decisionTrasSubsanacion",
+          "igualA": "Rechazo"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "decisionRecursoTrasRechazo",
+        "label": "Decisión del recurso (tras subsanación)",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Favorable",
+          "Desfavorable"
+        ],
+        "mostrarSi": {
+          "campo": "recursoTrasRechazo",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "rechazoFechaAuto",
+        "label": "Rechazo — fecha del auto",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Rechazada"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "rechazoFechaNotif",
+        "label": "Rechazo — fecha de notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Rechazada"
         },
         "soloFicha": true
       },
       {
         "key": "recursoRechazo",
-        "label": "Recurso contra el rechazo",
+        "label": "¿Recurso contra el rechazo?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "NO",
-          "REPOSICIÓN",
-          "APELACIÓN"
+          "Sí",
+          "No"
         ],
         "mostrarSi": {
-          "alguna": [
-            {
-              "campo": "decisionAuto",
-              "igualA": "RECHAZO"
-            },
-            {
-              "todas": [
-                {
-                  "campo": "decisionAuto",
-                  "igualA": "INADMISIÓN"
-                },
-                {
-                  "campo": "decisionTrasSubsanacion",
-                  "igualA": "RECHAZAR"
-                }
-              ]
-            }
-          ]
+          "campo": "estadoDemanda",
+          "igualA": "Rechazada"
         },
         "soloFicha": true
       },
       {
-        "key": "fechaRecursoRechazo",
-        "label": "Fecha del recurso",
+        "key": "recursoRechazoTipo",
+        "label": "Recurso contra el rechazo — tipo",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Apelación",
+          "Reposición"
+        ],
+        "mostrarSi": {
+          "campo": "recursoRechazo",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoRechazoFecha",
+        "label": "Recurso contra el rechazo — fecha",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "todas": [
-            {
-              "alguna": [
-                {
-                  "campo": "decisionAuto",
-                  "igualA": "RECHAZO"
-                },
-                {
-                  "todas": [
-                    {
-                      "campo": "decisionAuto",
-                      "igualA": "INADMISIÓN"
-                    },
-                    {
-                      "campo": "decisionTrasSubsanacion",
-                      "igualA": "RECHAZAR"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "campo": "recursoRechazo",
-              "igualA": [
-                "REPOSICIÓN",
-                "APELACIÓN"
-              ]
-            }
-          ]
+          "campo": "recursoRechazo",
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
         "key": "decisionRecursoRechazo",
-        "label": "Decisión del recurso",
+        "label": "Decisión del recurso contra el rechazo",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "FAVORABLE",
-          "DESFAVORABLE"
+          "Favorable",
+          "Desfavorable"
         ],
         "mostrarSi": {
-          "todas": [
-            {
-              "alguna": [
-                {
-                  "campo": "decisionAuto",
-                  "igualA": "RECHAZO"
-                },
-                {
-                  "todas": [
-                    {
-                      "campo": "decisionAuto",
-                      "igualA": "INADMISIÓN"
-                    },
-                    {
-                      "campo": "decisionTrasSubsanacion",
-                      "igualA": "RECHAZAR"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "campo": "recursoRechazo",
-              "igualA": [
-                "REPOSICIÓN",
-                "APELACIÓN"
-              ]
-            }
-          ]
+          "campo": "recursoRechazo",
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
-        "key": "observacionesRecursoRechazo",
-        "label": "Observaciones del recurso",
+        "key": "recursoRechazoObs",
+        "label": "Recurso contra el rechazo — observaciones",
         "tipo": "textoLargo",
         "requerido": false,
         "mostrarSi": {
-          "todas": [
-            {
-              "alguna": [
-                {
-                  "campo": "decisionAuto",
-                  "igualA": "RECHAZO"
-                },
-                {
-                  "todas": [
-                    {
-                      "campo": "decisionAuto",
-                      "igualA": "INADMISIÓN"
-                    },
-                    {
-                      "campo": "decisionTrasSubsanacion",
-                      "igualA": "RECHAZAR"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "campo": "recursoRechazo",
-              "igualA": [
-                "REPOSICIÓN",
-                "APELACIÓN"
-              ]
-            }
-          ]
+          "campo": "recursoRechazo",
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
-        "key": "hayRetiro",
-        "label": "¿Hay retiro de la demanda?",
+        "key": "demandadoNotificado",
+        "label": "¿Demandado notificado?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "SI",
-          "NO"
-        ],
-        "soloFicha": true,
-        "ayuda": "Sí → se archiva el proceso."
-      },
-      {
-        "key": "fechaNotificacion",
-        "label": "Fecha de la notificación",
-        "tipo": "fecha",
-        "requerido": false,
-        "soloFicha": true,
-        "ayuda": "Desde aquí corren los 20 días hábiles para contestar."
-      },
-      {
-        "key": "contestaron",
-        "label": "¿Contestaron la demanda?",
-        "tipo": "select",
-        "requerido": false,
-        "opciones": [
-          "SI",
-          "NO"
+          "Sí",
+          "No"
         ],
         "soloFicha": true
       },
       {
-        "key": "fechaContestacion",
-        "label": "Fecha de la contestación",
+        "key": "trasladoFechaNotif",
+        "label": "Traslado — fecha de notificación",
         "tipo": "fecha",
         "requerido": false,
-        "mostrarSi": {
-          "campo": "contestaron",
-          "igualA": "SI"
-        },
         "soloFicha": true
       },
       {
-        "key": "excepcionesMerito",
-        "label": "Excepciones de mérito",
-        "tipo": "textoLargo",
+        "key": "trasladoFechaInicio",
+        "label": "Traslado — fecha de inicio",
+        "tipo": "fecha",
         "requerido": false,
-        "soloFicha": true,
-        "ayuda": "Se resuelven en la sentencia."
+        "soloFicha": true
+      },
+      {
+        "key": "trasladoFechaFin",
+        "label": "Traslado — fecha de fin",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "trasladoEstado",
+        "label": "Traslado — estado",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "En término",
+          "Vencido",
+          "Contestado"
+        ],
+        "soloFicha": true
       },
       {
         "key": "hayReconvencion",
-        "label": "¿Se presentó demanda de reconvención?",
+        "label": "¿Hay reconvención?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "SI",
-          "NO"
+          "Sí",
+          "No"
         ],
         "soloFicha": true
       },
       {
-        "key": "fechaReconvencion",
-        "label": "Fecha de la reconvención",
+        "key": "reconPretensiones",
+        "label": "Reconvención — pretensiones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reconFecha",
+        "label": "Reconvención — fecha",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
           "campo": "hayReconvencion",
-          "igualA": "SI"
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
-        "key": "decisionReconvencion",
-        "label": "Decisión del juez sobre la reconvención",
+        "key": "reconHayContestacion",
+        "label": "¿Se contestó la reconvención?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "ADMITIR",
-          "INADMITIR",
-          "RECHAZAR"
+          "Sí",
+          "No"
         ],
         "mostrarSi": {
           "campo": "hayReconvencion",
-          "igualA": "SI"
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
-        "key": "llamamientoGarantia",
-        "label": "¿Llamamiento en garantía / litisconsorte?",
+        "key": "reconFechaContestacion",
+        "label": "Reconvención — fecha de contestación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "reconHayContestacion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reconDecisionJuez",
+        "label": "Reconvención — decisión del juez",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "SI",
-          "NO"
+          "Admitir",
+          "Rechazar"
+        ],
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reconFechaDecision",
+        "label": "Reconvención — fecha de la decisión",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "contesto",
+        "label": "¿El demandado contestó?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
         ],
         "soloFicha": true
       },
       {
-        "key": "conciliaResultado",
-        "label": "¿Se concilió en la audiencia inicial?",
+        "key": "contestacionFecha",
+        "label": "Contestación — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "contestoDentroTermino",
+        "label": "¿Contestó dentro del término?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "SI",
-          "NO"
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "hayExcepcionesMerito",
+        "label": "¿Hay excepciones de mérito (con traslado)?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
         ],
         "soloFicha": true
       },
       {
-        "key": "acuerdoConciliacion",
-        "label": "Acuerdo de conciliación",
+        "key": "excFechaInicio",
+        "label": "Excepciones de mérito — inicio del traslado",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "hayExcepcionesMerito",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "excFechaFin",
+        "label": "Excepciones de mérito — fin del traslado",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "hayExcepcionesMerito",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "demandantePronuncio",
+        "label": "¿El demandante se pronunció sobre las excepciones?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "hayExcepcionesMerito",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "demandanteFechaPronunciamiento",
+        "label": "Pronunciamiento del demandante — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "demandantePronuncio",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "pruebasAdicionales",
+        "label": "¿Pruebas adicionales con las excepciones?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "hayExcepcionesMerito",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "aiFechaAutoFija",
+        "label": "Audiencia inicial — fecha del auto que la fija",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "aiFechaHora",
+        "label": "Audiencia inicial — fecha y hora",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "aiEstado",
+        "label": "Audiencia inicial — estado",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Programada",
+          "Realizada",
+          "Aplazada",
+          "Suspendida"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "aiAsisteDemandante",
+        "label": "Audiencia inicial — ¿asiste el demandante?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "aiAsisteDemandado",
+        "label": "Audiencia inicial — ¿asiste el demandado?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "aiExcepcionesPreviasResueltas",
+        "label": "¿Excepciones previas resueltas?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No",
+          "N/A"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "aiExcepcionesPreviasResultado",
+        "label": "Excepciones previas — resultado",
         "tipo": "textoLargo",
         "requerido": false,
         "mostrarSi": {
-          "campo": "conciliaResultado",
-          "igualA": "SI"
+          "campo": "aiExcepcionesPreviasResueltas",
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
-        "key": "excepcionesPrevias",
-        "label": "Excepciones previas (art. 372)",
-        "tipo": "textoLargo",
+        "key": "aiConciliacion",
+        "label": "Audiencia inicial — conciliación",
+        "tipo": "select",
         "requerido": false,
+        "opciones": [
+          "Total",
+          "Parcial",
+          "Fallida",
+          "N/A"
+        ],
         "soloFicha": true
       },
       {
-        "key": "saneamiento",
-        "label": "Saneamiento del proceso",
+        "key": "aiConciliacionDetalle",
+        "label": "Conciliación — detalle del acuerdo",
         "tipo": "textoLargo",
         "requerido": false,
+        "mostrarSi": {
+          "alguna": [
+            {
+              "campo": "aiConciliacion",
+              "igualA": "Total"
+            },
+            {
+              "campo": "aiConciliacion",
+              "igualA": "Parcial"
+            }
+          ]
+        },
         "soloFicha": true
       },
       {
-        "key": "fijacionLitigio",
+        "key": "aiInterrogatorio",
+        "label": "¿Interrogatorio de partes?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "aiFijoLitigio",
         "label": "Fijación del litigio",
         "tipo": "textoLargo",
         "requerido": false,
         "soloFicha": true
       },
       {
-        "key": "decretoPruebas",
-        "label": "Decreto de pruebas",
+        "key": "aiHechosAceptados",
+        "label": "Hechos aceptados",
         "tipo": "textoLargo",
         "requerido": false,
         "soloFicha": true
       },
       {
-        "key": "practicaPruebas",
-        "label": "Práctica de pruebas (art. 373)",
+        "key": "aiHechosObjetoPrueba",
+        "label": "Hechos objeto de prueba",
         "tipo": "textoLargo",
         "requerido": false,
         "soloFicha": true
       },
       {
-        "key": "alegatos",
-        "label": "Alegatos de conclusión",
+        "key": "aiControlLegalidad",
+        "label": "Control de legalidad",
         "tipo": "textoLargo",
         "requerido": false,
         "soloFicha": true
       },
       {
-        "key": "fechaSentencia",
-        "label": "Fecha de la sentencia",
+        "key": "aiSaneamiento",
+        "label": "Saneamiento",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "aiDecretoPruebas",
+        "label": "Pruebas decretadas",
+        "tipo": "multiselect",
+        "requerido": false,
+        "opciones": [
+          "Documentales",
+          "Testimoniales",
+          "Interrogatorio",
+          "Pericial",
+          "Inspección",
+          "Oficios",
+          "Otras"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "aiPruebasNegadas",
+        "label": "Pruebas negadas",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "aiSentenciaInmediata",
+        "label": "¿Sentencia inmediata en la audiencia inicial?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "aiSentidoSentencia",
+        "label": "Sentencia inmediata — sentido",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Favorable",
+          "Desfavorable",
+          "Parcial"
+        ],
+        "mostrarSi": {
+          "campo": "aiSentenciaInmediata",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "aiObservaciones",
+        "label": "Audiencia inicial — observaciones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "aiGrabacionUrl",
+        "label": "Audiencia inicial — URL de grabación",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "ajFechaHora",
+        "label": "Audiencia de instrucción — fecha y hora",
         "tipo": "fecha",
         "requerido": false,
         "soloFicha": true
       },
       {
-        "key": "decisionSentencia",
-        "label": "Decisión de la sentencia",
+        "key": "ajEstado",
+        "label": "Audiencia de instrucción — estado",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "FAVORABLE",
-          "DESFAVORABLE"
+          "Programada",
+          "Realizada",
+          "Aplazada",
+          "Suspendida"
         ],
         "soloFicha": true
       },
       {
-        "key": "hayRecurso",
-        "label": "¿Se interpone apelación contra la sentencia?",
-        "tipo": "select",
+        "key": "ajPruebasPracticadas",
+        "label": "Pruebas practicadas",
+        "tipo": "multiselect",
         "requerido": false,
         "opciones": [
-          "SI",
-          "NO"
+          "Documentales",
+          "Testimoniales",
+          "Interrogatorio",
+          "Pericial",
+          "Inspección",
+          "Oficios",
+          "Otras"
         ],
-        "soloFicha": true,
-        "ayuda": "Apelación: en audiencia o por escrito dentro de 3 días."
+        "soloFicha": true
       },
       {
-        "key": "formaRecurso",
-        "label": "Forma del recurso",
+        "key": "ajTestigos",
+        "label": "Testigos (nombre / parte / asistió)",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "ajPeritos",
+        "label": "Peritos",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "ajDocumentosExhibidos",
+        "label": "Documentos exhibidos",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "ajPruebasPendientes",
+        "label": "Pruebas pendientes",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "ajAlegatos",
+        "label": "¿Alegatos de conclusión?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "EN AUDIENCIA",
-          "POR ESCRITO (3 DÍAS)"
+          "Sí",
+          "No"
         ],
+        "soloFicha": true
+      },
+      {
+        "key": "ajAlegatoDemandante",
+        "label": "Alegato del demandante",
+        "tipo": "textoLargo",
+        "requerido": false,
         "mostrarSi": {
-          "campo": "hayRecurso",
-          "igualA": "SI"
+          "campo": "ajAlegatos",
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
-        "key": "fechaRecursoSentencia",
-        "label": "Fecha del recurso",
+        "key": "ajAlegatoDemandado",
+        "label": "Alegato del demandado",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "ajAlegatos",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "ajSentenciaOral",
+        "label": "¿Sentencia oral?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "ajSentidoAnunciado",
+        "label": "Sentido anunciado",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Concede",
+          "Niega",
+          "Parcial",
+          "Inhibitorio"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "ajFechaSentenciaEscrita",
+        "label": "Fecha de la sentencia escrita (si fue diferida)",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "campo": "formaRecurso",
-          "igualA": "POR ESCRITO (3 DÍAS)"
+          "campo": "ajSentenciaOral",
+          "igualA": "No"
         },
         "soloFicha": true
       },
       {
-        "key": "concedeApelacion",
-        "label": "¿El juez concede la apelación?",
+        "key": "ajGrabacionUrl",
+        "label": "Audiencia de instrucción — URL de grabación",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaFecha",
+        "label": "Sentencia — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaTipo",
+        "label": "Sentencia — tipo",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "SI",
-          "NO"
+          "Oral",
+          "Escrita"
         ],
-        "mostrarSi": {
-          "campo": "hayRecurso",
-          "igualA": "SI"
-        },
-        "soloFicha": true,
-        "ayuda": "Si la concede, el expediente sube al Tribunal (2ª instancia)."
+        "soloFicha": true
       },
       {
-        "key": "fechaRemision2inst",
-        "label": "Fecha de remisión / reparto al Tribunal",
+        "key": "sentenciaResultado",
+        "label": "Sentencia — resultado",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Favorable",
+          "Desfavorable",
+          "Parcial",
+          "Inhibitorio"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaCondenaCostas",
+        "label": "¿Condena en costas?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaValorCostas",
+        "label": "Costas — valor (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "sentenciaCondenaCostas",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaObligaciones",
+        "label": "Obligaciones impuestas",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaFechaNotificacion",
+        "label": "Sentencia — fecha de notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "recursoInterpuesto",
+        "label": "¿Recurso interpuesto contra la sentencia?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "recursoTipo",
+        "label": "Recurso — tipo",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Apelación",
+          "Aclaración",
+          "Corrección",
+          "Adición",
+          "Reposición"
+        ],
+        "mostrarSi": {
+          "campo": "recursoInterpuesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoFecha",
+        "label": "Recurso — fecha",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "todas": [
-            {
-              "campo": "hayRecurso",
-              "igualA": "SI"
-            },
-            {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
-            }
+          "campo": "recursoInterpuesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoObs",
+        "label": "Recurso — observaciones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoInterpuesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoMismoFechaAuto",
+        "label": "Recurso (mismo despacho) — fecha del auto",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": [
+            "Aclaración",
+            "Corrección",
+            "Adición",
+            "Reposición"
           ]
         },
         "soloFicha": true
       },
       {
-        "key": "radicado2inst",
-        "label": "N.º de radicado en 2ª instancia",
+        "key": "recursoMismoDecision",
+        "label": "Recurso (mismo despacho) — decisión",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Concede",
+          "Niega",
+          "Aclara",
+          "Corrige",
+          "Adiciona",
+          "Repone",
+          "No repone"
+        ],
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": [
+            "Aclaración",
+            "Corrección",
+            "Adición",
+            "Reposición"
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoMismoEjecutoriado",
+        "label": "¿Ejecutoriado tras el recurso?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": [
+            "Aclaración",
+            "Corrección",
+            "Adición",
+            "Reposición"
+          ]
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "apConoceSuperior",
+        "label": "Apelación — ¿conoce el superior?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "apConcedido",
+        "label": "¿Apelación concedida?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "apEfecto",
+        "label": "Apelación — efecto",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Suspensivo",
+          "Devolutivo",
+          "Diferido"
+        ],
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "apFechaRemision",
+        "label": "Apelación — fecha de remisión",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "siDespacho",
+        "label": "2ª instancia — despacho/corporación",
         "tipo": "texto",
         "requerido": false,
         "mostrarSi": {
-          "todas": [
-            {
-              "campo": "hayRecurso",
-              "igualA": "SI"
-            },
-            {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
-            }
-          ]
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
         },
         "soloFicha": true
       },
       {
-        "key": "fechaSustentacion",
-        "label": "Fecha de sustentación del recurso",
+        "key": "siReparto",
+        "label": "2ª instancia — reparto",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "siPonente",
+        "label": "2ª instancia — ponente",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "siAdmision",
+        "label": "2ª instancia — fecha de admisión",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "todas": [
-            {
-              "campo": "hayRecurso",
-              "igualA": "SI"
-            },
-            {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
-            }
-          ]
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
         },
         "soloFicha": true
       },
       {
-        "key": "fechaAudiencia2inst",
-        "label": "Fecha de la audiencia de 2ª instancia",
+        "key": "siTrasladoAlegatos",
+        "label": "2ª instancia — traslado para alegatos",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "todas": [
-            {
-              "campo": "hayRecurso",
-              "igualA": "SI"
-            },
-            {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
-            }
-          ]
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
         },
         "soloFicha": true
       },
       {
-        "key": "fechaSentencia2inst",
-        "label": "Fecha de la sentencia de 2ª instancia",
+        "key": "siFechaSentencia2",
+        "label": "2ª instancia — fecha de sentencia",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "todas": [
-            {
-              "campo": "hayRecurso",
-              "igualA": "SI"
-            },
-            {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
-            }
-          ]
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
         },
         "soloFicha": true
       },
       {
-        "key": "decisionSegundaInstancia",
-        "label": "Decisión de 2ª instancia",
+        "key": "siResultado",
+        "label": "2ª instancia — resultado",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "CONFIRMA",
-          "REVOCA",
-          "MODIFICA"
+          "Confirma",
+          "Revoca",
+          "Modifica",
+          "Nulidad"
         ],
         "mostrarSi": {
-          "todas": [
-            {
-              "campo": "hayRecurso",
-              "igualA": "SI"
-            },
-            {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
-            }
-          ]
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
         },
+        "soloFicha": true
+      },
+      {
+        "key": "siNotif",
+        "label": "2ª instancia — fecha de notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "siEjecutoria",
+        "label": "2ª instancia — fecha de ejecutoria",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoTipo",
+          "igualA": "Apelación"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "estadoFinal",
+        "label": "Estado final",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Ejecutoriado",
+          "Cumplido",
+          "Archivado"
+        ],
         "soloFicha": true
       }
     ],
@@ -2644,99 +3614,88 @@
         "fase": 1,
         "reglas": {
           "camposRequeridos": [
-            "rol",
-            "pretensiones",
-            "cuantia"
+            "calidad",
+            "sintesis",
+            "fechaPresentacion",
+            "medioRadicacion",
+            "cuantia",
+            "unidadMedida",
+            "tipoPretension"
           ],
           "documentosRequeridos": [
             "demanda.pdf"
           ],
           "documentosOpcionales": [
             "pruebas.pdf",
-            "anexos.pdf"
+            "anexos.pdf",
+            "soporte-radicacion.pdf",
+            "poder.pdf"
           ],
           "requeridosSi": [
             {
               "si": {
-                "campo": "requierePoder",
-                "igualA": "true"
+                "campo": "tipoPretension",
+                "igualA": "Determinadas"
               },
-              "documentosRequeridos": [
-                "poder.pdf"
+              "camposRequeridos": [
+                "montoPretensiones",
+                "montoTotal"
               ]
             }
           ]
         }
       },
       {
-        "key": "calificacion",
-        "nombre": "Calificación de la demanda (auto)",
+        "key": "radicacion",
+        "nombre": "Radicado y autoridad",
         "orden": 1,
         "fase": 1,
-        "disponibleSi": {
-          "campo": "rol",
-          "igualA": "Demandante"
-        },
         "reglas": {
           "camposRequeridos": [
-            "fechaAuto"
-          ],
-          "requeridosSi": [
-            {
-              "si": {
-                "campo": "rol",
-                "igualA": "Demandante"
-              },
-              "camposRequeridos": [
-                "decisionAuto"
-              ]
-            }
-          ],
-          "documentosRequeridos": [
-            "auto-calificacion.pdf"
+            "radicadoJudicial",
+            "juzgado"
+          ]
+        }
+      },
+      {
+        "key": "calificacion",
+        "nombre": "Calificación de la demanda",
+        "orden": 2,
+        "fase": 2,
+        "reglas": {
+          "camposRequeridos": [
+            "estadoDemanda"
           ]
         }
       },
       {
         "key": "subsanacion",
         "nombre": "Subsanación (inadmisión)",
-        "orden": 2,
-        "fase": 1,
+        "orden": 3,
+        "fase": 2,
         "disponibleSi": {
-          "todas": [
-            {
-              "campo": "rol",
-              "igualA": "Demandante"
-            },
-            {
-              "campo": "decisionAuto",
-              "igualA": "INADMISIÓN"
-            }
-          ]
+          "campo": "estadoDemanda",
+          "igualA": "Inadmitida"
         },
         "reglas": {
           "camposRequeridos": [
-            "decisionTrasSubsanacion",
-            "fechaSubsanacion"
-          ],
-          "documentosRequeridos": [
-            "subsanacion.pdf"
+            "subsanacionPresentada"
           ],
           "requeridosSi": [
             {
               "si": {
-                "campo": "decisionTrasSubsanacion",
-                "igualA": "ADMITIR"
+                "campo": "subsanacionPresentada",
+                "igualA": "Sí"
               },
               "camposRequeridos": [
-                "fechaAdmisionTrasSubsanacion"
+                "decisionTrasSubsanacion"
               ],
               "documentosRequeridos": [
-                "auto-admision-tras-subsanacion.pdf"
+                "subsanacion.pdf"
               ]
             }
           ],
-          "plazoDesdeCampo": "fechaAuto",
+          "plazoDesdeCampo": "inadmisionFechaNotif",
           "plazoTipoDias": "habiles",
           "plazoDias": 5
         }
@@ -2744,31 +3703,103 @@
       {
         "key": "recurso_rechazo",
         "nombre": "Recurso contra el rechazo",
-        "orden": 3,
-        "fase": 1,
+        "orden": 4,
+        "fase": 2,
         "disponibleSi": {
-          "todas": [
+          "alguna": [
             {
-              "campo": "rol",
-              "igualA": "Demandante"
+              "campo": "estadoDemanda",
+              "igualA": "Rechazada"
             },
             {
-              "alguna": [
+              "todas": [
                 {
-                  "campo": "decisionAuto",
-                  "igualA": "RECHAZO"
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
                 },
                 {
-                  "todas": [
-                    {
-                      "campo": "decisionAuto",
-                      "igualA": "INADMISIÓN"
-                    },
-                    {
-                      "campo": "decisionTrasSubsanacion",
-                      "igualA": "RECHAZAR"
-                    }
-                  ]
+                  "campo": "subsanacionPresentada",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "Rechazo"
+                }
+              ]
+            }
+          ]
+        },
+        "reglas": {
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "estadoDemanda",
+                "igualA": "Rechazada"
+              },
+              "camposRequeridos": [
+                "recursoRechazo"
+              ]
+            },
+            {
+              "si": {
+                "todas": [
+                  {
+                    "campo": "estadoDemanda",
+                    "igualA": "Inadmitida"
+                  },
+                  {
+                    "campo": "decisionTrasSubsanacion",
+                    "igualA": "Rechazo"
+                  }
+                ]
+              },
+              "camposRequeridos": [
+                "recursoTrasRechazo"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "traslado",
+        "nombre": "Traslado y notificación",
+        "orden": 5,
+        "fase": 3,
+        "disponibleSi": {
+          "alguna": [
+            {
+              "campo": "estadoDemanda",
+              "igualA": "Admitida"
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
+                },
+                {
+                  "campo": "subsanacionPresentada",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "Admisión"
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Rechazada"
+                },
+                {
+                  "campo": "recursoRechazo",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionRecursoRechazo",
+                  "igualA": "Favorable"
                 }
               ]
             }
@@ -2776,68 +3807,105 @@
         },
         "reglas": {
           "camposRequeridos": [
-            "recursoRechazo"
+            "demandadoNotificado",
+            "trasladoFechaInicio"
           ],
-          "requeridosSi": [
-            {
-              "si": {
-                "campo": "recursoRechazo",
-                "igualA": [
-                  "REPOSICIÓN",
-                  "APELACIÓN"
-                ]
-              },
-              "camposRequeridos": [
-                "fechaRecursoRechazo",
-                "decisionRecursoRechazo"
-              ]
-            }
+          "documentosOpcionales": [
+            "soporte-notificacion.pdf",
+            "auto-admisorio.pdf"
           ],
-          "plazoDesdeCampo": "fechaAuto",
+          "plazoDesdeCampo": "trasladoFechaInicio",
           "plazoTipoDias": "habiles",
-          "plazoDias": 3
+          "plazoDias": 20
         }
       },
       {
         "key": "archivado_rechazo",
-        "nombre": "Archivo por rechazo de la demanda",
-        "orden": 4,
-        "fase": 1,
+        "nombre": "Archivo (rechazo de la demanda)",
+        "orden": 5,
+        "fase": 3,
         "disponibleSi": {
-          "todas": [
+          "alguna": [
             {
-              "campo": "rol",
-              "igualA": "Demandante"
-            },
-            {
-              "alguna": [
+              "todas": [
                 {
-                  "campo": "decisionAuto",
-                  "igualA": "RECHAZO"
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
                 },
                 {
-                  "todas": [
-                    {
-                      "campo": "decisionAuto",
-                      "igualA": "INADMISIÓN"
-                    },
-                    {
-                      "campo": "decisionTrasSubsanacion",
-                      "igualA": "RECHAZAR"
-                    }
+                  "campo": "subsanacionPresentada",
+                  "igualA": "No"
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
+                },
+                {
+                  "campo": "subsanacionPresentada",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "Rechazo"
+                },
+                {
+                  "campo": "recursoTrasRechazo",
+                  "igualA": [
+                    "No",
+                    "N/A"
                   ]
                 }
               ]
             },
             {
-              "alguna": [
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
+                },
+                {
+                  "campo": "subsanacionPresentada",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "Rechazo"
+                },
+                {
+                  "campo": "decisionRecursoTrasRechazo",
+                  "igualA": "Desfavorable"
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Rechazada"
+                },
                 {
                   "campo": "recursoRechazo",
-                  "igualA": "NO"
+                  "igualA": "No"
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Rechazada"
+                },
+                {
+                  "campo": "recursoRechazo",
+                  "igualA": "Sí"
                 },
                 {
                   "campo": "decisionRecursoRechazo",
-                  "igualA": "DESFAVORABLE"
+                  "igualA": "Desfavorable"
                 }
               ]
             }
@@ -2847,75 +3915,22 @@
         "resultado": "Demanda rechazada / recurso desfavorable — proceso archivado."
       },
       {
-        "key": "retiro",
-        "nombre": "¿Retiro de la demanda?",
-        "orden": 5,
-        "fase": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "hayRetiro"
-          ]
-        }
-      },
-      {
-        "key": "archivado",
-        "nombre": "Archivo por retiro de la demanda",
-        "orden": 6,
-        "fase": 1,
-        "disponibleSi": {
-          "campo": "hayRetiro",
-          "igualA": "SI"
-        },
-        "terminal": true,
-        "resultado": "Demanda retirada y archivada."
-      },
-      {
-        "key": "traslado",
-        "nombre": "Traslado y notificación",
-        "orden": 6,
-        "fase": 2,
-        "disponibleSi": {
-          "campo": "hayRetiro",
-          "igualA": "NO"
-        },
-        "reglas": {
-          "camposRequeridos": [
-            "fechaNotificacion"
-          ],
-          "documentosRequeridos": [
-            "notificacion.pdf"
-          ],
-          "plazoDesdeCampo": "fechaNotificacion",
-          "plazoTipoDias": "habiles",
-          "plazoDias": 20
-        }
-      },
-      {
         "key": "contestacion",
-        "nombre": "Contestación (reconvención / excepciones)",
-        "orden": 7,
-        "fase": 2,
+        "nombre": "Contestación, reconvención y excepciones",
+        "orden": 6,
+        "fase": 3,
         "reglas": {
           "camposRequeridos": [
-            "contestaron"
+            "contesto"
           ],
           "requeridosSi": [
             {
               "si": {
-                "campo": "contestaron",
-                "igualA": "SI"
+                "campo": "contesto",
+                "igualA": "Sí"
               },
               "documentosRequeridos": [
                 "contestacion.pdf"
-              ]
-            },
-            {
-              "si": {
-                "campo": "contestaron",
-                "igualA": "NO"
-              },
-              "documentosRequeridos": [
-                "auto-silencio.pdf"
               ]
             }
           ],
@@ -2923,10 +3938,19 @@
             {
               "si": {
                 "campo": "hayReconvencion",
-                "igualA": "SI"
+                "igualA": "Sí"
               },
               "documentosOpcionales": [
                 "reconvencion.pdf"
+              ]
+            },
+            {
+              "si": {
+                "campo": "hayExcepcionesMerito",
+                "igualA": "Sí"
+              },
+              "documentosOpcionales": [
+                "excepciones-merito.pdf"
               ]
             }
           ]
@@ -2935,149 +3959,139 @@
       {
         "key": "audienciaInicial",
         "nombre": "Audiencia inicial (art. 372)",
-        "orden": 8,
-        "fase": 3,
-        "reglas": {
-          "camposRequeridos": [
-            "conciliaResultado"
-          ],
-          "documentosOpcionales": [
-            "acta-art372.pdf"
-          ]
-        }
-      },
-      {
-        "key": "audienciaInstruccion",
-        "nombre": "Audiencia de instrucción y juzgamiento (art. 373)",
-        "orden": 9,
+        "orden": 7,
         "fase": 4,
-        "disponibleSi": {
-          "campo": "conciliaResultado",
-          "igualA": "NO"
-        },
         "reglas": {
           "camposRequeridos": [
-            "fechaSentencia",
-            "decisionSentencia"
-          ],
-          "documentosRequeridos": [
-            "sentencia.pdf"
+            "aiEstado",
+            "aiConciliacion",
+            "aiSentenciaInmediata"
           ],
           "documentosOpcionales": [
-            "acta-art373.pdf"
+            "acta-audiencia-inicial.pdf"
           ]
         }
       },
       {
         "key": "terminada_conciliacion",
         "nombre": "Terminado por conciliación",
-        "orden": 9,
-        "fase": 6,
+        "orden": 8,
+        "fase": 4,
         "disponibleSi": {
-          "campo": "conciliaResultado",
-          "igualA": "SI"
+          "campo": "aiConciliacion",
+          "igualA": "Total"
         },
         "terminal": true,
-        "resultado": "Proceso conciliado — acuerdo de las partes."
+        "resultado": "Proceso conciliado totalmente — acuerdo de las partes."
+      },
+      {
+        "key": "audienciaInstruccion",
+        "nombre": "Audiencia de instrucción y juzgamiento (art. 373)",
+        "orden": 8,
+        "fase": 4,
+        "disponibleSi": {
+          "todas": [
+            {
+              "alguna": [
+                {
+                  "campo": "aiConciliacion",
+                  "igualA": "Parcial"
+                },
+                {
+                  "campo": "aiConciliacion",
+                  "igualA": "Fallida"
+                },
+                {
+                  "campo": "aiConciliacion",
+                  "igualA": "N/A"
+                }
+              ]
+            },
+            {
+              "campo": "aiSentenciaInmediata",
+              "igualA": "No"
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "ajEstado",
+            "ajSentenciaOral"
+          ],
+          "documentosOpcionales": [
+            "acta-audiencia-instruccion.pdf"
+          ]
+        }
+      },
+      {
+        "key": "sentencia",
+        "nombre": "Sentencia",
+        "orden": 9,
+        "fase": 5,
+        "reglas": {
+          "camposRequeridos": [
+            "sentenciaFecha",
+            "sentenciaTipo",
+            "sentenciaResultado"
+          ],
+          "documentosRequeridos": [
+            "sentencia.pdf"
+          ]
+        }
       },
       {
         "key": "recurso",
-        "nombre": "Apelación contra la sentencia",
+        "nombre": "Recursos contra la sentencia",
         "orden": 10,
-        "fase": 4,
+        "fase": 6,
         "reglas": {
           "camposRequeridos": [
-            "hayRecurso"
+            "recursoInterpuesto"
           ],
           "opcionalesSi": [
             {
               "si": {
-                "campo": "formaRecurso",
-                "igualA": "POR ESCRITO (3 DÍAS)"
+                "campo": "recursoInterpuesto",
+                "igualA": "Sí"
               },
               "documentosOpcionales": [
                 "recurso.pdf"
               ]
             }
           ],
-          "plazoDesdeCampo": "fechaSentencia",
+          "plazoDesdeCampo": "sentenciaFecha",
           "plazoTipoDias": "habiles",
           "plazoDias": 3
         }
       },
       {
-        "key": "remision2inst",
-        "nombre": "Remisión al Tribunal (2ª instancia)",
+        "key": "segunda_instancia",
+        "nombre": "Segunda instancia (apelación)",
         "orden": 11,
-        "fase": 5,
+        "fase": 6,
         "disponibleSi": {
           "todas": [
             {
-              "campo": "hayRecurso",
-              "igualA": "SI"
+              "campo": "recursoInterpuesto",
+              "igualA": "Sí"
             },
             {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
+              "campo": "recursoTipo",
+              "igualA": "Apelación"
+            },
+            {
+              "campo": "apConcedido",
+              "igualA": "Sí"
             }
           ]
         },
         "reglas": {
           "camposRequeridos": [
-            "fechaRemision2inst",
-            "radicado2inst"
-          ]
-        }
-      },
-      {
-        "key": "sustentacion2inst",
-        "nombre": "Sustentación del recurso (2ª instancia)",
-        "orden": 12,
-        "fase": 5,
-        "disponibleSi": {
-          "todas": [
-            {
-              "campo": "hayRecurso",
-              "igualA": "SI"
-            },
-            {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
-            }
-          ]
-        },
-        "reglas": {
-          "camposRequeridos": [
-            "fechaSustentacion"
+            "siResultado",
+            "siFechaSentencia2"
           ],
           "documentosRequeridos": [
-            "escrito-sustentacion.pdf"
-          ],
-          "documentosOpcionales": [
-            "auto-2inst.pdf"
-          ]
-        }
-      },
-      {
-        "key": "audiencia2inst",
-        "nombre": "Audiencia de 2ª instancia",
-        "orden": 13,
-        "fase": 5,
-        "disponibleSi": {
-          "todas": [
-            {
-              "campo": "hayRecurso",
-              "igualA": "SI"
-            },
-            {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
-            }
-          ]
-        },
-        "reglas": {
-          "camposRequeridos": [
-            "fechaAudiencia2inst"
+            "sentencia-2inst.pdf"
           ],
           "documentosOpcionales": [
             "acta-2inst.pdf"
@@ -3085,284 +4099,1240 @@
         }
       },
       {
-        "key": "sentencia2inst",
-        "nombre": "Sentencia de 2ª instancia",
-        "orden": 14,
-        "fase": 5,
+        "key": "recurso_mismo_despacho",
+        "nombre": "Recurso resuelto por el mismo despacho",
+        "orden": 11,
+        "fase": 6,
         "disponibleSi": {
           "todas": [
             {
-              "campo": "hayRecurso",
-              "igualA": "SI"
+              "campo": "recursoInterpuesto",
+              "igualA": "Sí"
             },
             {
-              "campo": "concedeApelacion",
-              "igualA": "SI"
+              "campo": "recursoTipo",
+              "igualA": [
+                "Aclaración",
+                "Corrección",
+                "Adición",
+                "Reposición"
+              ]
             }
           ]
         },
         "reglas": {
           "camposRequeridos": [
-            "fechaSentencia2inst",
-            "decisionSegundaInstancia"
-          ],
-          "documentosRequeridos": [
-            "sentencia-2inst.pdf"
+            "recursoMismoDecision"
           ]
         }
       },
       {
         "key": "terminada",
-        "nombre": "Terminación",
-        "orden": 15,
-        "fase": 6,
+        "nombre": "Terminación / ejecutoria",
+        "orden": 12,
+        "fase": 7,
         "terminal": true,
         "resultado": "Proceso verbal terminado."
       }
-    ],
-    "grupo": "JUDICIAL",
-    "esJudicial": true,
-    "actualizado": true
+    ]
   },
   {
     "nombre": "Proceso verbal sumario",
+    "grupo": "JUDICIAL",
     "descripcion": "Proceso verbal sumario de única instancia (CGP arts. 390-392): mínima cuantía y asuntos del art. 390. Una sola audiencia (art. 392); la sentencia queda en firme (no procede apelación ni reposición). Traslado 10 días hábiles. Sin reconvención, excepciones previas, incidentes ni terceros.",
     "jurisdiccion": "ORDINARIA_CIVIL",
     "areaSlugs": [
       "civil",
       "comercial-societario"
     ],
+    "esJudicial": true,
+    "actualizado": true,
     "esquemaFormulario": [
       {
-        "key": "asuntoNaturaleza",
-        "label": "Asunto / naturaleza (art. 390)",
+        "key": "calidad",
+        "label": "Calidad en que actúa el cliente",
         "tipo": "select",
         "requerido": true,
         "opciones": [
-          "Mínima cuantía",
-          "Restitución de inmueble arrendado",
-          "Servidumbres",
-          "Posesorios",
-          "Propiedad horizontal",
-          "Pago por consignación",
-          "Impugnación de actos de asambleas/juntas",
-          "Otro del art. 390"
-        ]
+          "Demandante",
+          "Demandado",
+          "Curador ad litem",
+          "Tercero interviniente",
+          "Litisconsorte",
+          "Apoderado sustituto",
+          "Apoderado de ambas partes en procesos diferentes"
+        ],
+        "ayuda": "Calidad procesal del cliente (CGP)."
       },
       {
-        "key": "pretensiones",
-        "label": "Pretensiones",
-        "tipo": "textoLargo",
+        "key": "demandaModo",
+        "label": "Modo de la demanda",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Verbal",
+          "Escrita"
+        ],
+        "ayuda": "En el verbal sumario la demanda puede ser verbal o escrita (art. 390)."
+      },
+      {
+        "key": "demandanteNombre",
+        "label": "Demandante — nombre",
+        "tipo": "texto",
         "requerido": true
+      },
+      {
+        "key": "demandanteCedula",
+        "label": "Demandante — cédula/NIT",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandanteDireccion",
+        "label": "Demandante — dirección",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandanteCorreo",
+        "label": "Demandante — correo",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandanteTelefono",
+        "label": "Demandante — celular",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoNombre",
+        "label": "Demandado — nombre",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoCedula",
+        "label": "Demandado — cédula/NIT",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoDireccion",
+        "label": "Demandado — dirección",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoCorreo",
+        "label": "Demandado — correo",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "demandadoTelefono",
+        "label": "Demandado — celular",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "unidadMedida",
+        "label": "Unidad de medida",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "SMMLV",
+          "Pesos"
+        ]
       },
       {
         "key": "cuantia",
         "label": "Cuantía",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Mínima",
+          "Menor",
+          "Mayor",
+          "No aplica"
+        ]
+      },
+      {
+        "key": "tipoPretension",
+        "label": "Tipo de pretensión",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Determinadas",
+          "Indeterminadas"
+        ]
+      },
+      {
+        "key": "montoPretensiones",
+        "label": "Monto de las pretensiones (COP)",
         "tipo": "numero",
-        "requerido": false
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "tipoPretension",
+          "igualA": "Determinadas"
+        },
+        "requeridoSi": {
+          "campo": "tipoPretension",
+          "igualA": "Determinadas"
+        }
       },
       {
-        "key": "fundamentoDerecho",
-        "label": "Fundamento de derecho",
+        "key": "montoTotal",
+        "label": "Monto total (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "tipoPretension",
+          "igualA": "Determinadas"
+        },
+        "requeridoSi": {
+          "campo": "tipoPretension",
+          "igualA": "Determinadas"
+        }
+      },
+      {
+        "key": "sintesis",
+        "label": "Síntesis de la demanda",
         "tipo": "textoLargo",
-        "requerido": false
+        "requerido": true
       },
       {
-        "key": "fechaHechos",
-        "label": "Fecha de los hechos",
+        "key": "esMinimaCuantia",
+        "label": "¿Es de mínima cuantía?",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Sí",
+          "No"
+        ]
+      },
+      {
+        "key": "fechaPresentacion",
+        "label": "Fecha de presentación",
         "tipo": "fecha",
-        "requerido": false
+        "requerido": true
       },
       {
-        "key": "hechos",
-        "label": "Hechos",
-        "tipo": "textoLargo",
-        "requerido": false
+        "key": "medioRadicacion",
+        "label": "Medio de radicación",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Ventanilla",
+          "Correo",
+          "Plataforma judicial",
+          "Otro"
+        ]
       },
       {
-        "key": "pruebasOfrecidas",
-        "label": "Pruebas ofrecidas",
-        "tipo": "textoLargo",
-        "requerido": false
+        "key": "solicitaMedidaCautelar",
+        "label": "¿Solicita medida cautelar?",
+        "tipo": "select",
+        "requerido": true,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "ayuda": "Si se solicita, se habilita el módulo de medidas cautelares en la ficha."
       },
       {
-        "key": "requierePoder",
-        "label": "¿Requiere poder?",
-        "tipo": "boolean",
-        "requerido": false
-      },
-      {
-        "key": "observaciones",
-        "label": "Observaciones",
-        "tipo": "textoLargo",
-        "requerido": false
-      },
-      {
-        "key": "decisionAuto",
-        "label": "Decisión del auto de calificación",
+        "key": "mcSolicitante",
+        "label": "Medida cautelar — solicitante",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "ADMISIÓN",
-          "INADMISIÓN",
-          "RECHAZO"
+          "Demandante",
+          "Demandado (excepción)",
+          "En la reconvención"
         ],
-        "soloFicha": true,
-        "ayuda": "Lo que resuelve el juez: admite, inadmite (corregir) o rechaza."
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
       },
       {
-        "key": "fechaAuto",
-        "label": "Fecha del auto",
+        "key": "mcFechaSolicitud",
+        "label": "Medida cautelar — fecha de solicitud",
         "tipo": "fecha",
         "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcTipo",
+        "label": "Tipo(s) de medida cautelar",
+        "tipo": "multiselect",
+        "requerido": false,
+        "opciones": [
+          "Inscripción de la demanda",
+          "Embargo",
+          "Secuestro",
+          "Suspensión de obra",
+          "Suspensión de actos",
+          "Innominada",
+          "Otra"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcBienAfectado",
+        "label": "Bien o derecho afectado",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcValorEstimado",
+        "label": "Valor estimado de la medida (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcObservaciones",
+        "label": "Medida cautelar — observaciones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcDecretada",
+        "label": "¿Decretada por el despacho?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No",
+          "Parcial"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcFechaAuto",
+        "label": "Fecha del auto que resuelve la medida",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcRequiereCaucion",
+        "label": "¿Requiere caución?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcValorCaucion",
+        "label": "Valor de la caución (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "mcRequiereCaucion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcCaucionConstituida",
+        "label": "¿Caución constituida?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "mcRequiereCaucion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcFechaCaucion",
+        "label": "Fecha de constitución de la caución",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "mcCaucionConstituida",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcPracticada",
+        "label": "¿Medida practicada/ejecutada?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcFechaPractica",
+        "label": "Fecha de práctica",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcEntidadOficiada",
+        "label": "Entidad oficiada (ORIP / banco / tránsito…)",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcResultadoEjecucion",
+        "label": "Resultado de la ejecución",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Exitosa",
+          "Parcial",
+          "Fallida",
+          "Pendiente"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcLevantada",
+        "label": "¿Medida levantada?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcFechaLevantamiento",
+        "label": "Fecha de levantamiento",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "mcMotivoLevantamiento",
+        "label": "Motivo del levantamiento",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sentencia",
+          "Desistimiento",
+          "Caución",
+          "Orden judicial",
+          "Otro"
+        ],
+        "mostrarSi": {
+          "campo": "solicitaMedidaCautelar",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "radicadoJudicial",
+        "label": "Radicado judicial",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "juzgado",
+        "label": "Juzgado / corporación",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "correoJuzgado",
+        "label": "Correo del juzgado",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "estadoDemanda",
+        "label": "Estado de la demanda",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Admitida",
+          "Inadmitida",
+          "Rechazada"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "admisionFechaAuto",
+        "label": "Admisión — fecha del auto",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Admitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "admisionFechaNotif",
+        "label": "Admisión — fecha de notificación por estado",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Admitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "inadmisionFechaAuto",
+        "label": "Inadmisión — fecha del auto",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Inadmitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "inadmisionFechaNotif",
+        "label": "Inadmisión — fecha de notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Inadmitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "subsanacionPresentada",
+        "label": "¿Subsanación presentada?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Inadmitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "subsanacionFecha",
+        "label": "Subsanación — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "subsanacionPresentada",
+          "igualA": "Sí"
+        },
         "soloFicha": true
       },
       {
         "key": "decisionTrasSubsanacion",
-        "label": "Decisión tras la subsanación",
+        "label": "Decisión del juzgado tras la subsanación",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "ADMITIR",
-          "RECHAZAR"
+          "Admisión",
+          "Rechazo"
         ],
         "mostrarSi": {
-          "campo": "decisionAuto",
-          "igualA": "INADMISIÓN"
+          "campo": "subsanacionPresentada",
+          "igualA": "Sí"
         },
         "soloFicha": true
       },
       {
-        "key": "fechaSubsanacion",
-        "label": "Fecha en que se subsanó",
-        "tipo": "fecha",
-        "requerido": false,
-        "mostrarSi": {
-          "campo": "decisionAuto",
-          "igualA": "INADMISIÓN"
-        },
-        "soloFicha": true
-      },
-      {
-        "key": "fechaAdmisionTrasSubsanacion",
-        "label": "Fecha del auto de admisión (tras subsanar)",
+        "key": "admisionTrasSubFecha",
+        "label": "Admisión tras subsanación — fecha",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
           "campo": "decisionTrasSubsanacion",
-          "igualA": "ADMITIR"
+          "igualA": "Admisión"
         },
         "soloFicha": true
       },
       {
-        "key": "hayRetiro",
-        "label": "¿Hay retiro de la demanda?",
-        "tipo": "select",
-        "requerido": false,
-        "opciones": [
-          "SI",
-          "NO"
-        ],
-        "soloFicha": true,
-        "ayuda": "Sí → se archiva el proceso."
-      },
-      {
-        "key": "fechaNotificacion",
-        "label": "Fecha de la notificación",
-        "tipo": "fecha",
-        "requerido": false,
-        "soloFicha": true,
-        "ayuda": "Desde aquí corren los 10 días hábiles para contestar."
-      },
-      {
-        "key": "contestaron",
-        "label": "¿Contestaron la demanda?",
-        "tipo": "select",
-        "requerido": false,
-        "opciones": [
-          "SI",
-          "NO"
-        ],
-        "soloFicha": true
-      },
-      {
-        "key": "fechaContestacion",
-        "label": "Fecha de la contestación",
+        "key": "rechazoTrasSubFecha",
+        "label": "Rechazo tras subsanación — fecha",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "campo": "contestaron",
-          "igualA": "SI"
+          "campo": "decisionTrasSubsanacion",
+          "igualA": "Rechazo"
         },
         "soloFicha": true
       },
       {
-        "key": "conciliaResultado",
-        "label": "¿Se concilió en la audiencia?",
+        "key": "recursoTrasRechazo",
+        "label": "¿Recurso contra el rechazo (tras subsanación)?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "SI",
-          "NO"
+          "Sí",
+          "No",
+          "N/A"
         ],
-        "soloFicha": true
-      },
-      {
-        "key": "acuerdoConciliacion",
-        "label": "Acuerdo de conciliación",
-        "tipo": "textoLargo",
-        "requerido": false,
         "mostrarSi": {
-          "campo": "conciliaResultado",
-          "igualA": "SI"
+          "campo": "decisionTrasSubsanacion",
+          "igualA": "Rechazo"
         },
         "soloFicha": true
       },
       {
-        "key": "excepciones",
-        "label": "Excepciones (se resuelven en la audiencia)",
-        "tipo": "textoLargo",
+        "key": "decisionRecursoTrasRechazo",
+        "label": "Decisión del recurso (tras subsanación)",
+        "tipo": "select",
         "requerido": false,
+        "opciones": [
+          "Favorable",
+          "Desfavorable"
+        ],
+        "mostrarSi": {
+          "campo": "recursoTrasRechazo",
+          "igualA": "Sí"
+        },
         "soloFicha": true
       },
       {
-        "key": "practicaPruebas",
-        "label": "Práctica de pruebas",
-        "tipo": "textoLargo",
-        "requerido": false,
-        "soloFicha": true
-      },
-      {
-        "key": "alegatos",
-        "label": "Alegatos",
-        "tipo": "textoLargo",
-        "requerido": false,
-        "soloFicha": true
-      },
-      {
-        "key": "fechaSentencia",
-        "label": "Fecha de la sentencia",
+        "key": "rechazoFechaAuto",
+        "label": "Rechazo — fecha del auto",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "campo": "conciliaResultado",
-          "igualA": "NO"
+          "campo": "estadoDemanda",
+          "igualA": "Rechazada"
         },
         "soloFicha": true
       },
       {
-        "key": "decisionSentencia",
-        "label": "Decisión de la sentencia",
+        "key": "rechazoFechaNotif",
+        "label": "Rechazo — fecha de notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Rechazada"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoRechazo",
+        "label": "¿Recurso contra el rechazo?",
         "tipo": "select",
         "requerido": false,
         "opciones": [
-          "FAVORABLE",
-          "DESFAVORABLE"
+          "Sí",
+          "No"
         ],
         "mostrarSi": {
-          "campo": "conciliaResultado",
-          "igualA": "NO"
+          "campo": "estadoDemanda",
+          "igualA": "Rechazada"
         },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoRechazoTipo",
+        "label": "Recurso contra el rechazo — tipo",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Apelación",
+          "Reposición"
+        ],
+        "mostrarSi": {
+          "campo": "recursoRechazo",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoRechazoFecha",
+        "label": "Recurso contra el rechazo — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoRechazo",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "decisionRecursoRechazo",
+        "label": "Decisión del recurso contra el rechazo",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Favorable",
+          "Desfavorable"
+        ],
+        "mostrarSi": {
+          "campo": "recursoRechazo",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "recursoRechazoObs",
+        "label": "Recurso contra el rechazo — observaciones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "recursoRechazo",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reposicionAutoAdmisorio",
+        "label": "¿Reposición contra el auto admisorio?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "estadoDemanda",
+          "igualA": "Admitida"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reposicionFecha",
+        "label": "Reposición — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "reposicionAutoAdmisorio",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reposicionObs",
+        "label": "Reposición — observaciones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "reposicionAutoAdmisorio",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "demandadoNotificado",
+        "label": "¿Demandado notificado?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "trasladoFechaNotif",
+        "label": "Traslado — fecha de notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "trasladoFechaInicio",
+        "label": "Traslado — fecha de inicio",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "trasladoFechaFin",
+        "label": "Traslado — fecha de fin",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "trasladoEstado",
+        "label": "Traslado — estado",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "En término",
+          "Vencido",
+          "Contestado"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "hayReconvencion",
+        "label": "¿Hay reconvención?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "reconPretensiones",
+        "label": "Reconvención — pretensiones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reconFecha",
+        "label": "Reconvención — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reconHayContestacion",
+        "label": "¿Se contestó la reconvención?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reconFechaContestacion",
+        "label": "Reconvención — fecha de contestación",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "reconHayContestacion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reconDecisionJuez",
+        "label": "Reconvención — decisión del juez",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Admitir",
+          "Rechazar"
+        ],
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "reconFechaDecision",
+        "label": "Reconvención — fecha de la decisión",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "hayReconvencion",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "contesto",
+        "label": "¿El demandado contestó?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "contestacionFecha",
+        "label": "Contestación — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "contestoDentroTermino",
+        "label": "¿Contestó dentro del término?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaAnticipada",
+        "label": "¿Procede sentencia anticipada (sin audiencia)?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "auFechaAutoFija",
+        "label": "Audiencia única — fecha del auto que la fija",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auFechaHora",
+        "label": "Audiencia única — fecha y hora",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auEstado",
+        "label": "Audiencia única — estado",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Programada",
+          "Realizada",
+          "Aplazada",
+          "Suspendida"
+        ],
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auConciliacion",
+        "label": "Audiencia única — conciliación",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Total",
+          "Parcial",
+          "Fallida",
+          "N/A"
+        ],
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auConciliacionDetalle",
+        "label": "Conciliación — detalle",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auInterrogatorio",
+        "label": "¿Se practicó interrogatorio?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auPruebasDecretadas",
+        "label": "Pruebas decretadas",
+        "tipo": "multiselect",
+        "requerido": false,
+        "opciones": [
+          "Documentales",
+          "Testimoniales",
+          "Interrogatorio",
+          "Inspección",
+          "Pericial"
+        ],
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auTestigosDemandante",
+        "label": "N.º de testigos del demandante",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auTestigosDemandado",
+        "label": "N.º de testigos del demandado",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auPracticaronTodas",
+        "label": "¿Se practicaron todas las pruebas?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auAlegatos",
+        "label": "¿Alegatos presentados?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auAlegatoDemandante",
+        "label": "Alegato del demandante",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "auAlegatos",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auAlegatoDemandado",
+        "label": "Alegato del demandado",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "auAlegatos",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "auGrabacionUrl",
+        "label": "Audiencia única — URL de grabación",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaFecha",
+        "label": "Sentencia — fecha",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaTipo",
+        "label": "Sentencia — tipo",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Oral",
+          "Escrita"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaResultado",
+        "label": "Sentencia — resultado",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Favorable",
+          "Desfavorable",
+          "Parcial",
+          "Inhibitorio"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaCondenaCostas",
+        "label": "¿Condena en costas?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaValorCostas",
+        "label": "Costas — valor (COP)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "sentenciaCondenaCostas",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaObligaciones",
+        "label": "Obligaciones impuestas",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaFechaNotificacion",
+        "label": "Sentencia — fecha de notificación",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "estadoFinal",
+        "label": "Estado final",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Ejecutoriado",
+          "Cumplido",
+          "Archivado"
+        ],
         "soloFicha": true
       }
     ],
@@ -3374,178 +5344,343 @@
         "fase": 1,
         "reglas": {
           "camposRequeridos": [
-            "asuntoNaturaleza",
-            "pretensiones"
-          ],
-          "documentosRequeridos": [
-            "demanda.pdf"
+            "calidad",
+            "demandaModo",
+            "sintesis",
+            "fechaPresentacion",
+            "medioRadicacion",
+            "cuantia",
+            "unidadMedida",
+            "tipoPretension",
+            "esMinimaCuantia"
           ],
           "documentosOpcionales": [
             "pruebas.pdf",
-            "anexos.pdf"
+            "anexos.pdf",
+            "soporte-radicacion.pdf",
+            "poder.pdf"
           ],
           "requeridosSi": [
             {
               "si": {
-                "campo": "requierePoder",
-                "igualA": "true"
+                "campo": "tipoPretension",
+                "igualA": "Determinadas"
+              },
+              "camposRequeridos": [
+                "montoPretensiones",
+                "montoTotal"
+              ]
+            },
+            {
+              "si": {
+                "campo": "demandaModo",
+                "igualA": "Escrita"
               },
               "documentosRequeridos": [
-                "poder.pdf"
+                "demanda.pdf"
               ]
             }
           ]
         }
       },
       {
-        "key": "calificacion",
-        "nombre": "Calificación de la demanda (auto)",
+        "key": "radicacion",
+        "nombre": "Radicado y autoridad",
         "orden": 1,
         "fase": 1,
         "reglas": {
           "camposRequeridos": [
-            "decisionAuto",
-            "fechaAuto"
-          ],
-          "documentosRequeridos": [
-            "auto-calificacion.pdf"
+            "radicadoJudicial",
+            "juzgado"
+          ]
+        }
+      },
+      {
+        "key": "calificacion",
+        "nombre": "Calificación de la demanda",
+        "orden": 2,
+        "fase": 2,
+        "reglas": {
+          "camposRequeridos": [
+            "estadoDemanda"
           ]
         }
       },
       {
         "key": "subsanacion",
         "nombre": "Subsanación (inadmisión)",
-        "orden": 2,
-        "fase": 1,
+        "orden": 3,
+        "fase": 2,
         "disponibleSi": {
-          "campo": "decisionAuto",
-          "igualA": "INADMISIÓN"
+          "campo": "estadoDemanda",
+          "igualA": "Inadmitida"
         },
         "reglas": {
           "camposRequeridos": [
-            "decisionTrasSubsanacion",
-            "fechaSubsanacion"
-          ],
-          "documentosRequeridos": [
-            "subsanacion.pdf"
+            "subsanacionPresentada"
           ],
           "requeridosSi": [
             {
               "si": {
-                "campo": "decisionTrasSubsanacion",
-                "igualA": "ADMITIR"
+                "campo": "subsanacionPresentada",
+                "igualA": "Sí"
               },
               "camposRequeridos": [
-                "fechaAdmisionTrasSubsanacion"
+                "decisionTrasSubsanacion"
               ],
               "documentosRequeridos": [
-                "auto-admision-tras-subsanacion.pdf"
+                "subsanacion.pdf"
               ]
             }
           ],
-          "plazoDesdeCampo": "fechaAuto",
+          "plazoDesdeCampo": "inadmisionFechaNotif",
           "plazoTipoDias": "habiles",
           "plazoDias": 5
         }
       },
       {
-        "key": "archivado_rechazo",
-        "nombre": "Archivo por rechazo de la demanda",
-        "orden": 3,
-        "fase": 1,
+        "key": "recurso_rechazo",
+        "nombre": "Recurso contra el rechazo",
+        "orden": 4,
+        "fase": 2,
         "disponibleSi": {
           "alguna": [
             {
-              "campo": "decisionAuto",
-              "igualA": "RECHAZO"
+              "campo": "estadoDemanda",
+              "igualA": "Rechazada"
             },
             {
               "todas": [
                 {
-                  "campo": "decisionAuto",
-                  "igualA": "INADMISIÓN"
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
+                },
+                {
+                  "campo": "subsanacionPresentada",
+                  "igualA": "Sí"
                 },
                 {
                   "campo": "decisionTrasSubsanacion",
-                  "igualA": "RECHAZAR"
+                  "igualA": "Rechazo"
+                }
+              ]
+            }
+          ]
+        },
+        "reglas": {
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "estadoDemanda",
+                "igualA": "Rechazada"
+              },
+              "camposRequeridos": [
+                "recursoRechazo"
+              ]
+            },
+            {
+              "si": {
+                "todas": [
+                  {
+                    "campo": "estadoDemanda",
+                    "igualA": "Inadmitida"
+                  },
+                  {
+                    "campo": "decisionTrasSubsanacion",
+                    "igualA": "Rechazo"
+                  }
+                ]
+              },
+              "camposRequeridos": [
+                "recursoTrasRechazo"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "traslado",
+        "nombre": "Traslado y notificación",
+        "orden": 5,
+        "fase": 3,
+        "disponibleSi": {
+          "alguna": [
+            {
+              "campo": "estadoDemanda",
+              "igualA": "Admitida"
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
+                },
+                {
+                  "campo": "subsanacionPresentada",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "Admisión"
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Rechazada"
+                },
+                {
+                  "campo": "recursoRechazo",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionRecursoRechazo",
+                  "igualA": "Favorable"
+                }
+              ]
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "demandadoNotificado",
+            "trasladoFechaInicio"
+          ],
+          "documentosOpcionales": [
+            "soporte-notificacion.pdf",
+            "auto-admisorio.pdf"
+          ],
+          "plazoDesdeCampo": "trasladoFechaInicio",
+          "plazoTipoDias": "habiles",
+          "plazoDias": 10
+        }
+      },
+      {
+        "key": "archivado_rechazo",
+        "nombre": "Archivo (rechazo de la demanda)",
+        "orden": 5,
+        "fase": 3,
+        "disponibleSi": {
+          "alguna": [
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
+                },
+                {
+                  "campo": "subsanacionPresentada",
+                  "igualA": "No"
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
+                },
+                {
+                  "campo": "subsanacionPresentada",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "Rechazo"
+                },
+                {
+                  "campo": "recursoTrasRechazo",
+                  "igualA": [
+                    "No",
+                    "N/A"
+                  ]
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Inadmitida"
+                },
+                {
+                  "campo": "subsanacionPresentada",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionTrasSubsanacion",
+                  "igualA": "Rechazo"
+                },
+                {
+                  "campo": "decisionRecursoTrasRechazo",
+                  "igualA": "Desfavorable"
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Rechazada"
+                },
+                {
+                  "campo": "recursoRechazo",
+                  "igualA": "No"
+                }
+              ]
+            },
+            {
+              "todas": [
+                {
+                  "campo": "estadoDemanda",
+                  "igualA": "Rechazada"
+                },
+                {
+                  "campo": "recursoRechazo",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "decisionRecursoRechazo",
+                  "igualA": "Desfavorable"
                 }
               ]
             }
           ]
         },
         "terminal": true,
-        "resultado": "Demanda rechazada — proceso archivado."
-      },
-      {
-        "key": "retiro",
-        "nombre": "¿Retiro de la demanda?",
-        "orden": 4,
-        "fase": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "hayRetiro"
-          ]
-        }
-      },
-      {
-        "key": "archivado",
-        "nombre": "Archivo por retiro de la demanda",
-        "orden": 5,
-        "fase": 1,
-        "disponibleSi": {
-          "campo": "hayRetiro",
-          "igualA": "SI"
-        },
-        "terminal": true,
-        "resultado": "Demanda retirada y archivada."
-      },
-      {
-        "key": "traslado",
-        "nombre": "Traslado y notificación",
-        "orden": 5,
-        "fase": 2,
-        "disponibleSi": {
-          "campo": "hayRetiro",
-          "igualA": "NO"
-        },
-        "reglas": {
-          "camposRequeridos": [
-            "fechaNotificacion"
-          ],
-          "documentosRequeridos": [
-            "notificacion.pdf"
-          ],
-          "plazoDesdeCampo": "fechaNotificacion",
-          "plazoTipoDias": "habiles",
-          "plazoDias": 10
-        }
+        "resultado": "Demanda rechazada / recurso desfavorable — proceso archivado."
       },
       {
         "key": "contestacion",
-        "nombre": "Contestación",
+        "nombre": "Contestación y reconvención",
         "orden": 6,
-        "fase": 2,
+        "fase": 3,
         "reglas": {
           "camposRequeridos": [
-            "contestaron"
+            "contesto",
+            "sentenciaAnticipada"
           ],
           "requeridosSi": [
             {
               "si": {
-                "campo": "contestaron",
-                "igualA": "SI"
+                "campo": "contesto",
+                "igualA": "Sí"
               },
               "documentosRequeridos": [
                 "contestacion.pdf"
               ]
-            },
+            }
+          ],
+          "opcionalesSi": [
             {
               "si": {
-                "campo": "contestaron",
-                "igualA": "NO"
+                "campo": "hayReconvencion",
+                "igualA": "Sí"
               },
-              "documentosRequeridos": [
-                "auto-silencio.pdf"
+              "documentosOpcionales": [
+                "reconvencion.pdf"
               ]
             }
           ]
@@ -3555,55 +5690,98 @@
         "key": "audienciaUnica",
         "nombre": "Audiencia única (art. 392)",
         "orden": 7,
-        "fase": 3,
+        "fase": 4,
+        "disponibleSi": {
+          "campo": "sentenciaAnticipada",
+          "igualA": "No"
+        },
         "reglas": {
           "camposRequeridos": [
-            "conciliaResultado"
-          ],
-          "requeridosSi": [
-            {
-              "si": {
-                "campo": "conciliaResultado",
-                "igualA": "NO"
-              },
-              "camposRequeridos": [
-                "fechaSentencia",
-                "decisionSentencia"
-              ],
-              "documentosRequeridos": [
-                "sentencia.pdf"
-              ]
-            }
+            "auEstado",
+            "auConciliacion"
           ],
           "documentosOpcionales": [
-            "acta-audiencia.pdf"
+            "acta-audiencia-unica.pdf"
           ]
         }
       },
       {
         "key": "terminada_conciliacion",
         "nombre": "Terminado por conciliación",
-        "orden": 7,
-        "fase": 6,
+        "orden": 8,
+        "fase": 4,
         "disponibleSi": {
-          "campo": "conciliaResultado",
-          "igualA": "SI"
+          "todas": [
+            {
+              "campo": "sentenciaAnticipada",
+              "igualA": "No"
+            },
+            {
+              "campo": "auConciliacion",
+              "igualA": "Total"
+            }
+          ]
         },
         "terminal": true,
-        "resultado": "Proceso conciliado — acuerdo de las partes."
+        "resultado": "Proceso conciliado totalmente — acuerdo de las partes."
+      },
+      {
+        "key": "sentencia",
+        "nombre": "Sentencia",
+        "orden": 8,
+        "fase": 5,
+        "disponibleSi": {
+          "alguna": [
+            {
+              "campo": "sentenciaAnticipada",
+              "igualA": "Sí"
+            },
+            {
+              "todas": [
+                {
+                  "campo": "sentenciaAnticipada",
+                  "igualA": "No"
+                },
+                {
+                  "alguna": [
+                    {
+                      "campo": "auConciliacion",
+                      "igualA": "Parcial"
+                    },
+                    {
+                      "campo": "auConciliacion",
+                      "igualA": "Fallida"
+                    },
+                    {
+                      "campo": "auConciliacion",
+                      "igualA": "N/A"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "sentenciaFecha",
+            "sentenciaTipo",
+            "sentenciaResultado"
+          ],
+          "documentosRequeridos": [
+            "sentencia.pdf"
+          ]
+        }
       },
       {
         "key": "terminada",
-        "nombre": "Terminación (sentencia en firme)",
-        "orden": 8,
+        "nombre": "Terminación / ejecutoria (única instancia)",
+        "orden": 9,
         "fase": 6,
         "terminal": true,
-        "resultado": "Proceso de única instancia terminado — sentencia en firme."
+        "resultado": "Proceso verbal sumario terminado — sentencia en firme (única instancia)."
       }
-    ],
-    "grupo": "JUDICIAL",
-    "esJudicial": true,
-    "actualizado": true
+    ]
   },
   {
     "nombre": "Proceso de sucesión (jurisdicción civil)",

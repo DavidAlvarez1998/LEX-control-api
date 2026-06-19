@@ -4,6 +4,9 @@ import { join } from "node:path";
 import { siguienteEtapaAuto, terminalDecidido } from "../src/modules/procesos/maquina-etapas";
 import type { EtapaDef } from "../src/modules/procesos/esquema";
 
+// Flujos de los procesos verbales civiles (CGP) reescritos FIEL a los documentos
+// (openspec/changes/procesos-verbales-civil/doc-verbal*.md). Simula el auto-avance
+// del motor sobre el seed real para garantizar que las ramas no se estancan.
 const seed = JSON.parse(readFileSync(join(__dirname, "../prisma/seed-tipos.json"), "utf-8")) as Array<{
   nombre: string;
   etapas: EtapaDef[];
@@ -12,10 +15,11 @@ const tipo = (n: string) => seed.find((t) => t.nombre === n)!;
 
 // Todos los documentos posibles presentes (para que el avance no se frene por docs).
 const DOCS = [
-  "demanda.pdf", "pruebas.pdf", "anexos.pdf", "poder.pdf", "auto-calificacion.pdf", "subsanacion.pdf",
-  "auto-admision-tras-subsanacion.pdf", "notificacion.pdf", "contestacion.pdf", "auto-silencio.pdf",
-  "reconvencion.pdf", "acta-art372.pdf", "sentencia.pdf", "acta-art373.pdf", "recurso.pdf",
-  "escrito-sustentacion.pdf", "auto-2inst.pdf", "acta-2inst.pdf", "sentencia-2inst.pdf", "acta-audiencia.pdf",
+  "demanda.pdf", "pruebas.pdf", "anexos.pdf", "soporte-radicacion.pdf", "poder.pdf",
+  "subsanacion.pdf", "soporte-notificacion.pdf", "auto-admisorio.pdf", "contestacion.pdf",
+  "reconvencion.pdf", "excepciones-merito.pdf", "acta-audiencia-inicial.pdf",
+  "acta-audiencia-instruccion.pdf", "sentencia.pdf", "recurso.pdf", "sentencia-2inst.pdf",
+  "acta-2inst.pdf", "acta-audiencia-unica.pdf",
 ];
 
 function caminar(etapas: EtapaDef[], datos: Record<string, unknown>): string[] {
@@ -31,62 +35,141 @@ function caminar(etapas: EtapaDef[], datos: Record<string, unknown>): string[] {
   return path;
 }
 
-describe("Proceso (declarativo) verbal — CGP", () => {
+describe("Proceso (declarativo) verbal — CGP (fiel al doc)", () => {
   const E = tipo("Proceso verbal").etapas;
-  const base = { rol: "Demandante", pretensiones: "x", cuantia: 1, hayRetiro: "NO", fechaNotificacion: "2026-02-01", conciliaResultado: "NO" };
+  // Mínimo para crear + radicar (Fase 1) y llegar a calificación.
+  const base = {
+    calidad: "Demandante", sintesis: "x", fechaPresentacion: "2026-01-01", medioRadicacion: "Ventanilla",
+    cuantia: "Mayor", unidadMedida: "Pesos", tipoPretension: "Indeterminadas",
+    radicadoJudicial: "R1", juzgado: "Juzgado 1 Civil", solicitaMedidaCautelar: "No",
+  };
+  // Tras admisión: traslado, contestación y audiencia inicial fallida (sin conciliar).
+  const hastaAudiencia = {
+    estadoDemanda: "Admitida", demandadoNotificado: "Sí", trasladoFechaInicio: "2026-02-01",
+    contesto: "Sí", aiEstado: "Realizada", aiConciliacion: "Fallida", aiSentenciaInmediata: "No",
+  };
 
-  it("Demandante: admisión → audiencias → apela y concede → 2ª instancia → terminada", () => {
-    const p = caminar(E, { ...base, decisionAuto: "ADMISIÓN", fechaAuto: "2026-01-01", contestaron: "SI", fechaSentencia: "2026-03-01", decisionSentencia: "FAVORABLE", hayRecurso: "SI", concedeApelacion: "SI", fechaRemision2inst: "2026-04-01", radicado2inst: "x", fechaSustentacion: "2026-04-05", fechaAudiencia2inst: "2026-05-01", fechaSentencia2inst: "2026-05-10", decisionSegundaInstancia: "CONFIRMA" });
-    expect(p).toContain("calificacion");
-    expect(p).toContain("audienciaInicial");
-    expect(p).toContain("audienciaInstruccion");
-    expect(p).toEqual(expect.arrayContaining(["remision2inst", "sustentacion2inst", "audiencia2inst", "sentencia2inst"]));
+  it("admisión → audiencias → apela y concede → 2ª instancia → terminada", () => {
+    const p = caminar(E, {
+      ...base, ...hastaAudiencia, ajEstado: "Realizada", ajSentenciaOral: "Sí",
+      sentenciaFecha: "2026-03-01", sentenciaTipo: "Oral", sentenciaResultado: "Favorable",
+      recursoInterpuesto: "Sí", recursoTipo: "Apelación", apConcedido: "Sí",
+      siResultado: "Confirma", siFechaSentencia2: "2026-05-01",
+    });
+    expect(p).toEqual(expect.arrayContaining(["radicacion", "calificacion", "traslado", "contestacion", "audienciaInicial", "audienciaInstruccion", "sentencia", "recurso", "segunda_instancia"]));
     expect(p.at(-1)).toBe("terminada");
   });
 
-  it("Demandante: sin apelar → termina sin 2ª instancia (no se estanca)", () => {
-    const p = caminar(E, { ...base, decisionAuto: "ADMISIÓN", fechaAuto: "2026-01-01", contestaron: "SI", fechaSentencia: "2026-03-01", decisionSentencia: "FAVORABLE", hayRecurso: "NO" });
-    expect(p).not.toContain("remision2inst");
+  it("sin apelar → termina sin 2ª instancia (no se estanca)", () => {
+    const p = caminar(E, {
+      ...base, ...hastaAudiencia, ajEstado: "Realizada", ajSentenciaOral: "Sí",
+      sentenciaFecha: "2026-03-01", sentenciaTipo: "Oral", sentenciaResultado: "Favorable",
+      recursoInterpuesto: "No",
+    });
+    expect(p).not.toContain("segunda_instancia");
     expect(p.at(-1)).toBe("terminada");
   });
 
-  it("INADMISIÓN → subsanar → RECHAZAR → recurso DESFAVORABLE → archivo", () => {
-    const p = caminar(E, { ...base, decisionAuto: "INADMISIÓN", fechaAuto: "2026-01-01", decisionTrasSubsanacion: "RECHAZAR", fechaSubsanacion: "2026-01-08", recursoRechazo: "APELACIÓN", fechaRecursoRechazo: "2026-01-10", decisionRecursoRechazo: "DESFAVORABLE" });
+  it("sentencia inmediata en audiencia inicial → salta la de instrucción", () => {
+    const p = caminar(E, {
+      ...base, estadoDemanda: "Admitida", demandadoNotificado: "Sí", trasladoFechaInicio: "2026-02-01",
+      contesto: "Sí", aiEstado: "Realizada", aiConciliacion: "Fallida", aiSentenciaInmediata: "Sí",
+      aiSentidoSentencia: "Favorable", sentenciaFecha: "2026-03-01", sentenciaTipo: "Oral",
+      sentenciaResultado: "Favorable", recursoInterpuesto: "No",
+    });
+    expect(p).toContain("sentencia");
+    expect(p).not.toContain("audienciaInstruccion");
+    expect(p.at(-1)).toBe("terminada");
+  });
+
+  it("inadmitida → subsana → admisión → continúa a traslado", () => {
+    const p = caminar(E, {
+      ...base, estadoDemanda: "Inadmitida", inadmisionFechaNotif: "2026-01-05",
+      subsanacionPresentada: "Sí", decisionTrasSubsanacion: "Admisión",
+      demandadoNotificado: "Sí", trasladoFechaInicio: "2026-02-01", contesto: "Sí",
+    });
+    expect(p).toContain("subsanacion");
+    expect(p).toContain("traslado");
+  });
+
+  it("inadmitida → NO subsana → archivo", () => {
+    const p = caminar(E, { ...base, estadoDemanda: "Inadmitida", inadmisionFechaNotif: "2026-01-05", subsanacionPresentada: "No" });
+    expect(p).toContain("subsanacion");
+    expect(p.at(-1)).toBe("archivado_rechazo");
+  });
+
+  it("inadmitida → subsana → rechazo → recurso desfavorable → archivo", () => {
+    const p = caminar(E, {
+      ...base, estadoDemanda: "Inadmitida", inadmisionFechaNotif: "2026-01-05",
+      subsanacionPresentada: "Sí", decisionTrasSubsanacion: "Rechazo",
+      recursoTrasRechazo: "Sí", decisionRecursoTrasRechazo: "Desfavorable",
+    });
     expect(p.indexOf("subsanacion")).toBeLessThan(p.indexOf("recurso_rechazo"));
     expect(p.at(-1)).toBe("archivado_rechazo");
   });
 
-  it("Conciliación en audiencia inicial → terminada_conciliacion (no llega a sentencia)", () => {
-    const p = caminar(E, { ...base, decisionAuto: "ADMISIÓN", fechaAuto: "2026-01-01", contestaron: "SI", conciliaResultado: "SI" });
+  it("rechazada → recurso favorable → continúa a traslado", () => {
+    const p = caminar(E, {
+      ...base, estadoDemanda: "Rechazada", rechazoFechaNotif: "2026-01-05",
+      recursoRechazo: "Sí", recursoRechazoTipo: "Apelación", decisionRecursoRechazo: "Favorable",
+      demandadoNotificado: "Sí", trasladoFechaInicio: "2026-02-01",
+    });
+    expect(p).toContain("recurso_rechazo");
+    expect(p).toContain("traslado");
+  });
+
+  it("conciliación total en audiencia inicial → terminada_conciliacion (no llega a sentencia)", () => {
+    const p = caminar(E, {
+      ...base, estadoDemanda: "Admitida", demandadoNotificado: "Sí", trasladoFechaInicio: "2026-02-01",
+      contesto: "Sí", aiEstado: "Realizada", aiConciliacion: "Total", aiSentenciaInmediata: "No",
+    });
     expect(p.at(-1)).toBe("terminada_conciliacion");
     expect(p).not.toContain("audienciaInstruccion");
   });
-
-  it("Retiro → archivado", () => {
-    const p = caminar(E, { ...base, decisionAuto: "ADMISIÓN", fechaAuto: "2026-01-01", hayRetiro: "SI" });
-    expect(p.at(-1)).toBe("archivado");
-  });
 });
 
-describe("Proceso verbal sumario — CGP (única instancia)", () => {
+describe("Proceso verbal sumario — CGP (única instancia, fiel al doc)", () => {
   const E = tipo("Proceso verbal sumario").etapas;
-  const base = { asuntoNaturaleza: "Mínima cuantía", pretensiones: "x", hayRetiro: "NO", fechaNotificacion: "2026-02-01" };
+  const base = {
+    calidad: "Demandante", demandaModo: "Verbal", sintesis: "x", fechaPresentacion: "2026-01-01",
+    medioRadicacion: "Ventanilla", cuantia: "Mínima", unidadMedida: "SMMLV", tipoPretension: "Indeterminadas",
+    esMinimaCuantia: "Sí", radicadoJudicial: "R1", juzgado: "Juzgado 1 Civil Municipal", solicitaMedidaCautelar: "No",
+  };
+  const hastaContestacion = {
+    estadoDemanda: "Admitida", demandadoNotificado: "Sí", trasladoFechaInicio: "2026-02-01", contesto: "Sí",
+  };
 
-  it("Única instancia: audiencia única → sentencia EN FIRME → terminada (sin recurso ni 2ª inst.)", () => {
-    const p = caminar(E, { ...base, decisionAuto: "ADMISIÓN", fechaAuto: "2026-01-01", contestaron: "SI", conciliaResultado: "NO", fechaSentencia: "2026-03-01", decisionSentencia: "FAVORABLE" });
+  it("audiencia única → sentencia EN FIRME → terminada (sin recurso ni 2ª instancia)", () => {
+    const p = caminar(E, {
+      ...base, ...hastaContestacion, sentenciaAnticipada: "No", auEstado: "Realizada", auConciliacion: "Fallida",
+      sentenciaFecha: "2026-03-01", sentenciaTipo: "Oral", sentenciaResultado: "Favorable",
+    });
     expect(p).toContain("audienciaUnica");
+    expect(p).toContain("sentencia");
     expect(p).not.toContain("recurso");
-    expect(p).not.toContain("remision2inst");
+    expect(p).not.toContain("segunda_instancia");
     expect(p.at(-1)).toBe("terminada");
   });
 
-  it("Conciliación → terminada_conciliacion", () => {
-    const p = caminar(E, { ...base, decisionAuto: "ADMISIÓN", fechaAuto: "2026-01-01", contestaron: "SI", conciliaResultado: "SI" });
+  it("sentencia anticipada (sin audiencia) → salta la audiencia única", () => {
+    const p = caminar(E, {
+      ...base, ...hastaContestacion, sentenciaAnticipada: "Sí",
+      sentenciaFecha: "2026-03-01", sentenciaTipo: "Escrita", sentenciaResultado: "Favorable",
+    });
+    expect(p).not.toContain("audienciaUnica");
+    expect(p).toContain("sentencia");
+    expect(p.at(-1)).toBe("terminada");
+  });
+
+  it("conciliación total en audiencia única → terminada_conciliacion", () => {
+    const p = caminar(E, {
+      ...base, ...hastaContestacion, sentenciaAnticipada: "No", auEstado: "Realizada", auConciliacion: "Total",
+    });
     expect(p.at(-1)).toBe("terminada_conciliacion");
   });
 
-  it("RECHAZO en calificación → archivo", () => {
-    const p = caminar(E, { ...base, decisionAuto: "RECHAZO", fechaAuto: "2026-01-01" });
+  it("rechazo en calificación → archivo", () => {
+    const p = caminar(E, { ...base, estadoDemanda: "Rechazada", rechazoFechaNotif: "2026-01-05", recursoRechazo: "No" });
     expect(p.at(-1)).toBe("archivado_rechazo");
   });
 });
