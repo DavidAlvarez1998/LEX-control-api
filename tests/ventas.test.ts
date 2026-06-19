@@ -231,3 +231,36 @@ describe("equipo-comercial — resumen", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("prospectos sin asignar — bandeja y tomar", () => {
+  it("filtro sinAsignar=1 lista comercialId null (un COMERCIAL salta su scope)", async () => {
+    p.prospecto.findMany.mockResolvedValue([]);
+    await request(app).get("/prospectos?sinAsignar=1").set(auth(comTok));
+    expect(p.prospecto.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ comercialId: null }) }),
+    );
+  });
+
+  it("un COMERCIAL toma un prospecto sin dueño → comercialId = él", async () => {
+    p.prospecto.findUnique.mockResolvedValueOnce({ id: "px", comercialId: null }); // estado actual
+    p.prospecto.update.mockResolvedValue({ id: "px", comercialId: "com1" });
+    p.prospecto.findUnique.mockResolvedValueOnce({ id: "px", comercialId: "com1" }); // retorno final
+    const res = await request(app).post("/prospectos/px/tomar").set(auth(comTok));
+    expect(res.status).toBe(200);
+    expect(p.prospecto.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "px" }, data: { comercialId: "com1" } }),
+    );
+  });
+
+  it("tomar uno ya asignado → 409 y no actualiza", async () => {
+    p.prospecto.findUnique.mockResolvedValue({ id: "py", comercialId: "otro" });
+    const res = await request(app).post("/prospectos/py/tomar").set(auth(comTok));
+    expect(res.status).toBe(409);
+    expect(p.prospecto.update).not.toHaveBeenCalled();
+  });
+
+  it("un ADMIN no usa tomar (403; asigna por PATCH)", async () => {
+    const res = await request(app).post("/prospectos/pz/tomar").set(auth(adminTok));
+    expect(res.status).toBe(403);
+  });
+});

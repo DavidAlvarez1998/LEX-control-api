@@ -129,3 +129,41 @@ describe("POST /publico/solicitud-cuenta (público, sin auth)", () => {
     expect(data).not.toHaveProperty("empresaId");
   });
 });
+
+describe("POST /publico/contacto (público, sin auth)", () => {
+  const ok = { nombreContacto: "Luis Visitante", email: "luis@x.co", mensaje: "Quiero info" };
+
+  it("201 y crea un Prospecto WEB SIN asignar (comercialId ausente) con el mensaje en notas", async () => {
+    m.prospecto.create.mockResolvedValue({ id: "c1" });
+    const res = await request(app).post("/publico/contacto").send({ ...ok, nombreEmpresa: "Despacho L", telefono: "300" });
+    expect(res.status).toBe(201);
+    const data = m.prospecto.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ nombreEmpresa: "Despacho L", nombreContacto: "Luis Visitante", email: "luis@x.co", telefono: "300", canalEntrada: "WEB" });
+    expect(data.comercialId ?? null).toBeNull(); // sin asignar
+    expect(data.notas).toContain("Quiero info");
+  });
+
+  it("sin empresa → usa el nombre del contacto como nombreEmpresa", async () => {
+    m.prospecto.create.mockResolvedValue({ id: "c2" });
+    await request(app).post("/publico/contacto").send(ok);
+    expect(m.prospecto.create.mock.calls[0][0].data.nombreEmpresa).toBe("Luis Visitante");
+  });
+
+  it("solo teléfono (sin correo) → 201 (basta un medio)", async () => {
+    m.prospecto.create.mockResolvedValue({ id: "c3" });
+    const res = await request(app).post("/publico/contacto").send({ nombreContacto: "Sin Correo", telefono: "3001234" });
+    expect(res.status).toBe(201);
+  });
+
+  it("sin correo ni teléfono → 400 y no crea", async () => {
+    const res = await request(app).post("/publico/contacto").send({ nombreContacto: "Nadie" });
+    expect(res.status).toBe(400);
+    expect(m.prospecto.create).not.toHaveBeenCalled();
+  });
+
+  it("honeypot lleno → no-op (200, no crea)", async () => {
+    const res = await request(app).post("/publico/contacto").send({ ...ok, website: "http://spam" });
+    expect(res.status).toBe(200);
+    expect(m.prospecto.create).not.toHaveBeenCalled();
+  });
+});

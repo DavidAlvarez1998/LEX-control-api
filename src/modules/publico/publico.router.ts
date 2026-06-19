@@ -3,7 +3,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../../middleware/async";
 import { validate } from "../../middleware/validate";
-import { solicitudCuentaSchema } from "./publico.schemas";
+import { contactoSchema, solicitudCuentaSchema } from "./publico.schemas";
 import * as publico from "./publico.service";
 
 export const publicoRoutes: Router = Router();
@@ -20,6 +20,16 @@ publicoRoutes.post(
   validate({ body: solicitudCuentaSchema }),
   asyncHandler(async (req, res) => {
     const { creado } = await publico.solicitarCuenta(req.body);
+    res.status(creado ? 201 : 200).json({ ok: true });
+  }),
+);
+
+/** POST /publico/contacto — "Habla con un asesor": crea un Prospecto WEB sin asignar. */
+publicoRoutes.post(
+  "/contacto",
+  validate({ body: contactoSchema }),
+  asyncHandler(async (req, res) => {
+    const { creado } = await publico.contactar(req.body);
     res.status(creado ? 201 : 200).json({ ok: true });
   }),
 );

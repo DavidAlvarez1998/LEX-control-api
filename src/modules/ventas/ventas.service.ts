@@ -41,12 +41,19 @@ async function cargarSeguimiento(t: TenantContext, r: VentasRepository, id: stri
 }
 
 // ===================== PROSPECTOS =====================
-export function listProspectos(t: TenantContext, f: { estado?: string; canal?: string; comercialId?: string }) {
+export function listProspectos(
+  t: TenantContext,
+  f: { estado?: string; canal?: string; comercialId?: string; sinAsignar?: boolean },
+) {
+  // Bandeja "sin asignar" (comercialId = null): visible para admin Y comerciales,
+  // saltando el scope-por-comercial, para que cualquiera pueda tomarlos.
+  const base = f.sinAsignar
+    ? { comercialId: null }
+    : { ...scope(t), ...(!esComercial(t) && f.comercialId ? { comercialId: f.comercialId } : {}) };
   return repo().listProspectos({
-    ...scope(t),
+    ...base,
     ...(f.estado ? { estado: f.estado as EstadoProspecto } : {}),
     ...(f.canal ? { canalEntrada: f.canal as CanalEntrada } : {}),
-    ...(!esComercial(t) && f.comercialId ? { comercialId: f.comercialId } : {}),
   });
 }
 export async function createProspecto(t: TenantContext, b: In<typeof createProspectoSchema>) {
@@ -80,6 +87,21 @@ export async function updateProspecto(t: TenantContext, id: string, body: In<typ
   if (reasigna) await r.reassignPendingSeguimientos(id, b.comercialId ?? null);
   return r.findProspecto(id);
 }
+/**
+ * "Tomar" (auto-asignación): un COMERCIAL se asigna a sí mismo un prospecto que está
+ * SIN dueño (típicamente uno entrado por la landing). Falla con 409 si ya tiene
+ * comercial (no se le roba a nadie). El admin no usa esto: asigna por PATCH a cualquiera.
+ */
+export async function tomarProspecto(t: TenantContext, id: string) {
+  if (!esComercial(t)) throw new HttpError(403, "Solo un comercial puede tomar prospectos sin asignar");
+  const r = repo();
+  const p = await r.findProspecto(id);
+  if (!p) throw new HttpError(404, "Prospecto no encontrado");
+  if (p.comercialId) throw new HttpError(409, "El prospecto ya tiene un comercial asignado");
+  await r.updateProspecto(id, { comercialId: t.userId }); // sin scope: su WHERE actual es comercialId=null
+  return r.findProspecto(id);
+}
+
 export async function ganarProspecto(t: TenantContext, id: string, body: In<typeof ganarSchema>) {
   const r = repo();
   const prospecto = await cargarProspecto(t, r, id);

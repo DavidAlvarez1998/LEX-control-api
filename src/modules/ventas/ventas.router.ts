@@ -27,13 +27,15 @@ const q = (req: { query: Record<string, unknown> }, k: string) =>
 
 // ===================== PROSPECTOS =====================
 prospectoRoutes.get("/", ...adminOComercial,
-  asyncHandler(async (req, res) => res.json(await ventas.listProspectos(tenant(req), { estado: q(req, "estado"), canal: q(req, "canal"), comercialId: q(req, "comercialId") }))));
+  asyncHandler(async (req, res) => res.json(await ventas.listProspectos(tenant(req), { estado: q(req, "estado"), canal: q(req, "canal"), comercialId: q(req, "comercialId"), sinAsignar: q(req, "sinAsignar") === "1" }))));
 prospectoRoutes.post("/", ...adminOComercial, validate({ body: createProspectoSchema }),
   asyncHandler(async (req, res) => res.status(201).json(await ventas.createProspecto(tenant(req), req.body))));
 prospectoRoutes.get("/:id", ...adminOComercial, validate({ params: idParams }),
   asyncHandler(async (req, res) => res.json(await ventas.getProspecto(tenant(req), req.params.id))));
 prospectoRoutes.patch("/:id", ...adminOComercial, validate({ params: idParams, body: updateProspectoSchema }),
   asyncHandler(async (req, res) => res.json(await ventas.updateProspecto(tenant(req), req.params.id, req.body))));
+prospectoRoutes.post("/:id/tomar", ...adminOComercial, validate({ params: idParams }),
+  asyncHandler(async (req, res) => res.json(await ventas.tomarProspecto(tenant(req), req.params.id))));
 prospectoRoutes.post("/:id/ganar", ...adminOComercial, validate({ params: idParams, body: ganarSchema }),
   asyncHandler(async (req, res) => res.status(201).json(await ventas.ganarProspecto(tenant(req), req.params.id, req.body))));
 prospectoRoutes.post("/:id/perder", ...adminOComercial, validate({ params: idParams, body: perderSchema }),

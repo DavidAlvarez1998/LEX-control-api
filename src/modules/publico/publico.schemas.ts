@@ -17,3 +17,20 @@ export const solicitudCuentaSchema = z.object({
   planClave: z.string().trim().max(60).optional(),
   website: z.string().max(200).optional(),
 });
+
+/** Cuerpo de "Habla con un asesor" (landing): contacto liviano. Crea un Prospecto
+ *  WEB sin asignar. Requiere nombre + al menos un medio (correo o teléfono). Empresa
+ *  y mensaje opcionales. `website` = honeypot anti-spam. */
+export const contactoSchema = z
+  .object({
+    nombreContacto: z.string().trim().min(2, "Tu nombre es obligatorio").max(160),
+    email: z.string().trim().email("Correo inválido").max(160).optional().or(z.literal("")),
+    telefono: z.string().trim().max(40).optional().or(z.literal("")),
+    nombreEmpresa: z.string().trim().max(160).optional(),
+    mensaje: z.string().trim().max(2000).optional(),
+    website: z.string().max(200).optional(),
+  })
+  .refine((d) => !!(d.email && d.email !== "") || !!(d.telefono && d.telefono !== ""), {
+    message: "Deja al menos un correo o un teléfono",
+    path: ["email"],
+  });
