@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { isProd } from "../config/env";
 import { getContext, runWithContext } from "./request-context";
+import { registrarHttp } from "./metrics";
 
 type Level = "debug" | "info" | "warn" | "error";
 
@@ -44,6 +45,9 @@ export function requestId(req: Request, res: Response, next: NextFunction): void
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
     const level = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
     emit(level, "http_request", { method: req.method, path: req.path, status: res.statusCode, durationMs: Math.round(durationMs) });
+    // Ruta en bucket grueso (1er segmento) para no explotar la cardinalidad con IDs.
+    const route = "/" + (req.path.split("/")[1] ?? "");
+    registrarHttp(req.method, route, res.statusCode, durationMs);
   });
   runWithContext({ reqId: id, method: req.method, path: req.path }, next);
 }

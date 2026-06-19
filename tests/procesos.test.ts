@@ -196,6 +196,17 @@ describe("POST /procesos — cliente dueño y abogado responsable", () => {
     );
   });
 
+  it("el consecutivo deriva del ÚLTIMO código (no de count)", async () => {
+    mockCreateOk();
+    const year = new Date().getFullYear();
+    proceso.findFirst.mockResolvedValue({ codigoInterno: `EXP-${year}-0042` }); // último existente
+    const res = await request(app).post("/procesos").set(auth(token)).send(datosOk);
+    expect(res.status).toBe(201);
+    expect(proceso.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ codigoInterno: `EXP-${year}-0043` }) }),
+    );
+  });
+
   it("400 si el cliente referenciado es de otro despacho", async () => {
     mockCreateOk();
     m.cliente.findFirst.mockResolvedValue(null);

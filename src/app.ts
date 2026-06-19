@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import { env } from "./config/env";
 import { errorHandler, notFound } from "./middleware/error";
 import { requestId } from "./shared/logger";
+import { registry } from "./shared/metrics";
 import { authRoutes } from "./modules/auth/auth.router";
 import { buscarRoutes } from "./modules/buscar/buscar.router";
 import { catalogRoutes } from "./modules/catalog/catalog.router";
@@ -46,6 +47,12 @@ export function createApp(): Express {
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
+  });
+
+  // Métricas Prometheus (las consume un scraper externo cuando exista).
+  app.get("/metrics", async (_req, res) => {
+    res.set("Content-Type", registry.contentType);
+    res.end(await registry.metrics());
   });
 
   // Documentación de la API (OpenAPI 3 desde Zod) + Swagger UI.

@@ -19,6 +19,15 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe("observabilidad", () => {
+  it("GET /metrics expone métricas Prometheus (sin auth)", async () => {
+    await request(app).get("/health"); // genera tráfico medible
+    const res = await request(app).get("/metrics");
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("http_requests_total");
+  });
+});
+
 describe("GET /publico/planes (público, sin auth)", () => {
   it("200 sin token y devuelve la proyección mínima (sin ids ni campos internos)", async () => {
     m.plan.findMany.mockResolvedValue([

@@ -35,11 +35,18 @@ export async function generarCodigoInterno(
   prefijo: "EXP" | "COM" = "EXP",
 ): Promise<string> {
   const year = new Date().getFullYear();
-  // TODO(api-hardening): derivar del último código (orderBy desc) en vez de count()
-  // para reducir la colisión bajo concurrencia. Pendiente junto a la modernización de
-  // los mocks de test (comercial.test fija `proceso.count`). El @@unique respalda la carrera.
-  const usados = await tx.proceso.count({ where: { empresaId, codigoInterno: { startsWith: `${prefijo}-${year}-` } } });
-  return `${prefijo}-${year}-${String(usados + 1).padStart(4, "0")}`;
+  const prefix = `${prefijo}-${year}-`;
+  // Derivar del ÚLTIMO código (orderBy desc), no de count(): bajo concurrencia dos
+  // count() leen el mismo total y generan el mismo número; tomar el máximo + el
+  // `@@unique([empresaId, codigoInterno])` reducen la colisión (un reintento la cierra).
+  // Los códigos van zero-padded a 4 dígitos → el orden lexicográfico coincide con el numérico.
+  const ultimo = await tx.proceso.findFirst({
+    where: { empresaId, codigoInterno: { startsWith: prefix } },
+    orderBy: { codigoInterno: "desc" },
+    select: { codigoInterno: true },
+  });
+  const seq = ultimo?.codigoInterno ? parseInt(ultimo.codigoInterno.slice(prefix.length), 10) || 0 : 0;
+  return `${prefix}${String(seq + 1).padStart(4, "0")}`;
 }
 
 /** Un COMERCIAL (sin JURIDICO ni admin de empresa) solo ve los procesos de SUS clientes. */
@@ -68,7 +75,7 @@ export async function listProcesos(t: TenantContext, query: Record<string, unkno
 
   const [total, procesos] = await repo(t).countAndList(where, (page - 1) * pageSize, pageSize);
   const semaforo = crearSemaforo();
-  return { total, page, pageSize, items: procesos.map((p) => toProcesoListItem(p as never, semaforo)) };
+  return { total, page, pageSize, items: procesos.map((p) => toProcesoListItem(p, semaforo)) };
 }
 
 export async function vencimientos(t: TenantContext) {
@@ -121,7 +128,7 @@ export async function getCaso(t: TenantContext, id: string) {
       cola.push(h.id);
     }
   }
-  return orden.map((p) => toCasoNodo(p as never));
+  return orden.map((p) => toCasoNodo(p));
 }
 
 export async function getDetalle(t: TenantContext, id: string) {

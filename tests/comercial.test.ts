@@ -7,7 +7,7 @@ vi.mock("../src/index", () => {
     cliente: { findFirst: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), findMany: vi.fn() },
     solicitudAsignacionProceso: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     usuarioRolEmpresa: { findFirst: vi.fn() },
-    proceso: { create: vi.fn(), count: vi.fn() },
+    proceso: { create: vi.fn(), count: vi.fn(), findFirst: vi.fn() },
     parteProceso: { create: vi.fn() },
     seguimientoComercial: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
     comisionDespacho: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },

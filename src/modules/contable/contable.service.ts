@@ -6,6 +6,7 @@ import { z } from "zod";
 import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
+import { paginated, type PageParams } from "../../shared/pagination";
 import { ContableRepository } from "./contable.repository";
 import { conSaldo, n } from "./cartera.service";
 import type {
@@ -16,7 +17,7 @@ import type {
 } from "./contable.schemas";
 
 type In<T extends z.ZodTypeAny> = z.infer<T>;
-const num = (d: unknown) => n(d as never);
+const num = (d: Prisma.Decimal | null | undefined) => n(d);
 
 // --- asserts same-empresa (contable usa 400) ---
 async function assertCliente(r: ContableRepository, id: string) {
@@ -36,8 +37,11 @@ async function procesoRadicado(r: ContableRepository, id: string): Promise<strin
 const repo = (t: TenantContext) => new ContableRepository(empresaIdOrThrow(t));
 
 // ===================== INGRESOS =====================
-export function listIngresos(t: TenantContext, f: { clienteId?: string; procesoId?: string }) {
-  return repo(t).listIngresos(f);
+export async function listIngresos(t: TenantContext, f: { clienteId?: string; procesoId?: string; page?: PageParams | null }) {
+  const r = repo(t);
+  if (!f.page) return r.listIngresos(f); // sin ?page → array (retrocompatible)
+  const [total, items] = await r.listIngresosPaginated(f, f.page);
+  return paginated(items, total, f.page);
 }
 export async function createIngreso(t: TenantContext, b: In<typeof createIngresoSchema>) {
   const r = repo(t);
@@ -49,8 +53,11 @@ export async function createIngreso(t: TenantContext, b: In<typeof createIngreso
 }
 
 // ===================== EGRESOS =====================
-export function listEgresos(t: TenantContext, f: { categoria?: string; procesoId?: string }) {
-  return repo(t).listEgresos(f);
+export async function listEgresos(t: TenantContext, f: { categoria?: string; procesoId?: string; page?: PageParams | null }) {
+  const r = repo(t);
+  if (!f.page) return r.listEgresos(f);
+  const [total, items] = await r.listEgresosPaginated(f, f.page);
+  return paginated(items, total, f.page);
 }
 export async function createEgreso(t: TenantContext, b: In<typeof createEgresoSchema>) {
   const r = repo(t);
@@ -202,7 +209,8 @@ export async function listCuentas(t: TenantContext) {
   const cuentas = await r.listCuentas();
   const [ing, egr, sf, nom] = await r.cuentasSums();
   const sumBy = (rows: { cuentaId: string | null; _sum: Record<string, unknown> }[], field: string) =>
-    new Map(rows.map((x) => [x.cuentaId, num(x._sum[field])]));
+    // `_sum[field]` es acceso por clave dinámica → unknown; cast aislado a Decimal.
+    new Map(rows.map((x) => [x.cuentaId, num(x._sum[field] as Prisma.Decimal | null)]));
   const mIng = sumBy(ing, "valorRecibido"), mEgr = sumBy(egr, "valorGasto"), mSf = sumBy(sf, "valorFacturado"), mNom = sumBy(nom, "valorNetoPagar");
   return cuentas.map((c) => ({
     ...c,
@@ -252,9 +260,15 @@ function totalDesdePlan(config: any, contrato: any): number | null {
   }
   return contrato.valorAcordado != null ? num(contrato.valorAcordado) : null;
 }
-export async function listCartera(t: TenantContext, clienteId?: string) {
-  const filas = await repo(t).listCartera(clienteId);
-  return Promise.all(filas.map(conSaldo));
+export async function listCartera(t: TenantContext, clienteId?: string, page?: PageParams | null) {
+  const r = repo(t);
+  if (!page) {
+    const filas = await r.listCartera(clienteId);
+    return Promise.all(filas.map(conSaldo));
+  }
+  const [total, filas] = await r.listCarteraPaginated(clienteId, page);
+  const items = await Promise.all(filas.map(conSaldo));
+  return paginated(items, total, page);
 }
 export async function createCartera(t: TenantContext, b: In<typeof createCarteraSchema>) {
   const empresaId = empresaIdOrThrow(t);

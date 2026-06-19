@@ -7,6 +7,7 @@ import { asyncHandler } from "../../middleware/async";
 import { requireAuth, requirePermiso } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { tenant } from "../../shared/tenant";
+import { parsePage } from "../../shared/pagination";
 import {
   createCajaSchema, createCarteraSchema, createCuentaSchema, createEgresoSchema,
   createIngresoSchema, createMovimientoSchema, createNominaSchema, createServicioFijoSchema,
@@ -23,7 +24,7 @@ const q = (req: { query: Record<string, unknown> }, k: string) =>
 // ===================== INGRESOS =====================
 contableRoutes.get("/ingresos", requireAuth, requirePermiso("contable.ingreso.ver"),
   asyncHandler(async (req, res) => {
-    res.json(await contable.listIngresos(tenant(req), { clienteId: q(req, "clienteId"), procesoId: q(req, "procesoId") }));
+    res.json(await contable.listIngresos(tenant(req), { clienteId: q(req, "clienteId"), procesoId: q(req, "procesoId"), page: parsePage(req.query) }));
   }));
 contableRoutes.post("/ingresos", requireAuth, requirePermiso("contable.ingreso.crear"),
   validate({ body: createIngresoSchema }),
@@ -32,7 +33,7 @@ contableRoutes.post("/ingresos", requireAuth, requirePermiso("contable.ingreso.c
 // ===================== EGRESOS =====================
 contableRoutes.get("/egresos", requireAuth, requirePermiso("contable.egreso.ver"),
   asyncHandler(async (req, res) => {
-    res.json(await contable.listEgresos(tenant(req), { categoria: q(req, "categoria"), procesoId: q(req, "procesoId") }));
+    res.json(await contable.listEgresos(tenant(req), { categoria: q(req, "categoria"), procesoId: q(req, "procesoId"), page: parsePage(req.query) }));
   }));
 contableRoutes.post("/egresos", requireAuth, requirePermiso("contable.egreso.crear"),
   validate({ body: createEgresoSchema }),
@@ -110,7 +111,7 @@ contableRoutes.delete("/cuentas/:id", requireAuth, requirePermiso("contable.cuen
 
 // ===================== CARTERA =====================
 contableRoutes.get("/cartera", requireAuth, requirePermiso("contable.cartera.ver"),
-  asyncHandler(async (req, res) => res.json(await contable.listCartera(tenant(req), q(req, "clienteId")))));
+  asyncHandler(async (req, res) => res.json(await contable.listCartera(tenant(req), q(req, "clienteId"), parsePage(req.query)))));
 contableRoutes.post("/cartera", requireAuth, requirePermiso("contable.cartera.ver"),
   validate({ body: createCarteraSchema }),
   asyncHandler(async (req, res) => res.status(201).json(await contable.createCartera(tenant(req), req.body))));

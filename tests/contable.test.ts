@@ -80,6 +80,22 @@ describe("ingresos", () => {
     expect(res.status).toBe(400);
     expect(p.ingreso.create).not.toHaveBeenCalled();
   });
+  it("sin ?page devuelve array (retrocompatible)", async () => {
+    p.ingreso.findMany.mockResolvedValue([{ id: "i1" }]);
+    const res = await request(app).get("/contable/ingresos").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(p.ingreso.count).not.toHaveBeenCalled();
+  });
+  it("con ?page devuelve el sobre paginado { items, total, page, pageSize }", async () => {
+    p.ingreso.count.mockResolvedValue(30);
+    p.ingreso.findMany.mockResolvedValue([{ id: "i1" }]);
+    const res = await request(app).get("/contable/ingresos?page=2&pageSize=5").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ total: 30, page: 2, pageSize: 5 });
+    expect(res.body.items).toHaveLength(1);
+    expect(p.ingreso.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 5, take: 5 }));
+  });
 });
 
 describe("nómina · empleables + empleadoId", () => {

@@ -3,6 +3,7 @@
 // cartera/reportes; los saldos se DERIVAN en el service a partir de estas sumas.
 import { Prisma, type CategoriaEgreso } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
+import type { PageParams } from "../../shared/pagination";
 
 export class ContableRepository {
   constructor(
@@ -28,22 +29,36 @@ export class ContableRepository {
   }
 
   // --- ingresos ---
+  private whereIngresos(f: { clienteId?: string; procesoId?: string }): Prisma.IngresoWhereInput {
+    return { empresaId: this.e, ...(f.clienteId ? { clienteId: f.clienteId } : {}), ...(f.procesoId ? { procesoId: f.procesoId } : {}) };
+  }
   listIngresos(f: { clienteId?: string; procesoId?: string }) {
-    return this.db.ingreso.findMany({
-      where: { empresaId: this.e, ...(f.clienteId ? { clienteId: f.clienteId } : {}), ...(f.procesoId ? { procesoId: f.procesoId } : {}) },
-      orderBy: { fechaIngreso: "desc" },
-    });
+    return this.db.ingreso.findMany({ where: this.whereIngresos(f), orderBy: { fechaIngreso: "desc" } });
+  }
+  listIngresosPaginated(f: { clienteId?: string; procesoId?: string }, p: PageParams) {
+    const where = this.whereIngresos(f);
+    return Promise.all([
+      this.db.ingreso.count({ where }),
+      this.db.ingreso.findMany({ where, orderBy: { fechaIngreso: "desc" }, skip: p.skip, take: p.take }),
+    ]);
   }
   createIngreso(data: Prisma.IngresoUncheckedCreateInput) {
     return this.db.ingreso.create({ data });
   }
 
   // --- egresos ---
+  private whereEgresos(f: { categoria?: string; procesoId?: string }): Prisma.EgresoWhereInput {
+    return { empresaId: this.e, ...(f.categoria ? { categoriaGasto: f.categoria as CategoriaEgreso } : {}), ...(f.procesoId ? { procesoId: f.procesoId } : {}) };
+  }
   listEgresos(f: { categoria?: string; procesoId?: string }) {
-    return this.db.egreso.findMany({
-      where: { empresaId: this.e, ...(f.categoria ? { categoriaGasto: f.categoria as CategoriaEgreso } : {}), ...(f.procesoId ? { procesoId: f.procesoId } : {}) },
-      orderBy: { fechaGasto: "desc" },
-    });
+    return this.db.egreso.findMany({ where: this.whereEgresos(f), orderBy: { fechaGasto: "desc" } });
+  }
+  listEgresosPaginated(f: { categoria?: string; procesoId?: string }, p: PageParams) {
+    const where = this.whereEgresos(f);
+    return Promise.all([
+      this.db.egreso.count({ where }),
+      this.db.egreso.findMany({ where, orderBy: { fechaGasto: "desc" }, skip: p.skip, take: p.take }),
+    ]);
   }
   createEgreso(data: Prisma.EgresoUncheckedCreateInput) {
     return this.db.egreso.create({ data });
@@ -194,8 +209,18 @@ export class ContableRepository {
   }
 
   // --- cartera ---
+  private whereCartera(clienteId?: string): Prisma.CarteraWhereInput {
+    return { empresaId: this.e, ...(clienteId ? { clienteId } : {}) };
+  }
   listCartera(clienteId?: string) {
-    return this.db.cartera.findMany({ where: { empresaId: this.e, ...(clienteId ? { clienteId } : {}) }, orderBy: { createdAt: "desc" } });
+    return this.db.cartera.findMany({ where: this.whereCartera(clienteId), orderBy: { createdAt: "desc" } });
+  }
+  listCarteraPaginated(clienteId: string | undefined, p: PageParams) {
+    const where = this.whereCartera(clienteId);
+    return Promise.all([
+      this.db.cartera.count({ where }),
+      this.db.cartera.findMany({ where, orderBy: { createdAt: "desc" }, skip: p.skip, take: p.take }),
+    ]);
   }
   findContratoComercial(id: string) {
     return this.db.contratoComercial.findFirst({
