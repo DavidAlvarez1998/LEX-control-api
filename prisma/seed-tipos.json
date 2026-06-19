@@ -2162,8 +2162,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcFechaSolicitud",
@@ -2173,8 +2172,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcTipo",
@@ -2193,8 +2191,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcBienAfectado",
@@ -2204,8 +2201,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcValorEstimado",
@@ -2215,8 +2211,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcObservaciones",
@@ -2226,8 +2221,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcDecretada",
@@ -4353,8 +4347,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcFechaSolicitud",
@@ -4364,8 +4357,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcTipo",
@@ -4384,8 +4376,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcBienAfectado",
@@ -4395,8 +4386,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcValorEstimado",
@@ -4406,8 +4396,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcObservaciones",
@@ -4417,8 +4406,7 @@
         "mostrarSi": {
           "campo": "solicitaMedidaCautelar",
           "igualA": "Sí"
-        },
-        "soloFicha": true
+        }
       },
       {
         "key": "mcDecretada",
