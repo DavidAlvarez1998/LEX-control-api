@@ -35,7 +35,10 @@ export class ContratosRepository {
     return this.db.contrato.findUnique({ where: { id }, select: { empresaId: true } });
   }
   findParaDoc(id: string) {
-    return this.db.contrato.findUnique({ where: { id }, select: { id: true, empresaId: true, usuarioId: true, numeroDocumento: true } });
+    return this.db.contrato.findUnique({
+      where: { id },
+      select: { id: true, empresaId: true, usuarioId: true, numeroDocumento: true, empresa: { select: { id: true, nombre: true } } },
+    });
   }
   findDuenoYAmbito(id: string) {
     return this.db.contrato.findUnique({ where: { id }, select: { empresaId: true, usuarioId: true } });

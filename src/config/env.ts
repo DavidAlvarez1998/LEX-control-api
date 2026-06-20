@@ -34,44 +34,30 @@ export const env = {
   // viejos); el binario vive allá. Ver openspec/roadmap-docs/API-DOCUMENTOS-INTEGRACION.md.
   documentos: {
     // Base URL sin barra final (se concatena con /api/documento y /documentos).
-    // El entorno demo del microservicio NO está operativo: usamos PRODUCCIÓN y
-    // aislamos nuestros datos de prueba bajo la carpeta raíz `demo-lex-control`.
     apiUrl: (
       process.env.DOCUMENTOS_API_URL ?? "https://documentos.tecnovapp.com.co"
     ).replace(/\/+$/, ""),
-    // Carpeta raíz {EMPRESA} bajo la que se agrupan TODOS los archivos de la
-    // plataforma en el microservicio. Las subcarpetas ({CARPETA}) las decide
-    // cada módulo en código (p. ej. "contratos").
-    empresa: process.env.DOCUMENTOS_EMPRESA ?? "demo-lex-control",
+    // Prefijo de la RAÍZ {EMPRESA} en tecnovapp (compartido entre productos). La
+    // raíz real es `{raizPrefijo}-{TENANT}` donde TENANT = "ADMIN" o
+    // "{slug}-{empresaId}" (ver carpetaTenant en documentos.client.ts). Así cada
+    // despacho es su propia raíz (convención multi-tenant del doc, §9.1) y todo
+    // queda namespaceado por producto/entorno (DEMO-LEXCONTROL vs LEXCONTROL).
+    raizPrefijo: (process.env.DOCUMENTOS_RAIZ_PREFIJO ?? "DEMO-LEXCONTROL").replace(/\/+$/, ""),
     // Timeout de subida (ms): un archivo puede tardar más que una request normal.
     timeoutMs: Number(process.env.DOCUMENTOS_TIMEOUT_MS ?? 30_000),
   },
 
-  // Integraciones con sistemas estatales (Fase A: Corte Constitucional vía API
-  // pública Socrata de datos.gov.co). El `datasetId` debe apuntar al dataset real
-  // de la relatoría; `appToken` es opcional (sube los límites de rate de Socrata).
-  // Ver openspec/specs/integraciones-estatales/spec.md.
-  integraciones: {
-    corteConstitucional: {
-      baseUrl: (process.env.CORTE_CONST_API_URL ?? "https://www.datos.gov.co").replace(/\/+$/, ""),
-      datasetId: process.env.CORTE_CONST_DATASET ?? "9kfd-kup7",
-      appToken: process.env.SOCRATA_APP_TOKEN, // opcional
-      timeoutMs: Number(process.env.INTEGRACIONES_TIMEOUT_MS ?? 15_000),
-    },
-    // Llave de cifrado de credenciales de proveedor. Si no se setea, se deriva de
-    // JWT_SECRET (ver crypto.ts) — funciona sin config extra.
-    // Llave de cifrado de credenciales: la propia si se configura; si no, deriva del
-    // JWT_SECRET (required → siempre existe). Sin fallback inseguro hardcodeado.
-    encKey: process.env.INTEGRACIONES_ENC_KEY ?? required("JWT_SECRET"),
-    // TTL del caché de actuaciones: una sincronización on-demand dentro de esta
-    // ventana se sirve del caché (no llama al proveedor). Spec: "served from cache within TTL".
-    syncTtlMinutes: Number(process.env.INTEGRACIONES_SYNC_TTL_MIN ?? 360), // 6 h
-    // Proveedor de actuaciones MOCK (Fase B): CPNU/RUES están bloqueados (infra/llaves),
-    // así que en dev/test el motor de sync se ejerce contra un mock determinista. En
-    // producción queda apagado por defecto (no servir datos judiciales falsos).
-    mockActuaciones:
-      (process.env.INTEGRACIONES_MOCK ?? ((process.env.NODE_ENV ?? "development") === "production" ? "false" : "true")) ===
-      "true",
+  // Microservicio interno de NOTIFICACIONES (proyecto API_NOTIFICAR /
+  // solucredito-hablame-1): correo (Amazon SES), SMS (Háblame) y llamadas TTS
+  // (Go4Clients). Mismo host para los tres canales, SIN auth (red interna), HTTP.
+  // ⚠️ De COBRO: enviar correo/SMS/llamada consume saldo. No probar contra el
+  // proveedor real salvo a propósito. Ver openspec/roadmap-docs/APIs/*.odt.
+  notificaciones: {
+    // Base URL sin barra final. Por defecto el host interno del documento; en
+    // prod/staging se setea NOTIFICAR_API_URL al host alcanzable desde la API.
+    baseUrl: (process.env.NOTIFICAR_API_URL ?? "http://10.10.10.211:5020").replace(/\/+$/, ""),
+    // Timeout por request (ms). Una llamada/SMS no debe colgar la API.
+    timeoutMs: Number(process.env.NOTIFICAR_TIMEOUT_MS ?? 15_000),
   },
 };
 

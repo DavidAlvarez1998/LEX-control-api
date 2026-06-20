@@ -12,7 +12,12 @@ export class UsuariosRepository {
     return this.db.usuario.findMany({
       where: empresaId ? { empresaId } : undefined,
       orderBy: { createdAt: "desc" },
-      select: { ...PUBLIC_SELECT, activationToken: true, empresa: { select: { nombre: true } } },
+      select: {
+        ...PUBLIC_SELECT,
+        activationToken: true,
+        empresa: { select: { nombre: true } },
+        rolesEmpresa: { select: { rolEmpresa: true } },
+      },
     });
   }
 

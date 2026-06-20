@@ -8,18 +8,72 @@ import { validate } from "../../middleware/validate";
 import { tenant } from "../../shared/tenant";
 import {
   areaIdParams,
+  categoriaIdParams,
   createAreaSchema,
+  createCategoriaSchema,
   createPlantillaSchema,
   createTipoProcesoSchema,
   plantillaIdParams,
   tipoIdParams,
   updateAreaSchema,
+  updateCategoriaSchema,
   updatePlantillaSchema,
   updateTipoProcesoSchema,
 } from "./catalog.schemas";
 import * as catalog from "./catalog.service";
 
 export const catalogRoutes: Router = Router();
+
+// --- Categorías de proceso (clase de proceso) ---
+
+/** GET /catalogo/categorias — categorías (solo activas; ADMIN puede pedir todas con ?incluirInactivas); filtro ?jurisdiccion. */
+catalogRoutes.get(
+  "/categorias",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(
+      await catalog.listCategorias(
+        tenant(req),
+        { jurisdiccion: req.query.jurisdiccion ? String(req.query.jurisdiccion) : undefined },
+        req.query.incluirInactivas != null,
+      ),
+    );
+  }),
+);
+
+/** POST /catalogo/categorias — crea una categoría (solo ADMIN). */
+catalogRoutes.post(
+  "/categorias",
+  requireAuth,
+  requireRole(Rol.ADMIN),
+  validate({ body: createCategoriaSchema }),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await catalog.createCategoria(req.body));
+  }),
+);
+
+/** PATCH /catalogo/categorias/:id — edita una categoría (solo ADMIN). */
+catalogRoutes.patch(
+  "/categorias/:id",
+  requireAuth,
+  requireRole(Rol.ADMIN),
+  validate({ params: categoriaIdParams, body: updateCategoriaSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await catalog.updateCategoria(req.params.id, req.body));
+  }),
+);
+
+/** DELETE /catalogo/categorias/:id — elimina una categoría (solo ADMIN; 409 si tiene tipos). */
+catalogRoutes.delete(
+  "/categorias/:id",
+  requireAuth,
+  requireRole(Rol.ADMIN),
+  validate({ params: categoriaIdParams }),
+  asyncHandler(async (req, res) => {
+    await catalog.deleteCategoria(req.params.id);
+    res.status(204).end();
+  }),
+);
 
 // --- Áreas de práctica ---
 

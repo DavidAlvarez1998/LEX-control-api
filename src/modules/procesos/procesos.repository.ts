@@ -183,7 +183,10 @@ export class ProcesosRepository {
     return this.db.proceso.findFirst({ where: { id, empresaId: this.e }, include: { partes: { include: { litigante: true } } } });
   }
   findProcesoCodigo(id: string) {
-    return this.db.proceso.findFirst({ where: { id, empresaId: this.e }, select: { id: true, codigoInterno: true } });
+    return this.db.proceso.findFirst({
+      where: { id, empresaId: this.e },
+      select: { id: true, codigoInterno: true, empresa: { select: { id: true, nombre: true } } },
+    });
   }
   findPlantillaDeTipo(plantillaId: string, tipoProcesoId: string) {
     return this.db.plantillaDocumento.findFirst({ where: { id: plantillaId, tipoProcesoId } });

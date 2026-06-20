@@ -132,6 +132,10 @@ model Usuario {
   // Módulo de contratos: contratos de esta persona (despacho o comercial admin).
   contratos Contrato[]
 
+  // Auditoría documental: archivos que este usuario subió.
+  documentosProcesoSubidos  DocumentoProceso[]  @relation("DocumentosProcesoSubidos")
+  documentosContratoSubidos DocumentoContrato[] @relation("DocumentosContratoSubidos")
+
   @@index([empresaId])
   @@map("usuarios")
 }
@@ -280,6 +284,25 @@ model AreaPractica {
   @@map("areas_practica")
 }
 
+// Categoría = clase de proceso dentro de una jurisdicción (CGP: Declarativo,
+// Ejecutivo, Liquidación, Jurisdicción Voluntaria, …). Es un nivel de NAVEGACIÓN
+// entre Jurisdicción y Tipo y es EXCLUYENTE por tipo (≠ AreaPractica, que es M:N).
+// `proximamente` = categoría teaser sin tipos aún (se muestra pero no es navegable).
+model CategoriaProceso {
+  id           String       @id @default(cuid())
+  slug         String       @unique
+  nombre       String
+  jurisdiccion Jurisdiccion
+  activo       Boolean      @default(true)
+  proximamente Boolean      @default(false)
+  orden        Int          @default(0)
+
+  tipos TipoProceso[]
+
+  @@index([jurisdiccion])
+  @@map("categorias_proceso")
+}
+
 // Catálogo de tipos de proceso. Híbrido: empresaId null = global (ADMIN),
 // set = del despacho. `empresaKey` = empresaId ?? "" como sentinela del unique,
 // porque MySQL trata NULL como distinto en índices únicos.
@@ -321,10 +344,17 @@ model TipoProceso {
   // bucket genérico "Procesos judiciales". Se pone true al curar el tipo (en
   // seed-tipos.json) para "graduarlo". Default derivado: los no-judiciales = true.
   actualizado       Boolean      @default(false)
+  // Categoría (clase de proceso) a la que pertenece — nivel de navegación entre
+  // jurisdicción y tipo. Opcional y excluyente (un tipo está en una sola clase).
+  categoriaId       String?
+  // Nombre corto para MOSTRAR en la navegación (p. ej. "Ejecutivo" en vez de
+  // "Proceso ejecutivo (singular o mixto)"). Si es null, el front usa el nombre.
+  nombreVisual      String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
   empresa           Empresa?                     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  categoria         CategoriaProceso?            @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
   areas             TipoProcesoArea[]
   procesos          Proceso[]
   plantillas        PlantillaDocumento[]
@@ -335,6 +365,7 @@ model TipoProceso {
   @@unique([empresaKey, nombre])
   @@index([empresaId])
   @@index([jurisdiccion])
+  @@index([categoriaId])
   @@map("tipos_tramite")
 }
 
@@ -391,7 +422,6 @@ model Proceso {
   historial          EtapaProceso[]
   documentos         DocumentoProceso[]
   partes             ParteProceso[]
-  actuaciones        ActuacionJudicial[]
   // comercial: la solicitud (si la hubo) que materializó este proceso (1:1).
   solicitudComercial SolicitudAsignacionProceso?
 
@@ -424,90 +454,42 @@ model EtapaProceso {
   @@map("etapas_tramite")
 }
 
-// ── Integraciones estatales (Fase B): datos judiciales sincronizados ──
-// Ver openspec/specs/integraciones-estatales/spec.md.
-
-enum EstadoSyncIntegracion {
-  OK
-  ERROR
-  SIN_RADICADO // no-op: el proceso no tiene radicado que consultar
-}
-
-// Actuación judicial sincronizada desde un proveedor estatal, idempotente por
-// `hashIdempotencia` = hash(radicado+fecha+actuacion+anotacion). Se borra al
-// borrar el proceso (habeas data, Ley 1581/2012).
-model ActuacionJudicial {
-  id               String    @id @default(cuid())
-  procesoId        String    @map("tramiteId")
-  radicado         String // snapshot del radicado consultado
-  fechaActuacion   DateTime? // fecha de la actuación (si es parseable)
-  actuacion        String // tipo/título de la actuación
-  anotacion        String?   @db.Text
-  fuente           String // proveedor que la entregó
-  hashIdempotencia String // hash(radicado+fecha+actuacion+anotacion)
-  etapaProcesoId   String? // proyección al timeline (EtapaProceso generada), si aplica
-  createdAt        DateTime  @default(now())
-
-  proceso Proceso @relation(fields: [procesoId], references: [id], onDelete: Cascade)
-
-  @@unique([procesoId, hashIdempotencia])
-  @@index([procesoId, fechaActuacion])
-  @@map("actuaciones_judiciales")
-}
-
-// Bitácora de cada corrida de sincronización (auditoría + cache TTL). empresaId
-// desnormalizado (sin FK); procesoId escalar (sin FK) para conservar el log aun
-// si el proceso se borra.
-model IntegrationSyncLog {
-  id           String                @id @default(cuid())
-  empresaId    String // desnormalizado, sin FK
-  procesoId    String?               @map("tramiteId") // escalar, sin FK
-  proveedor    String
-  estado       EstadoSyncIntegracion
-  itemsFetched Int                   @default(0)
-  itemsNew     Int                   @default(0)
-  error        String?               @db.Text
-  createdAt    DateTime              @default(now())
-
-  @@index([empresaId, createdAt])
-  @@index([procesoId, createdAt])
-  @@map("integration_sync_logs")
-}
-
-// Configuración de proveedor por despacho. La credencial (API key de un
-// agregador/RUES) se guarda CIFRADA (AES-256-GCM), nunca en texto plano.
-model ProviderConfig {
-  id                String   @id @default(cuid())
-  empresaId         String // desnormalizado, sin FK
-  proveedor         String // "corteconst" | "cpnu" | "rues" | ...
-  habilitado        Boolean  @default(true)
-  credencialCifrada String?  @db.Text // API key cifrada; null si el proveedor no requiere credencial
-  configuracion     Json? // ajustes no sensibles (host alterno, cadencia, etc.)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@unique([empresaId, proveedor])
-  @@index([empresaId])
-  @@map("provider_configs")
-}
-
 // Documento de un trámite (adjunto o generado desde plantilla).
 model DocumentoProceso {
-  id                  String   @id @default(cuid())
-  procesoId           String   @map("tramiteId")
+  id                  String                    @id @default(cuid())
+  procesoId           String                    @map("tramiteId")
+  categoria           CategoriaDocumentoProceso @default(OTRO) // clasifica el doc (demanda/poder/prueba…)
   nombre              String
-  url                 String? // adjunto: enlace/ruta del archivo (nulo si es borrador generado)
-  contenido           String?  @db.Text // borrador generado desde plantilla (editable; nulo si es adjunto)
+  url                 String? // adjunto: path tecnovapp/enlace (nulo si es borrador generado)
+  contenido           String?                   @db.Text // borrador generado desde plantilla (editable; nulo si es adjunto)
   generadoDePlantilla String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @default(now()) @updatedAt
+  tipo                String? // mime informativo (application/pdf, image/jpeg…)
+  subidoPorId         String? // auditoría: quién subió el archivo
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @default(now()) @updatedAt
 
   proceso   Proceso             @relation(fields: [procesoId], references: [id], onDelete: Cascade)
   plantilla PlantillaDocumento? @relation(fields: [generadoDePlantilla], references: [id], onDelete: SetNull)
+  subidoPor Usuario?            @relation("DocumentosProcesoSubidos", fields: [subidoPorId], references: [id], onDelete: SetNull)
 
   @@index([procesoId])
   @@index([generadoDePlantilla])
+  @@index([categoria])
   @@map("documentos_tramite")
+}
+
+// Clase de documento de un proceso. Metadata intrínseca del archivo (lo demás —
+// cliente, juzgado, abogado, despacho— se alcanza vía procesoId).
+enum CategoriaDocumentoProceso {
+  DEMANDA
+  PODER
+  PRUEBA
+  ANEXO
+  AUTO // auto admisorio, mandamiento de pago, etc.
+  SENTENCIA
+  IMPUGNACION
+  GENERADO // borrador generado desde plantilla
+  OTRO
 }
 
 // Litigante: cliente final / parte del despacho, reutilizable entre trámites.
@@ -605,20 +587,6 @@ enum CanalIngreso {
   WHATSAPP
   WEB
   LLAMADA
-  OTRO
-}
-
-enum TipoCaso {
-  CIVIL
-  LABORAL
-  PENAL
-  ADMINISTRATIVO
-  DISCIPLINARIO
-  CONSTITUCIONAL
-  FAMILIA
-  COMERCIAL
-  TRANSITO
-  AMBIENTAL
   OTRO
 }
 
@@ -815,7 +783,9 @@ model Cliente {
   correos                Json? // lista de correos (string[]); el primero es el principal.
   ciudad                 String?
   canalIngreso           CanalIngreso?
-  tipoCaso               TipoCaso?
+  // Área de práctica (slug del catálogo AreaPractica) — clasificación gruesa del
+  // caso al prospectar. Antes era un enum rígido; ahora sigue el catálogo.
+  tipoCaso               String?
   necesidadTipoProcesoId String?        @map("necesidadTipoTramiteId")
   resumenCaso            String?        @db.Text
   viabilidad             Viabilidad?    @default(EN_ESTUDIO)
@@ -1795,7 +1765,10 @@ model DocumentoContrato {
   nombre     String // etiqueta legible: "Cédula", "Hoja de vida", "Contrato firmado"…
   path       String // ruta devuelta por la API documental (NO la URL completa)
   tipo       String? // mime informativo
+  subidoPorId String? // auditoría: quién subió el archivo
   createdAt  DateTime           @default(now())
+
+  subidoPor Usuario? @relation("DocumentosContratoSubidos", fields: [subidoPorId], references: [id], onDelete: SetNull)
 
   @@index([contratoId])
   @@map("documentos_contrato")

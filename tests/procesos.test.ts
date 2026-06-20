@@ -707,7 +707,7 @@ describe("POST /procesos/:id/documentos/subir (subida de archivo a tecnovapp)", 
     expect(res.status).toBe(201);
     // carpeta del módulo + identificador del dueño (codigoInterno) van a tecnovapp.
     expect(subir).toHaveBeenCalledWith(
-      expect.objectContaining({ carpeta: "procesos", documento: "DP-2026-0001" }),
+      expect.objectContaining({ carpeta: "PROCESOS", documento: "DP-2026-0001" }),
     );
     expect(documentoProceso.create.mock.calls[0][0].data).toMatchObject({
       procesoId: "p1",

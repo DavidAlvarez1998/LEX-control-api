@@ -4,10 +4,36 @@
 import { Prisma } from "@prisma/client";
 import { prisma, type PrismaLike } from "../../shared/prisma";
 
-export const tipoInclude = { areas: { include: { area: true } } } as const;
+export const tipoInclude = { areas: { include: { area: true } }, categoria: true } as const;
 
 export class CatalogRepository {
   constructor(private readonly db: PrismaLike = prisma) {}
+
+  // --- Categorías (clase de proceso) ---
+  listCategorias(where: Prisma.CategoriaProcesoWhereInput) {
+    return this.db.categoriaProceso.findMany({ where, orderBy: [{ orden: "asc" }, { nombre: "asc" }] });
+  }
+  findCategoriaById(id: string) {
+    return this.db.categoriaProceso.findUnique({ where: { id } });
+  }
+  findCategoriaWithTipoCount(id: string) {
+    return this.db.categoriaProceso.findUnique({ where: { id }, include: { _count: { select: { tipos: true } } } });
+  }
+  findCategoriaBySlug(slug: string) {
+    return this.db.categoriaProceso.findUnique({ where: { slug } });
+  }
+  maxCategoriaOrden() {
+    return this.db.categoriaProceso.aggregate({ _max: { orden: true } });
+  }
+  createCategoria(data: Prisma.CategoriaProcesoCreateInput) {
+    return this.db.categoriaProceso.create({ data });
+  }
+  updateCategoria(id: string, data: Prisma.CategoriaProcesoUpdateInput) {
+    return this.db.categoriaProceso.update({ where: { id }, data });
+  }
+  deleteCategoria(id: string) {
+    return this.db.categoriaProceso.delete({ where: { id } });
+  }
 
   // --- Áreas ---
   listAreas(verTodas: boolean) {

@@ -1,14 +1,14 @@
 // Servicio del módulo Procesos: casos de uso + orquestación (transacciones, motor
 // de etapas, auto-título). El motor decisorio es PURO (maquina-etapas.ts), el acceso
 // a datos vive en procesos.repository, la forma de salida en procesos.dto. Sin Express.
-import { Prisma, RolEmpresa, RolParte, type EstadoProceso } from "@prisma/client";
+import { CategoriaDocumentoProceso, Prisma, RolEmpresa, RolParte, type EstadoProceso } from "@prisma/client";
 import type { z } from "zod";
 import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { fusionarCorreos } from "../../correos";
 import { convertirCliente } from "../clientes/clientes.service";
-import { construirUrlDocumento, subirDocumento } from "../documentos/documentos.client";
+import { carpetaTenant, construirUrlDocumento, subirDocumento } from "../documentos/documentos.client";
 import {
   type CampoEsquema, type EtapaDef, etapaEntrada, evaluarCondicion, validarDatosContraEsquema,
 } from "./esquema";
@@ -453,10 +453,28 @@ export async function listPlantillas(t: TenantContext, id: string) {
   return plantillas.filter((p) => esDerivado || !p.contenido.includes("casoBase")).map(({ id: pid, nombre }) => ({ id: pid, nombre }));
 }
 
+/**
+ * Clasifica un documento de proceso por su nombre/slot (demanda, poder, prueba…).
+ * El gating de etapa sigue siendo por `nombre`; esto es metadata para filtrar.
+ * Si no se reconoce, queda OTRO.
+ */
+function categoriaDoc(nombre: string): CategoriaDocumentoProceso {
+  const n = nombre.toLowerCase();
+  if (n.includes("poder")) return CategoriaDocumentoProceso.PODER;
+  if (n.includes("demanda")) return CategoriaDocumentoProceso.DEMANDA;
+  if (n.includes("prueba")) return CategoriaDocumentoProceso.PRUEBA;
+  if (n.includes("anexo")) return CategoriaDocumentoProceso.ANEXO;
+  if (n.includes("sentencia")) return CategoriaDocumentoProceso.SENTENCIA;
+  if (n.includes("impugn")) return CategoriaDocumentoProceso.IMPUGNACION;
+  if (n.includes("auto") || n.includes("admisorio") || n.includes("mandamiento"))
+    return CategoriaDocumentoProceso.AUTO;
+  return CategoriaDocumentoProceso.OTRO;
+}
+
 export async function adjuntarDocumento(t: TenantContext, id: string, body: { nombre: string; url: string }) {
   const r = repo(t);
   if (!(await r.findProcesoScopedId(id))) throw new HttpError(404, "Proceso no encontrado");
-  return r.createDocumento({ procesoId: id, nombre: body.nombre, url: body.url });
+  return r.createDocumento({ procesoId: id, nombre: body.nombre, url: body.url, categoria: categoriaDoc(body.nombre) });
 }
 
 async function plantillaRenderizada(t: TenantContext, id: string, body: In<typeof generarDocumentoSchema>) {
@@ -475,7 +493,7 @@ async function plantillaRenderizada(t: TenantContext, id: string, body: In<typeo
 
 export async function generarDocumento(t: TenantContext, id: string, body: In<typeof generarDocumentoSchema>) {
   const { plantilla, contenido } = await plantillaRenderizada(t, id, body);
-  return repo(t).createDocumento({ procesoId: id, nombre: body.nombre ?? plantilla.nombre, contenido, generadoDePlantilla: plantilla.id });
+  return repo(t).createDocumento({ procesoId: id, nombre: body.nombre ?? plantilla.nombre, contenido, generadoDePlantilla: plantilla.id, categoria: CategoriaDocumentoProceso.GENERADO });
 }
 
 export async function renderDocumento(t: TenantContext, id: string, body: In<typeof generarDocumentoSchema>) {
@@ -489,8 +507,8 @@ export async function subirArchivo(t: TenantContext, id: string, file: { buffer:
   if (!proceso) throw new HttpError(404, "Proceso no encontrado");
   if (!file) throw new HttpError(400, "No se recibió ningún archivo");
   const nombre = (typeof nombreIn === "string" && nombreIn.trim()) || file.originalname;
-  const subido = await subirDocumento({ archivo: file.buffer, nombreArchivo: file.originalname, documento: proceso.codigoInterno ?? proceso.id, carpeta: "procesos", tipo: file.mimetype });
-  const doc = await r.createDocumento({ procesoId: proceso.id, nombre, url: subido.path });
+  const subido = await subirDocumento({ archivo: file.buffer, nombreArchivo: file.originalname, documento: proceso.codigoInterno ?? proceso.id, raiz: carpetaTenant(proceso.empresa), carpeta: "PROCESOS", tipo: file.mimetype });
+  const doc = await r.createDocumento({ procesoId: proceso.id, nombre, url: subido.path, tipo: file.mimetype, subidoPorId: t.userId, categoria: categoriaDoc(nombre) });
   return { ...doc, url: construirUrlDocumento(doc.url) };
 }
 

@@ -20,7 +20,6 @@ import { miEmpresaRoutes } from "./modules/mi-empresa/mi-empresa.router";
 import { planRoutes } from "./modules/planes/planes.router";
 import { servicioRoutes } from "./modules/servicios/servicios.router";
 import { procesoRoutes } from "./modules/procesos/procesos.router";
-import { integracionRoutes } from "./modules/integraciones/integraciones.router";
 import { openapiRoutes } from "./openapi/openapi.router";
 import { publicoRoutes } from "./modules/publico/publico.router";
 import { usuarioRoutes } from "./modules/usuarios/usuarios.router";
@@ -89,8 +88,6 @@ export function createApp(): Express {
   app.use("/catalogo", catalogRoutes);
   app.use("/litigantes", litiganteRoutes);
   app.use("/procesos", procesoRoutes);
-  // Integraciones estatales (Fase A: jurisprudencia de la Corte Constitucional).
-  app.use("/integraciones", integracionRoutes);
   app.use("/publico", publicoLimiter, publicoRoutes);
 
   app.use(notFound);

@@ -1798,8 +1798,11 @@
     ]
   },
   {
-    "nombre": "Proceso ejecutivo (singular o mixto)",
-    "descripcion": "Cobro forzoso de obligaciones claras, expresas y exigibles que consten en título ejecutivo (arts. 422 y 430 y ss., CGP – Ley 1564/2012).",
+    "nombre": "Proceso ejecutivo de mínima cuantía",
+    "categoriaSlug": "ejecutivo",
+    "grupo": "JUDICIAL",
+    "nombreVisual": "Mínima cuantía",
+    "descripcion": "Cobro forzoso de obligaciones claras, expresas y exigibles de mínima cuantía (hasta 40 SMLMV) que consten en título ejecutivo, ante el juez civil municipal en única instancia (arts. 422, 430 y ss. CGP – Ley 1564/2012). Flujo: radicación → calificación (admite / inadmite→subsana) → notificación de cautelares → mandamiento de pago (contesta→excepciones / no contesta→ejecución) → impulsos → terminación.",
     "jurisdiccion": "ORDINARIA_CIVIL",
     "areaSlugs": [
       "civil",
@@ -1838,16 +1841,6 @@
         "ayuda": "Determina el tipo de mandamiento de pago."
       },
       {
-        "key": "tipoEjecucion",
-        "label": "Tipo de ejecución",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Singular (solo capital/intereses)",
-          "Mixto (con pretensiones declarativas o de garantía real)"
-        ]
-      },
-      {
         "key": "capitalAdeudado",
         "label": "Capital adeudado",
         "tipo": "numero",
@@ -1870,19 +1863,8 @@
         "key": "cuantia",
         "label": "Cuantía total estimada",
         "tipo": "numero",
-        "requerido": true
-      },
-      {
-        "key": "tieneGarantiaReal",
-        "label": "¿Existe garantía real (hipoteca/prenda)?",
-        "tipo": "boolean",
-        "requerido": true
-      },
-      {
-        "key": "bienesGarantia",
-        "label": "Bienes en garantía o a perseguir",
-        "tipo": "textoLargo",
-        "requerido": false
+        "requerido": true,
+        "ayuda": "Mínima cuantía: hasta 40 SMLMV."
       },
       {
         "key": "medidasCautelaresSolicitadas",
@@ -1895,6 +1877,7 @@
           "Secuestro",
           "Embargo de cuentas bancarias",
           "Embargo de salarios",
+          "Embargo de vehículos",
           "Inscripción de la demanda"
         ]
       },
@@ -1909,65 +1892,290 @@
         "label": "Pretensiones (ejecución y condena en costas)",
         "tipo": "textoLargo",
         "requerido": true
+      },
+      {
+        "key": "radicado",
+        "label": "Número de radicado",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "juzgado",
+        "label": "Juzgado asignado",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "fechaRadicacion",
+        "label": "Fecha de radicación",
+        "tipo": "fecha",
+        "requerido": false
+      },
+      {
+        "key": "decisionCalificacion",
+        "label": "Calificación de la demanda",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Admite",
+          "Inadmite"
+        ]
+      },
+      {
+        "key": "fechaAdmision",
+        "label": "Fecha del auto de calificación",
+        "tipo": "fecha",
+        "requerido": false
+      },
+      {
+        "key": "causalInadmision",
+        "label": "Causal de inadmisión",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "decisionTrasSubsanacion",
+        "label": "Decisión tras la subsanación",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Admitir",
+          "Rechazar"
+        ]
+      },
+      {
+        "key": "fechaSubsanacion",
+        "label": "Fecha de la subsanación",
+        "tipo": "fecha",
+        "requerido": false
+      },
+      {
+        "key": "entidadesOficiadas",
+        "label": "Entidades oficiadas (medidas cautelares)",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "ayuda": "Bancos, Tránsito, oficinas de registro, empleador, etc."
+      },
+      {
+        "key": "fechaMandamiento",
+        "label": "Fecha del mandamiento de pago",
+        "tipo": "fecha",
+        "requerido": false
+      },
+      {
+        "key": "fechaNotificacion",
+        "label": "Fecha de notificación al demandado",
+        "tipo": "fecha",
+        "requerido": false
+      },
+      {
+        "key": "contesto",
+        "label": "¿El demandado contestó / propuso excepciones?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ]
+      },
+      {
+        "key": "excepcionesPropuestas",
+        "label": "Excepciones propuestas",
+        "tipo": "textoLargo",
+        "requerido": false
+      },
+      {
+        "key": "descripcionImpulso",
+        "label": "Impulsos procesales",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "ayuda": "Memoriales, oficios, solicitudes de avalúo/remate, requerimientos."
+      },
+      {
+        "key": "motivoTerminacion",
+        "label": "Motivo de terminación",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Pago total",
+          "Sentencia: seguir adelante la ejecución y remate",
+          "Acuerdo de pago cumplido",
+          "Desistimiento tácito (art. 317 CGP)"
+        ]
+      },
+      {
+        "key": "fechaTerminacion",
+        "label": "Fecha de terminación",
+        "tipo": "fecha",
+        "requerido": false
       }
     ],
     "etapas": [
       {
-        "key": "demanda",
-        "nombre": "Presentación de la demanda y título",
+        "key": "radicacion",
+        "nombre": "Radicación de la demanda ejecutiva",
         "orden": 1,
         "reglas": {
           "camposRequeridos": [
             "tipoTitulo",
             "capitalAdeudado",
             "fechaExigibilidad",
+            "cuantia",
             "pretensiones"
+          ],
+          "documentosRequeridos": [
+            "poder.pdf",
+            "demanda.pdf"
+          ],
+          "documentosOpcionales": [
+            "solicitud-cautelares.pdf"
+          ]
+        }
+      },
+      {
+        "key": "radicacionJuzgado",
+        "nombre": "Radicación en el juzgado",
+        "orden": 2,
+        "reglas": {
+          "camposRequeridos": [
+            "radicado",
+            "juzgado",
+            "fechaRadicacion"
+          ],
+          "documentosRequeridos": [
+            "constancia-radicado.pdf"
+          ]
+        }
+      },
+      {
+        "key": "calificacion",
+        "nombre": "Calificación de la demanda (admite / inadmite)",
+        "orden": 3,
+        "reglas": {
+          "camposRequeridos": [
+            "decisionCalificacion",
+            "fechaAdmision"
+          ],
+          "documentosRequeridos": [
+            "auto-calificacion.pdf"
+          ],
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "decisionCalificacion",
+                "igualA": "Inadmite"
+              },
+              "camposRequeridos": [
+                "causalInadmision"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "subsanacion",
+        "nombre": "Subsanación de la demanda (inadmisión)",
+        "orden": 4,
+        "disponibleSi": {
+          "campo": "decisionCalificacion",
+          "igualA": "Inadmite"
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "decisionTrasSubsanacion",
+            "fechaSubsanacion"
+          ],
+          "documentosRequeridos": [
+            "subsanacion.pdf"
+          ],
+          "plazoDesdeCampo": "fechaAdmision",
+          "plazoTipoDias": "habiles",
+          "plazoDias": 5
+        }
+      },
+      {
+        "key": "notifCautelares",
+        "nombre": "Notificación de las medidas cautelares",
+        "orden": 5,
+        "reglas": {
+          "camposRequeridos": [
+            "entidadesOficiadas"
+          ],
+          "documentosRequeridos": [
+            "oficios-cautelares.pdf"
           ]
         }
       },
       {
         "key": "mandamientoPago",
-        "nombre": "Mandamiento de pago y medidas cautelares",
-        "orden": 2,
+        "nombre": "Mandamiento de pago y notificación al demandado",
+        "orden": 6,
         "reglas": {
           "camposRequeridos": [
-            "claseObligacion",
-            "cuantia"
+            "fechaMandamiento",
+            "fechaNotificacion",
+            "contesto"
+          ],
+          "documentosRequeridos": [
+            "mandamiento-pago.pdf",
+            "notificacion-demandado.pdf"
+          ],
+          "plazoDesdeCampo": "fechaNotificacion",
+          "plazoTipoDias": "habiles",
+          "plazoDias": 10,
+          "requeridosSi": [
+            {
+              "si": {
+                "campo": "contesto",
+                "igualA": "Sí"
+              },
+              "camposRequeridos": [
+                "excepcionesPropuestas"
+              ],
+              "documentosRequeridos": [
+                "excepciones.pdf"
+              ]
+            }
           ]
         }
       },
       {
-        "key": "notificacionExcepciones",
-        "nombre": "Notificación y traslado para excepciones",
-        "orden": 3,
+        "key": "impulsos",
+        "nombre": "Impulsos procesales",
+        "orden": 7,
         "reglas": {
-          "plazoDias": 10
+          "camposRequeridos": [
+            "descripcionImpulso"
+          ],
+          "documentosOpcionales": [
+            "memorial.pdf",
+            "avaluo.pdf",
+            "remate.pdf"
+          ]
         }
       },
       {
-        "key": "tramiteExcepciones",
-        "nombre": "Trámite y decisión de excepciones de mérito",
-        "orden": 4,
-        "reglas": {
-          "plazoDias": 3
-        }
-      },
-      {
-        "key": "sentenciaSeguirEjecucion",
-        "nombre": "Orden de seguir adelante la ejecución",
-        "orden": 5
-      },
-      {
-        "key": "liquidacionRemate",
-        "nombre": "Liquidación del crédito, avalúo y remate",
-        "orden": 6,
+        "key": "terminacion",
+        "nombre": "Terminación del proceso",
+        "orden": 8,
         "terminal": true,
-        "resultado": "Pago al acreedor con el producto del remate"
+        "resultado": "Proceso ejecutivo de mínima cuantía terminado.",
+        "reglas": {
+          "camposRequeridos": [
+            "motivoTerminacion",
+            "fechaTerminacion"
+          ],
+          "documentosRequeridos": [
+            "auto-terminacion.pdf"
+          ]
+        }
       }
-    ]
+    ],
+    "actualizado": true
   },
   {
     "nombre": "Proceso verbal",
+    "categoriaSlug": "declarativo",
     "grupo": "JUDICIAL",
     "descripcion": "Proceso declarativo verbal de mayor o menor cuantía (CGP arts. 368-373). Doble instancia (apelable), dos audiencias (inicial art. 372 e instrucción y juzgamiento art. 373). Se elige rol (demandante/demandado). Términos: traslado 20 días hábiles, subsanación 5, recurso 3.",
     "jurisdiccion": "ORDINARIA_CIVIL",
@@ -4132,6 +4340,7 @@
   },
   {
     "nombre": "Proceso verbal sumario",
+    "categoriaSlug": "declarativo",
     "grupo": "JUDICIAL",
     "descripcion": "Proceso verbal sumario de única instancia (CGP arts. 390-392): mínima cuantía y asuntos del art. 390. Una sola audiencia (art. 392); la sentencia queda en firme (no procede apelación ni reposición). Traslado 10 días hábiles. Sin reconvención, excepciones previas, incidentes ni terceros.",
     "jurisdiccion": "ORDINARIA_CIVIL",
@@ -5768,667 +5977,6 @@
         "fase": 6,
         "terminal": true,
         "resultado": "Proceso verbal sumario terminado — sentencia en firme (única instancia)."
-      }
-    ]
-  },
-  {
-    "nombre": "Proceso de sucesión (jurisdicción civil)",
-    "descripcion": "Liquidación de la herencia: inventarios, avalúos, partición y adjudicación (arts. 473 y ss., 488 y 501 CGP – Ley 1564/2012).",
-    "jurisdiccion": "ORDINARIA_CIVIL",
-    "areaSlugs": [
-      "civil"
-    ],
-    "esquemaFormulario": [
-      {
-        "key": "tipoSucesion",
-        "label": "Tipo de sucesión",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Testada",
-          "Intestada",
-          "Mixta"
-        ]
-      },
-      {
-        "key": "fechaFallecimiento",
-        "label": "Fecha de fallecimiento del causante",
-        "tipo": "fecha",
-        "requerido": true
-      },
-      {
-        "key": "ultimoDomicilioCausante",
-        "label": "Último domicilio del causante",
-        "tipo": "texto",
-        "requerido": true
-      },
-      {
-        "key": "formaAceptacion",
-        "label": "Forma de aceptación de la herencia",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Pura y simple",
-          "Con beneficio de inventario"
-        ]
-      },
-      {
-        "key": "calidadInteresado",
-        "label": "Calidad del solicitante",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Heredero",
-          "Cónyuge supérstite",
-          "Compañero(a) permanente",
-          "Legatario",
-          "Acreedor de la herencia",
-          "Cesionario de derechos herenciales"
-        ]
-      },
-      {
-        "key": "existeTestamento",
-        "label": "¿Existe testamento?",
-        "tipo": "boolean",
-        "requerido": true
-      },
-      {
-        "key": "activosHerencia",
-        "label": "Activos de la herencia (bienes a inventariar)",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "pasivosHerencia",
-        "label": "Pasivos / deudas del causante",
-        "tipo": "textoLargo",
-        "requerido": false
-      },
-      {
-        "key": "existeSociedadConyugal",
-        "label": "¿Hay sociedad conyugal/patrimonial a liquidar?",
-        "tipo": "boolean",
-        "requerido": true
-      },
-      {
-        "key": "hechos",
-        "label": "Relación de hechos y vocación hereditaria",
-        "tipo": "textoLargo",
-        "requerido": true
-      }
-    ],
-    "etapas": [
-      {
-        "key": "aperturaProceso",
-        "nombre": "Demanda y apertura del proceso de sucesión",
-        "orden": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "tipoSucesion",
-            "fechaFallecimiento",
-            "formaAceptacion"
-          ]
-        }
-      },
-      {
-        "key": "emplazamiento",
-        "nombre": "Reconocimiento de herederos y emplazamiento",
-        "orden": 2,
-        "reglas": {
-          "camposRequeridos": [
-            "calidadInteresado"
-          ]
-        }
-      },
-      {
-        "key": "inventariosAvaluos",
-        "nombre": "Audiencia de inventarios y avalúos (art. 501)",
-        "orden": 3,
-        "reglas": {
-          "camposRequeridos": [
-            "activosHerencia"
-          ]
-        }
-      },
-      {
-        "key": "objeciones",
-        "nombre": "Trámite de objeciones a inventarios y avalúos",
-        "orden": 4,
-        "reglas": {
-          "plazoDias": 5
-        }
-      },
-      {
-        "key": "particion",
-        "nombre": "Partición o adjudicación",
-        "orden": 5,
-        "reglas": {
-          "camposRequeridos": [
-            "activosHerencia"
-          ]
-        }
-      },
-      {
-        "key": "sentenciaAprobatoria",
-        "nombre": "Sentencia que aprueba la partición/adjudicación",
-        "orden": 6,
-        "terminal": true,
-        "resultado": "Adjudicación de bienes e inscripción en registro"
-      }
-    ]
-  },
-  {
-    "nombre": "Proceso de pertenencia (prescripción adquisitiva de dominio)",
-    "descripcion": "Declaración de propiedad por posesión que cumple la prescripción ordinaria o extraordinaria (art. 375 CGP – Ley 1564/2012).",
-    "jurisdiccion": "ORDINARIA_CIVIL",
-    "areaSlugs": [
-      "civil"
-    ],
-    "esquemaFormulario": [
-      {
-        "key": "tipoPrescripcion",
-        "label": "Tipo de prescripción",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Ordinaria (5 años, justo título y buena fe)",
-          "Extraordinaria (10 años)"
-        ]
-      },
-      {
-        "key": "tipoBien",
-        "label": "Tipo de bien",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Inmueble urbano",
-          "Inmueble rural",
-          "Bien mueble",
-          "Bien mueble sujeto a registro"
-        ]
-      },
-      {
-        "key": "identificacionInmueble",
-        "label": "Identificación y linderos del bien",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "matriculaInmobiliaria",
-        "label": "Matrícula inmobiliaria / cédula catastral",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "fechaInicioPosesion",
-        "label": "Fecha de inicio de la posesión",
-        "tipo": "fecha",
-        "requerido": true
-      },
-      {
-        "key": "tiempoPosesionAnios",
-        "label": "Tiempo total de posesión (años)",
-        "tipo": "numero",
-        "requerido": true
-      },
-      {
-        "key": "actosPosesion",
-        "label": "Actos de señor y dueño ejercidos",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "caracteristicasPosesion",
-        "label": "Características de la posesión",
-        "tipo": "multiselect",
-        "requerido": true,
-        "opciones": [
-          "Pública",
-          "Pacífica",
-          "Ininterrumpida",
-          "Con ánimo de señor y dueño"
-        ]
-      },
-      {
-        "key": "justoTitulo",
-        "label": "Justo título (si prescripción ordinaria)",
-        "tipo": "textoLargo",
-        "requerido": false
-      },
-      {
-        "key": "pretensiones",
-        "label": "Pretensiones (declaración de pertenencia)",
-        "tipo": "textoLargo",
-        "requerido": true
-      }
-    ],
-    "etapas": [
-      {
-        "key": "demanda",
-        "nombre": "Demanda con certificado especial e identificación del bien",
-        "orden": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "tipoPrescripcion",
-            "identificacionInmueble",
-            "tiempoPosesionAnios"
-          ]
-        }
-      },
-      {
-        "key": "inscripcionEmplazamiento",
-        "nombre": "Inscripción de la demanda y emplazamiento",
-        "orden": 2,
-        "reglas": {
-          "camposRequeridos": [
-            "matriculaInmobiliaria"
-          ]
-        }
-      },
-      {
-        "key": "traslado",
-        "nombre": "Traslado y contestación",
-        "orden": 3,
-        "reglas": {
-          "plazoDias": 20
-        }
-      },
-      {
-        "key": "audienciaInicial",
-        "nombre": "Audiencia inicial (art. 372)",
-        "orden": 4,
-        "reglas": {
-          "camposRequeridos": [
-            "caracteristicasPosesion"
-          ]
-        }
-      },
-      {
-        "key": "audienciaInstruccion",
-        "nombre": "Instrucción y juzgamiento (inspección judicial)",
-        "orden": 5,
-        "reglas": {
-          "camposRequeridos": [
-            "actosPosesion"
-          ]
-        }
-      },
-      {
-        "key": "sentencia",
-        "nombre": "Sentencia declarativa de pertenencia",
-        "orden": 6,
-        "terminal": true,
-        "resultado": "Declaración erga omnes e inscripción en registro"
-      }
-    ]
-  },
-  {
-    "nombre": "Restitución de inmueble arrendado",
-    "descripcion": "Recuperación del inmueble por terminación o incumplimiento del contrato de arrendamiento (art. 384 CGP – Ley 1564/2012).",
-    "jurisdiccion": "ORDINARIA_CIVIL",
-    "areaSlugs": [
-      "civil",
-      "comercial-societario"
-    ],
-    "esquemaFormulario": [
-      {
-        "key": "causalRestitucion",
-        "label": "Causal de restitución",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Mora en el pago del canon",
-          "Mora en servicios/administración",
-          "Vencimiento del término / terminación unilateral",
-          "Subarriendo no autorizado",
-          "Destinación distinta a la pactada",
-          "Otra causal legal"
-        ]
-      },
-      {
-        "key": "destinacionInmueble",
-        "label": "Destinación del inmueble",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Vivienda urbana",
-          "Comercial",
-          "Rural",
-          "Mixto"
-        ]
-      },
-      {
-        "key": "identificacionInmueble",
-        "label": "Identificación del inmueble arrendado",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "fechaContrato",
-        "label": "Fecha del contrato de arrendamiento",
-        "tipo": "fecha",
-        "requerido": true
-      },
-      {
-        "key": "formaContrato",
-        "label": "Forma del contrato",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Escrito",
-          "Verbal"
-        ]
-      },
-      {
-        "key": "valorCanon",
-        "label": "Valor del canon mensual",
-        "tipo": "numero",
-        "requerido": true
-      },
-      {
-        "key": "periodosAdeudados",
-        "label": "Períodos / cánones adeudados",
-        "tipo": "numero",
-        "requerido": false
-      },
-      {
-        "key": "valorTotalAdeudado",
-        "label": "Valor total adeudado",
-        "tipo": "numero",
-        "requerido": false
-      },
-      {
-        "key": "hechos",
-        "label": "Hechos del incumplimiento",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "pretensiones",
-        "label": "Pretensiones (restitución y pago de cánones)",
-        "tipo": "textoLargo",
-        "requerido": true
-      }
-    ],
-    "etapas": [
-      {
-        "key": "demanda",
-        "nombre": "Demanda con prueba del contrato",
-        "orden": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "causalRestitucion",
-            "identificacionInmueble",
-            "valorCanon"
-          ]
-        }
-      },
-      {
-        "key": "traslado",
-        "nombre": "Traslado, contestación y consignación de cánones",
-        "orden": 2,
-        "reglas": {
-          "plazoDias": 10
-        }
-      },
-      {
-        "key": "audiencia",
-        "nombre": "Audiencia (conciliación, pruebas y alegatos)",
-        "orden": 3,
-        "reglas": {
-          "camposRequeridos": [
-            "hechos"
-          ]
-        }
-      },
-      {
-        "key": "sentencia",
-        "nombre": "Sentencia que ordena la restitución",
-        "orden": 4,
-        "reglas": {
-          "camposRequeridos": [
-            "pretensiones"
-          ]
-        }
-      },
-      {
-        "key": "entregaInmueble",
-        "nombre": "Entrega / diligencia de lanzamiento",
-        "orden": 5,
-        "terminal": true,
-        "resultado": "Restitución material del inmueble"
-      }
-    ]
-  },
-  {
-    "nombre": "Proceso monitorio",
-    "descripcion": "Cobro de obligación dineraria contractual de mínima cuantía sin título ejecutivo (arts. 419 a 421 CGP – Ley 1564/2012).",
-    "jurisdiccion": "ORDINARIA_CIVIL",
-    "areaSlugs": [
-      "civil",
-      "comercial-societario"
-    ],
-    "esquemaFormulario": [
-      {
-        "key": "origenObligacion",
-        "label": "Origen contractual de la obligación",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Contrato escrito",
-          "Contrato verbal",
-          "Relación comercial continuada"
-        ]
-      },
-      {
-        "key": "montoAdeudado",
-        "label": "Monto adeudado",
-        "tipo": "numero",
-        "requerido": true,
-        "ayuda": "Debe ser de mínima cuantía (hasta 40 SMLMV)."
-      },
-      {
-        "key": "esMinimaCuantia",
-        "label": "¿La obligación es de mínima cuantía?",
-        "tipo": "boolean",
-        "requerido": true
-      },
-      {
-        "key": "fechaExigibilidad",
-        "label": "Fecha de exigibilidad",
-        "tipo": "fecha",
-        "requerido": true
-      },
-      {
-        "key": "documentosSoporte",
-        "label": "Documentos de soporte de la deuda",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "formaDeterminacion",
-        "label": "Forma en que se determinó el monto",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "hechos",
-        "label": "Hechos que sustentan la deuda",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "pretensiones",
-        "label": "Pretensión de pago",
-        "tipo": "textoLargo",
-        "requerido": true
-      }
-    ],
-    "etapas": [
-      {
-        "key": "demanda",
-        "nombre": "Demanda monitoria con explicación de la deuda",
-        "orden": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "origenObligacion",
-            "montoAdeudado",
-            "documentosSoporte"
-          ]
-        }
-      },
-      {
-        "key": "requerimientoPago",
-        "nombre": "Requerimiento de pago al deudor (art. 421)",
-        "orden": 2,
-        "reglas": {
-          "camposRequeridos": [
-            "montoAdeudado"
-          ]
-        }
-      },
-      {
-        "key": "trasladoDeudor",
-        "nombre": "Plazo del deudor para pagar u oponerse",
-        "orden": 3,
-        "reglas": {
-          "plazoDias": 10
-        }
-      },
-      {
-        "key": "resolucion",
-        "nombre": "Sentencia o conversión a verbal sumario",
-        "orden": 4,
-        "terminal": true,
-        "resultado": "Título de pago, o conversión a verbal sumario si hay oposición"
-      }
-    ]
-  },
-  {
-    "nombre": "Proceso de reorganización empresarial (insolvencia)",
-    "descripcion": "Recuperación de empresa viable mediante acuerdo de reorganización ante la Supersociedades (Ley 1116/2006).",
-    "jurisdiccion": "ORDINARIA_CIVIL",
-    "areaSlugs": [
-      "comercial-societario"
-    ],
-    "esquemaFormulario": [
-      {
-        "key": "causalInicio",
-        "label": "Causal de admisión",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Cesación de pagos",
-          "Incapacidad de pago inminente"
-        ]
-      },
-      {
-        "key": "tipoDeudor",
-        "label": "Tipo de deudor",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Sociedad comercial",
-          "Persona natural comerciante",
-          "Sucursal de sociedad extranjera",
-          "Patrimonio autónomo"
-        ]
-      },
-      {
-        "key": "totalActivos",
-        "label": "Total de activos",
-        "tipo": "numero",
-        "requerido": true
-      },
-      {
-        "key": "totalPasivos",
-        "label": "Total de pasivos",
-        "tipo": "numero",
-        "requerido": true
-      },
-      {
-        "key": "numeroAcreedores",
-        "label": "Número de acreedores",
-        "tipo": "numero",
-        "requerido": true
-      },
-      {
-        "key": "obligacionesVencidas",
-        "label": "Obligaciones vencidas (cesación de pagos)",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "causasInsolvencia",
-        "label": "Memoria explicativa de las causas de la insolvencia",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "planReorganizacion",
-        "label": "Plan de reorganización propuesto",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "estadosFinancierosAdjuntos",
-        "label": "¿Se adjuntan estados financieros de los 3 últimos ejercicios?",
-        "tipo": "boolean",
-        "requerido": true
-      }
-    ],
-    "etapas": [
-      {
-        "key": "solicitud",
-        "nombre": "Solicitud de admisión con documentos del art. 13",
-        "orden": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "causalInicio",
-            "totalActivos",
-            "totalPasivos",
-            "estadosFinancierosAdjuntos"
-          ]
-        }
-      },
-      {
-        "key": "admision",
-        "nombre": "Auto de admisión e inicio del proceso",
-        "orden": 2,
-        "reglas": {
-          "camposRequeridos": [
-            "causasInsolvencia"
-          ]
-        }
-      },
-      {
-        "key": "graduacionCreditos",
-        "nombre": "Graduación y calificación de créditos",
-        "orden": 3,
-        "reglas": {
-          "camposRequeridos": [
-            "numeroAcreedores",
-            "obligacionesVencidas"
-          ]
-        }
-      },
-      {
-        "key": "negociacionAcuerdo",
-        "nombre": "Negociación del acuerdo de reorganización",
-        "orden": 4,
-        "reglas": {
-          "camposRequeridos": [
-            "planReorganizacion"
-          ],
-          "plazoDias": 120
-        }
-      },
-      {
-        "key": "confirmacionAcuerdo",
-        "nombre": "Confirmación del acuerdo de reorganización",
-        "orden": 5,
-        "terminal": true,
-        "resultado": "Acuerdo confirmado (o conversión a liquidación judicial)"
       }
     ]
   },

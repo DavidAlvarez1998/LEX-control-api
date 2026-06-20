@@ -4,12 +4,13 @@ import { CategoriaDocumento, Rol } from "@prisma/client";
 import type { z } from "zod";
 import { HttpError } from "../../middleware/error";
 import type { TenantContext } from "../../shared/tenant";
-import { construirUrlDocumento, subirDocumento } from "../documentos/documentos.client";
+import { carpetaTenant, construirUrlDocumento, subirDocumento } from "../documentos/documentos.client";
 import { ContratosRepository } from "./contratos.repository";
 import { serializeContrato } from "./contratos.dto";
 import type { createContratoSchema, createDocumentoSchema, updateContratoSchema } from "./contratos.schemas";
 
-const CARPETA = "contratos";
+// Módulo {CARPETA} en tecnovapp; la raíz {EMPRESA} es el tenant (carpetaTenant).
+const CARPETA = "CONTRATOS";
 const repo = () => new ContratosRepository();
 
 type Scope = { tipo: "EMPRESA"; empresaId: string } | { tipo: "PLATAFORMA" };
@@ -103,9 +104,10 @@ export async function subirDocumentoContrato(
   const mime = body.tipo ?? file.mimetype;
   const subido = await subirDocumento({
     archivo: file.buffer, nombreArchivo: file.originalname,
-    documento: contrato.numeroDocumento ?? contrato.usuarioId ?? contrato.id, carpeta: CARPETA, tipo: mime,
+    documento: contrato.numeroDocumento ?? contrato.usuarioId ?? contrato.id,
+    raiz: carpetaTenant(contrato.empresa), carpeta: CARPETA, tipo: mime,
   });
-  const doc = await r.createDocumento({ contratoId: contrato.id, categoria: body.categoria as CategoriaDocumento, nombre: body.nombre, path: subido.path, tipo: mime });
+  const doc = await r.createDocumento({ contratoId: contrato.id, categoria: body.categoria as CategoriaDocumento, nombre: body.nombre, path: subido.path, tipo: mime, subidoPorId: t.userId });
   return { ...doc, url: construirUrlDocumento(doc.path) };
 }
 

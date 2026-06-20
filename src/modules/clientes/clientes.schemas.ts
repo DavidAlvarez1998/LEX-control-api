@@ -5,10 +5,9 @@ const tipoDocumento = z.enum(["CC", "CE", "NIT", "TI", "PASAPORTE", "PEP_PPT"]);
 const canalIngreso = z.enum([
   "REFERIDO", "INSTAGRAM", "FACEBOOK", "WHATSAPP", "WEB", "LLAMADA", "OTRO",
 ]);
-const tipoCaso = z.enum([
-  "CIVIL", "LABORAL", "PENAL", "ADMINISTRATIVO", "DISCIPLINARIO",
-  "CONSTITUCIONAL", "FAMILIA", "COMERCIAL", "TRANSITO", "AMBIENTAL", "OTRO",
-]);
+// Área de práctica (slug del catálogo). Antes era un enum rígido; ahora sigue el
+// catálogo AreaPractica, así que se acepta cualquier slug no vacío.
+const tipoCaso = z.string().trim().min(1);
 const viabilidad = z.enum(["VIABLE", "NO_VIABLE", "EN_ESTUDIO"]);
 
 // Campos que el usuario diligencia. NUNCA se aceptan del body: empresaId,

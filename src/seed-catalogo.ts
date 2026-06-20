@@ -34,6 +34,21 @@ const AREAS: {
   { slug: "migratorio", nombre: "Migratorio y Extranjería", tipo: "PRACTICA", jurisdiccion: "CONTENCIOSO_ADMIN", activo: false, orden: 25 },
 ];
 
+// Categorías = clase de proceso por jurisdicción (nivel de navegación entre
+// jurisdicción y tipo). Por ahora solo Civil (CGP). Las demás jurisdicciones
+// muestran lista plana hasta que se les definan categorías (admin o seed).
+const CATEGORIAS: {
+  slug: string;
+  nombre: string;
+  jurisdiccion: Jurisdiccion;
+  activo: boolean;
+  proximamente: boolean;
+  orden: number;
+}[] = [
+  { slug: "declarativo", nombre: "Declarativo", jurisdiccion: "ORDINARIA_CIVIL", activo: true, proximamente: false, orden: 1 },
+  { slug: "ejecutivo", nombre: "Ejecutivo", jurisdiccion: "ORDINARIA_CIVIL", activo: true, proximamente: false, orden: 2 },
+];
+
 // Tipos de proceso GLOBALES, generados con asistencia de IA y con base legal
 // colombiana (CGP, CPACA, CPTSS, Ley 906, acciones constitucionales). PENDIENTE
 // de revisión por un abogado. Viven en prisma/seed-tipos.json.
@@ -45,6 +60,8 @@ type TipoSeed = {
   clienteOpcional?: boolean; // default false; true = dirigido al despacho (DdP recibido)
   grupo?: "JUDICIAL" | "PETICION" | "CONSTITUCIONAL" | "LABORAL"; // sección del portal; default JUDICIAL
   actualizado?: boolean; // ¿curado contra su procedimiento real? default: los no-judiciales = true
+  categoriaSlug?: string; // clase de proceso (navegación); resuelta a categoriaId
+  nombreVisual?: string; // nombre corto para mostrar (p. ej. "Ejecutivo")
   areaSlugs: string[];
   esquemaFormulario: Prisma.InputJsonValue;
   etapas: Prisma.InputJsonValue;
@@ -64,6 +81,17 @@ async function main() {
   }
   console.log(`✔ ${AREAS.length} áreas de práctica`);
 
+  for (const c of CATEGORIAS) {
+    await prisma.categoriaProceso.upsert({
+      where: { slug: c.slug },
+      update: { nombre: c.nombre, jurisdiccion: c.jurisdiccion, activo: c.activo, proximamente: c.proximamente, orden: c.orden },
+      create: c,
+    });
+  }
+  const categorias = await prisma.categoriaProceso.findMany({ select: { id: true, slug: true } });
+  const catIdBySlug = new Map(categorias.map((c) => [c.slug, c.id]));
+  console.log(`✔ ${CATEGORIAS.length} categorías de proceso`);
+
   let creados = 0;
   let actualizados = 0;
   for (const t of TIPOS) {
@@ -71,6 +99,11 @@ async function main() {
     if (areas.length !== t.areaSlugs.length) {
       console.warn(`⚠ ${t.nombre}: área(s) no encontrada(s) — se omite`);
       continue;
+    }
+    // Categoría (clase de proceso) opcional: si el slug no existe, se deja sin categoría.
+    const categoriaId = t.categoriaSlug ? catIdBySlug.get(t.categoriaSlug) ?? null : null;
+    if (t.categoriaSlug && !categoriaId) {
+      console.warn(`⚠ ${t.nombre}: categoría "${t.categoriaSlug}" no encontrada — sin categoría`);
     }
     const existe = await prisma.tipoProceso.findUnique({
       where: { empresaKey_nombre: { empresaKey: "", nombre: t.nombre } },
@@ -90,6 +123,8 @@ async function main() {
             clienteOpcional: t.clienteOpcional ?? false,
             grupo: t.grupo ?? "JUDICIAL",
             actualizado: t.actualizado ?? (t.grupo ?? "JUDICIAL") !== "JUDICIAL",
+            categoriaId,
+            nombreVisual: t.nombreVisual ?? null,
             esquemaFormulario: t.esquemaFormulario,
             etapas: t.etapas,
             esquemaVersion: { increment: 1 },
@@ -108,6 +143,8 @@ async function main() {
           clienteOpcional: t.clienteOpcional ?? false,
           grupo: t.grupo ?? "JUDICIAL",
           actualizado: t.actualizado ?? (t.grupo ?? "JUDICIAL") !== "JUDICIAL",
+          categoriaId,
+          nombreVisual: t.nombreVisual ?? null,
           esquemaFormulario: t.esquemaFormulario,
           etapas: t.etapas,
           empresaId: null,

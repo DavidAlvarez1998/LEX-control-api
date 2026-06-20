@@ -26,7 +26,9 @@ export type SubirDocumentoParams = {
   nombreArchivo: string;
   /** Identificador del dueño del archivo (cédula, NIT, id externo). */
   documento: string;
-  /** Subcarpeta {CARPETA} (ej. "contratos"). El servidor la crea si no existe. */
+  /** RAÍZ {EMPRESA} en tecnovapp = el tenant. Usar `carpetaTenant(empresa)`. */
+  raiz: string;
+  /** Módulo {CARPETA} (ej. "CONTRATOS", "PROCESOS"). El servidor la crea si no existe. */
   carpeta: string;
   /** Mime type (informativo): "application/pdf", "image/jpeg"… */
   tipo?: string;
@@ -35,6 +37,35 @@ export type SubirDocumentoParams = {
 /** Codifica cada segmento de path para una URL sin romper las barras. */
 function segmento(valor: string): string {
   return encodeURIComponent(valor);
+}
+
+/**
+ * Slug de un nombre para usarlo en una ruta: sin acentos, solo [A-Z0-9-].
+ * tecnovapp ya pasa todo a MAYÚSCULA; lo normalizamos aquí para que el `path`
+ * guardado sea predecible.
+ */
+function slugDoc(nombre: string): string {
+  const s = nombre
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // quita acentos (marcas diacríticas combinantes)
+    .replace(/[^a-zA-Z0-9]+/g, "-") // no-alfanumérico → guion
+    .replace(/^-+|-+$/g, "") // recorta guiones de los bordes
+    .toUpperCase();
+  return s || "SIN-NOMBRE";
+}
+
+/**
+ * RAÍZ {EMPRESA} en tecnovapp para un tenant. Cada despacho es su propia raíz
+ * (convención del doc §9.1), namespaceada por `env.documentos.raizPrefijo`:
+ *   - empresa = null → "{PREFIJO}-ADMIN"             (plataforma)
+ *   - empresa        → "{PREFIJO}-{slug-nombre}-{id}"
+ * La entidad concreta (proceso/contrato) NO va aquí: el módulo es la {CARPETA} y
+ * el id de la entidad va en `documento` (→ nombre del archivo). El detalle por
+ * proceso/contrato vive en la BD, no en la estructura de carpetas.
+ */
+export function carpetaTenant(empresa: { id: string; nombre: string } | null): string {
+  const tenant = empresa ? `${slugDoc(empresa.nombre)}-${empresa.id}` : "ADMIN";
+  return `${env.documentos.raizPrefijo}-${tenant}`;
 }
 
 /**
@@ -60,9 +91,9 @@ export function construirUrlDocumento(path: string | null | undefined): string |
 export async function subirDocumento(
   params: SubirDocumentoParams,
 ): Promise<DocumentoSubido> {
-  const { archivo, nombreArchivo, documento, carpeta, tipo } = params;
+  const { archivo, nombreArchivo, documento, raiz, carpeta, tipo } = params;
 
-  const url = `${env.documentos.apiUrl}/api/documento/${segmento(env.documentos.empresa)}/${segmento(carpeta)}`;
+  const url = `${env.documentos.apiUrl}/api/documento/${segmento(raiz)}/${segmento(carpeta)}`;
 
   const form = new FormData();
   // Blob a partir del Buffer; el tercer arg de append fija el filename.

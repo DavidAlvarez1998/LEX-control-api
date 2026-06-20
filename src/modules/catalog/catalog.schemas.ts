@@ -78,9 +78,11 @@ const etapaDefSchema = z.object({
 export const createTipoProcesoSchema = z
   .object({
     nombre: z.string().min(1),
+    nombreVisual: z.string().min(1).nullable().optional(), // nombre corto a mostrar
     descripcion: z.string().optional(),
     jurisdiccion: z.nativeEnum(Jurisdiccion),
     esJudicial: z.boolean().optional(), // default true en BD; false = trámite ante entidad (DdP)
+    categoriaId: z.string().min(1).nullable().optional(), // clase de proceso (navegación)
     areaSlugs: z.array(z.string().min(1)).min(1),
     esquemaFormulario: z.array(campoEsquemaSchema).min(1),
     etapas: z.array(etapaDefSchema).min(1),
@@ -164,9 +166,30 @@ export const updateAreaSchema = z.object({
 
 export const areaIdParams = z.object({ id: z.string().min(1) });
 
+// --- Categorías de proceso (clase de proceso; catálogo global; solo ADMIN gestiona) ---
+export const createCategoriaSchema = z.object({
+  nombre: z.string().min(1),
+  jurisdiccion: z.nativeEnum(Jurisdiccion),
+  activo: z.boolean().default(true),
+  proximamente: z.boolean().default(false),
+  orden: z.number().int().optional(),
+});
+
+export const updateCategoriaSchema = z.object({
+  nombre: z.string().min(1).optional(),
+  jurisdiccion: z.nativeEnum(Jurisdiccion).optional(),
+  activo: z.boolean().optional(),
+  proximamente: z.boolean().optional(),
+  orden: z.number().int().optional(),
+});
+
+export const categoriaIdParams = z.object({ id: z.string().min(1) });
+
 export type CreateTipoProcesoInput = z.infer<typeof createTipoProcesoSchema>;
 export type UpdateTipoProcesoInput = z.infer<typeof updateTipoProcesoSchema>;
 export type CreatePlantillaInput = z.infer<typeof createPlantillaSchema>;
 export type UpdatePlantillaInput = z.infer<typeof updatePlantillaSchema>;
 export type CreateAreaInput = z.infer<typeof createAreaSchema>;
 export type UpdateAreaInput = z.infer<typeof updateAreaSchema>;
+export type CreateCategoriaInput = z.infer<typeof createCategoriaSchema>;
+export type UpdateCategoriaInput = z.infer<typeof updateCategoriaSchema>;

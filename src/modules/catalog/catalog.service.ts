@@ -6,10 +6,10 @@ import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { CatalogRepository } from "./catalog.repository";
-import { serializeTipo } from "./catalog.dto";
+import { serializeCategoria, serializeTipo } from "./catalog.dto";
 import type {
-  CreateAreaInput, CreatePlantillaInput, CreateTipoProcesoInput,
-  UpdateAreaInput, UpdatePlantillaInput, UpdateTipoProcesoInput,
+  CreateAreaInput, CreateCategoriaInput, CreatePlantillaInput, CreateTipoProcesoInput,
+  UpdateAreaInput, UpdateCategoriaInput, UpdatePlantillaInput, UpdateTipoProcesoInput,
 } from "./catalog.schemas";
 
 const repo = () => new CatalogRepository();
@@ -56,6 +56,23 @@ async function slugAreaUnico(r: CatalogRepository, nombre: string): Promise<stri
 async function siguienteOrdenArea(r: CatalogRepository): Promise<number> {
   const max = await r.maxAreaOrden();
   return (max._max.orden ?? 0) + 1;
+}
+
+async function slugCategoriaUnico(r: CatalogRepository, nombre: string): Promise<string> {
+  const base =
+    nombre.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "categoria";
+  let slug = base;
+  for (let i = 2; await r.findCategoriaBySlug(slug); i++) slug = `${base}-${i}`;
+  return slug;
+}
+
+/** Valida que la categoría (si se pasa) exista; devuelve el id o null. */
+async function resolverCategoria(r: CatalogRepository, categoriaId: string | null | undefined): Promise<string | null> {
+  if (!categoriaId) return null;
+  const cat = await r.findCategoriaById(categoriaId);
+  if (!cat) throw new HttpError(400, "La categoría de proceso no existe");
+  return cat.id;
 }
 
 /** Toda acción `crearDerivado` debe apuntar a un tipo de proceso GLOBAL existente. */
@@ -118,6 +135,51 @@ export async function deleteArea(id: string): Promise<void> {
   await r.deleteArea(id);
 }
 
+// ---------- Categorías (clase de proceso) ----------
+export function listCategorias(
+  t: TenantContext,
+  filtros: { jurisdiccion?: string },
+  incluirInactivas: boolean,
+) {
+  const verTodas = t.rol === Rol.ADMIN && incluirInactivas;
+  const where: Prisma.CategoriaProcesoWhereInput = {
+    AND: [
+      verTodas ? {} : { activo: true },
+      filtros.jurisdiccion
+        ? { jurisdiccion: filtros.jurisdiccion as Prisma.CategoriaProcesoWhereInput["jurisdiccion"] }
+        : {},
+    ],
+  };
+  return repo().listCategorias(where).then((cs) => cs.map(serializeCategoria));
+}
+
+export async function createCategoria(input: CreateCategoriaInput) {
+  const r = repo();
+  const { nombre, jurisdiccion, activo, proximamente, orden } = input;
+  const slug = await slugCategoriaUnico(r, nombre);
+  const ordenFinal = orden ?? ((await r.maxCategoriaOrden())._max.orden ?? 0) + 1;
+  return serializeCategoria(
+    await r.createCategoria({ slug, nombre, jurisdiccion, activo, proximamente, orden: ordenFinal }),
+  );
+}
+
+export async function updateCategoria(id: string, input: UpdateCategoriaInput) {
+  const r = repo();
+  const existe = await r.findCategoriaById(id);
+  if (!existe) throw new HttpError(404, "Categoría no encontrada");
+  return serializeCategoria(await r.updateCategoria(id, input));
+}
+
+export async function deleteCategoria(id: string): Promise<void> {
+  const r = repo();
+  const cat = await r.findCategoriaWithTipoCount(id);
+  if (!cat) throw new HttpError(404, "Categoría no encontrada");
+  if (cat._count.tipos > 0) {
+    throw new HttpError(409, "La categoría tiene tipos de proceso asociados; reasígnalos o desactívala");
+  }
+  await r.deleteCategoria(id);
+}
+
 // ---------- Tipos de proceso ----------
 export async function listTipos(t: TenantContext, filtros: { area?: string; jurisdiccion?: string }) {
   const empresaId = t.empresaId;
@@ -147,13 +209,16 @@ export async function createTipo(t: TenantContext, input: CreateTipoProcesoInput
   const { empresaId, empresaKey } = destinoCatalogo(t);
   const { areaSlugs, ...data } = input;
   const areaIds = await resolverAreas(r, areaSlugs);
+  const categoriaId = await resolverCategoria(r, data.categoriaId);
   await validarAccionesDestino(r, data.etapas);
   try {
     const tipo = await r.createTipo({
       nombre: data.nombre,
+      nombreVisual: data.nombreVisual ?? null,
       descripcion: data.descripcion,
       jurisdiccion: data.jurisdiccion,
       esJudicial: data.esJudicial ?? true,
+      categoriaId,
       esquemaFormulario: data.esquemaFormulario,
       etapas: data.etapas,
       empresaId,
@@ -176,6 +241,7 @@ export async function updateTipo(t: TenantContext, id: string, input: UpdateTipo
   autorizarEscritura(t, actual.empresaId);
   const { areaSlugs, ...data } = input;
   const areaIds = await resolverAreas(base, areaSlugs);
+  const categoriaId = await resolverCategoria(base, data.categoriaId);
   await validarAccionesDestino(base, data.etapas);
 
   const tipo = await prisma.$transaction(async (tx) => {
@@ -183,9 +249,11 @@ export async function updateTipo(t: TenantContext, id: string, input: UpdateTipo
     await r.deleteTipoAreas(actual.id);
     return r.updateTipo(actual.id, {
       nombre: data.nombre,
+      ...(data.nombreVisual !== undefined ? { nombreVisual: data.nombreVisual } : {}),
       descripcion: data.descripcion,
       jurisdiccion: data.jurisdiccion,
       ...(data.esJudicial !== undefined ? { esJudicial: data.esJudicial } : {}),
+      ...(data.categoriaId !== undefined ? { categoriaId } : {}),
       esquemaFormulario: data.esquemaFormulario,
       etapas: data.etapas,
       esquemaVersion: { increment: 1 },
