@@ -8,7 +8,7 @@ import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { fusionarCorreos } from "../../correos";
 import { convertirCliente } from "../clientes/clientes.service";
-import { carpetaTenant, construirUrlDocumento, subirDocumento } from "../documentos/documentos.client";
+import { carpetaModulo, construirUrlDocumento, subirDocumento } from "../documentos/documentos.client";
 import {
   type CampoEsquema, type EtapaDef, etapaEntrada, evaluarCondicion, validarDatosContraEsquema,
 } from "./esquema";
@@ -507,7 +507,7 @@ export async function subirArchivo(t: TenantContext, id: string, file: { buffer:
   if (!proceso) throw new HttpError(404, "Proceso no encontrado");
   if (!file) throw new HttpError(400, "No se recibió ningún archivo");
   const nombre = (typeof nombreIn === "string" && nombreIn.trim()) || file.originalname;
-  const subido = await subirDocumento({ archivo: file.buffer, nombreArchivo: file.originalname, documento: proceso.codigoInterno ?? proceso.id, raiz: carpetaTenant(proceso.empresa), carpeta: "PROCESOS", tipo: file.mimetype });
+  const subido = await subirDocumento({ archivo: file.buffer, nombreArchivo: file.originalname, documento: proceso.codigoInterno ?? proceso.id, carpeta: carpetaModulo(proceso.empresa, "PROCESOS"), tipo: file.mimetype });
   const doc = await r.createDocumento({ procesoId: proceso.id, nombre, url: subido.path, tipo: file.mimetype, subidoPorId: t.userId, categoria: categoriaDoc(nombre) });
   return { ...doc, url: construirUrlDocumento(doc.url) };
 }

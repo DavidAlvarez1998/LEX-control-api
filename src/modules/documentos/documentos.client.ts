@@ -26,9 +26,7 @@ export type SubirDocumentoParams = {
   nombreArchivo: string;
   /** Identificador del dueño del archivo (cédula, NIT, id externo). */
   documento: string;
-  /** RAÍZ {EMPRESA} en tecnovapp = el tenant. Usar `carpetaTenant(empresa)`. */
-  raiz: string;
-  /** Módulo {CARPETA} (ej. "CONTRATOS", "PROCESOS"). El servidor la crea si no existe. */
+  /** {CARPETA} = tenant+módulo bajo la raíz paraguas. Usar `carpetaModulo(empresa, modulo)`. */
   carpeta: string;
   /** Mime type (informativo): "application/pdf", "image/jpeg"… */
   tipo?: string;
@@ -55,17 +53,18 @@ function slugDoc(nombre: string): string {
 }
 
 /**
- * RAÍZ {EMPRESA} en tecnovapp para un tenant. Cada despacho es su propia raíz
- * (convención del doc §9.1), namespaceada por `env.documentos.raizPrefijo`:
- *   - empresa = null → "{PREFIJO}-ADMIN"             (plataforma)
- *   - empresa        → "{PREFIJO}-{slug-nombre}-{id}"
- * La entidad concreta (proceso/contrato) NO va aquí: el módulo es la {CARPETA} y
- * el id de la entidad va en `documento` (→ nombre del archivo). El detalle por
- * proceso/contrato vive en la BD, no en la estructura de carpetas.
+ * La {CARPETA} (único nivel libre de tecnovapp) que combina TENANT + MÓDULO, bajo
+ * la raíz paraguas `env.documentos.raizPrefijo` (estilo del doc §7: una sola raíz
+ * por producto). Forma: `{tenant}_{modulo}`, con tenant = `ADMIN` (plataforma) o
+ * `{slug-nombre}-{empresaId}` (despacho). Aísla por despacho dentro del paraguas;
+ * el id de la entidad va en `documento` (→ nombre del archivo) y el detalle vive
+ * en la BD, no en las carpetas.
+ *   carpetaModulo(empresa, "PROCESOS") → "BUFETE-PEREZ-CL9A_PROCESOS"
+ *   carpetaModulo(null,    "USUARIOS") → "ADMIN_USUARIOS"
  */
-export function carpetaTenant(empresa: { id: string; nombre: string } | null): string {
+export function carpetaModulo(empresa: { id: string; nombre: string } | null, modulo: string): string {
   const tenant = empresa ? `${slugDoc(empresa.nombre)}-${empresa.id}` : "ADMIN";
-  return `${env.documentos.raizPrefijo}-${tenant}`;
+  return `${tenant}_${modulo}`;
 }
 
 /**
@@ -91,9 +90,11 @@ export function construirUrlDocumento(path: string | null | undefined): string |
 export async function subirDocumento(
   params: SubirDocumentoParams,
 ): Promise<DocumentoSubido> {
-  const { archivo, nombreArchivo, documento, raiz, carpeta, tipo } = params;
+  const { archivo, nombreArchivo, documento, carpeta, tipo } = params;
 
-  const url = `${env.documentos.apiUrl}/api/documento/${segmento(raiz)}/${segmento(carpeta)}`;
+  // Raíz paraguas única (env.documentos.raizPrefijo, p. ej. DEMO-LEXCONTROL); la
+  // `carpeta` (un solo nivel) ya combina tenant + módulo (ver carpetaModulo).
+  const url = `${env.documentos.apiUrl}/api/documento/${segmento(env.documentos.raizPrefijo)}/${segmento(carpeta)}`;
 
   const form = new FormData();
   // Blob a partir del Buffer; el tercer arg de append fija el filename.

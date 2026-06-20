@@ -209,7 +209,7 @@ describe("POST /contratos/:id/documentos (subida)", () => {
 
     expect(res.status).toBe(201);
     expect(subir).toHaveBeenCalledWith(
-      expect.objectContaining({ carpeta: "CONTRATOS", documento: "1088" }),
+      expect.objectContaining({ carpeta: expect.stringContaining("_CONTRATOS"), documento: "1088" }),
     );
     expect(res.body.url).toContain("/documentos/DEMO/CONTRATOS/2026/06/1_c.pdf");
   });

@@ -1,14 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { env } from "../src/config/env";
 import {
-  carpetaTenant,
+  carpetaModulo,
   construirUrlDocumento,
   subirDocumento,
 } from "../src/modules/documentos/documentos.client";
 
 const BASE = env.documentos.apiUrl;
-const PREFIJO = env.documentos.raizPrefijo;
-const RAIZ = `${PREFIJO}-ACME-CL9A`; // raíz de ejemplo (ya "armada")
+const PREFIJO = env.documentos.raizPrefijo; // raíz paraguas única (DEMO-LEXCONTROL)
 
 describe("construirUrlDocumento", () => {
   it("null/undefined → null", () => {
@@ -32,34 +31,35 @@ describe("construirUrlDocumento", () => {
   });
 });
 
-describe("carpetaTenant", () => {
-  it("empresa = null → raíz ADMIN de la plataforma", () => {
-    expect(carpetaTenant(null)).toBe(`${PREFIJO}-ADMIN`);
+describe("carpetaModulo", () => {
+  it("empresa = null → ADMIN_{modulo} (plataforma)", () => {
+    expect(carpetaModulo(null, "USUARIOS")).toBe("ADMIN_USUARIOS");
   });
 
-  it("empresa → {PREFIJO}-{slug}-{id} (sin acentos, mayúscula)", () => {
-    expect(carpetaTenant({ id: "cl9a", nombre: "Bufete Pérez & Asociados" })).toBe(
-      `${PREFIJO}-BUFETE-PEREZ-ASOCIADOS-cl9a`,
+  it("empresa → {slug}-{id}_{modulo} (sin acentos, mayúscula)", () => {
+    expect(carpetaModulo({ id: "cl9a", nombre: "Bufete Pérez & Asociados" }, "PROCESOS")).toBe(
+      "BUFETE-PEREZ-ASOCIADOS-cl9a_PROCESOS",
     );
   });
 
   it("nombre vacío/raro → fallback SIN-NOMBRE", () => {
-    expect(carpetaTenant({ id: "x1", nombre: "  ***  " })).toBe(`${PREFIJO}-SIN-NOMBRE-x1`);
+    expect(carpetaModulo({ id: "x1", nombre: "  ***  " }, "CONTRATOS")).toBe("SIN-NOMBRE-x1_CONTRATOS");
   });
 });
 
 describe("subirDocumento", () => {
   const ok = {
-    path: "ACME/CONTRATOS/2026/06/123_contrato.pdf",
+    path: "DEMO-LEXCONTROL/ACME-CL9A_CONTRATOS/2026/06/123_contrato.pdf",
     filename: "123_contrato.pdf",
-    url: `${BASE}/documentos/ACME/CONTRATOS/2026/06/123_contrato.pdf`,
+    url: `${BASE}/documentos/DEMO-LEXCONTROL/ACME-CL9A_CONTRATOS/2026/06/123_contrato.pdf`,
   };
-  const base = { archivo: Buffer.from("x"), nombreArchivo: "c.pdf", documento: "1", raiz: RAIZ, carpeta: "CONTRATOS" };
+  const carpeta = "ACME-CL9A_CONTRATOS";
+  const base = { archivo: Buffer.from("x"), nombreArchivo: "c.pdf", documento: "1", carpeta };
 
   beforeEach(() => vi.restoreAllMocks());
   afterEach(() => vi.unstubAllGlobals());
 
-  it("postea a /api/documento/{RAIZ}/{CARPETA} y devuelve {path,filename,url}", async () => {
+  it("postea a /api/documento/{PREFIJO}/{CARPETA} y devuelve {path,filename,url}", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(ok), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -67,20 +67,19 @@ describe("subirDocumento", () => {
       archivo: Buffer.from("pdf-bytes"),
       nombreArchivo: "contrato.pdf",
       documento: "1088327869",
-      raiz: RAIZ,
-      carpeta: "CONTRATOS",
+      carpeta,
       tipo: "application/pdf",
     });
 
     expect(res).toEqual(ok);
     const [calledUrl, init] = fetchMock.mock.calls[0];
-    expect(calledUrl).toBe(`${BASE}/api/documento/${RAIZ}/CONTRATOS`);
+    expect(calledUrl).toBe(`${BASE}/api/documento/${PREFIJO}/${carpeta}`);
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(FormData);
   });
 
   it("absolutiza la url cuando el servicio la devuelve RELATIVA (caso real)", async () => {
-    const rel = "/documentos/DEMO-LEXCONTROL-ACME-CL9A/CONTRATOS/2026/06/123_c.pdf";
+    const rel = "/documentos/DEMO-LEXCONTROL/ACME-CL9A_CONTRATOS/2026/06/123_c.pdf";
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
