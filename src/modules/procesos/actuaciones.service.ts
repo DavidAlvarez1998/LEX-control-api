@@ -249,6 +249,39 @@ export async function sincronizarTodas(): Promise<{
   return { procesos: procesos.length, conNovedad, nuevasTotal, errores };
 }
 
+/** P16: sincroniza on-demand los procesos de la empresa (con radicado, no cerrados) que no
+ *  se han sincronizado en las últimas 6 h. Acotado a 40 por llamada para no colgar el request;
+ *  el barrido completo lo hace el cron. Sin notificar (el usuario lo disparó). */
+export async function sincronizarMisProcesos(t: TenantContext) {
+  const empresaId = empresaIdOrThrow(t);
+  const hace6h = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const procesos = await prisma.proceso.findMany({
+    where: {
+      empresaId, radicado: { not: null }, estado: { notIn: ["CERRADO", "ARCHIVADO"] },
+      OR: [{ actuacionesSyncAt: null }, { actuacionesSyncAt: { lt: hace6h } }],
+    },
+    take: 40,
+    select: {
+      id: true, radicado: true, idProcesoRama: true, datos: true, despachoJuzgado: true, titulo: true,
+      actuacionesVistasAt: true, responsable: { select: { email: true, nombre: true } },
+      tipoProceso: { select: { esquemaFormulario: true } },
+    },
+  });
+  let conNovedad = 0;
+  let nuevasTotal = 0;
+  let errores = 0;
+  for (const p of procesos) {
+    try {
+      const r = await sincronizarProceso(aProcesoSync(p));
+      if (r.nuevas > 0) { conNovedad++; nuevasTotal += r.nuevas; }
+    } catch {
+      errores++;
+    }
+    await dormir(env.ramaJudicial.delayRequestMs);
+  }
+  return { procesos: procesos.length, conNovedad, nuevasTotal, errores };
+}
+
 /** Actuaciones guardadas del proceso (más reciente primero). Cada ítem trae `nueva`
  *  (#3): true si se insertó después de `actuacionesVistasAt` (no-leídas persistentes;
  *  si nunca se marcó "vistas", nada es "nueva" para no inundar en la primera carga). */

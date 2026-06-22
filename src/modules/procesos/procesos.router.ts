@@ -36,6 +36,10 @@ procesoRoutes.post("/calcular-vencimiento", requireAuth,
 procesoRoutes.get("/validar-radicado", requireAuth, requirePermiso("proceso.ver"),
   asyncHandler(async (req, res) => res.json(await actuaciones.validarRadicado(String(req.query.radicado ?? "")))));
 
+// P16: actualizar (sincronizar) mis procesos con radicado de un tirón. Va ANTES de "/:id".
+procesoRoutes.post("/rama/sincronizar-mis", requireAuth, requirePermiso("proceso.editar"),
+  asyncHandler(async (req, res) => res.json(await actuaciones.sincronizarMisProcesos(tenant(req)))));
+
 procesoRoutes.get("/:id/actuaciones", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => res.json(await actuaciones.listarActuaciones(tenant(req), req.params.id))));
 
