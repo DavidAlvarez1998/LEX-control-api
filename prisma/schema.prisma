@@ -248,6 +248,13 @@ enum TipoPersona {
   JURIDICA
 }
 
+// Naturaleza de una persona jurídica (solo aplica cuando tipoPersona = JURIDICA).
+enum NaturalezaJuridica {
+  PUBLICA
+  PRIVADA
+  MIXTA
+}
+
 // Documentos de identidad colombianos (NO RFC/CURP, que son mexicanos).
 enum TipoDocumento {
   CC // Cédula de Ciudadanía
@@ -535,6 +542,8 @@ model Litigante {
   id              String         @id @default(cuid())
   empresaId       String
   tipoPersona     TipoPersona    @default(NATURAL)
+  // Naturaleza de la persona jurídica (pública/privada/mixta); null si NATURAL.
+  naturalezaJuridica NaturalezaJuridica?
   nombre          String
   tipoDocumento   TipoDocumento?
   numeroDocumento String?
@@ -545,6 +554,11 @@ model Litigante {
   // en el motor de plantillas (notificaciones de la demanda, solicitud de cautelares).
   direccion       String?
   ciudad          String?
+  // Marcas "se desconocen los datos" para notificación (correo/dirección/teléfono).
+  // Relevante en emplazamiento: declara que el dato es desconocido (no solo vacío).
+  correoDesconocido    Boolean @default(false)
+  direccionDesconocida Boolean @default(false)
+  telefonoDesconocido  Boolean @default(false)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -817,13 +831,20 @@ model Cliente {
   estado                 EstadoCliente  @default(PROSPECTO)
   fechaIngreso           DateTime       @default(now())
   tipoPersona            TipoPersona    @default(NATURAL)
+  // Naturaleza de la persona jurídica (pública/privada/mixta); null si NATURAL.
+  naturalezaJuridica     NaturalezaJuridica?
   nombre                 String
   tipoDocumento          TipoDocumento?
   numeroDocumento        String?
   telefono               String?
   email                  String? // correo principal (espejo de correos[0]); se conserva por compat.
   correos                Json? // lista de correos (string[]); el primero es el principal.
+  direccion              String?
   ciudad                 String?
+  // Marcas "se desconocen los datos" para notificación (correo/dirección/teléfono).
+  correoDesconocido      Boolean @default(false)
+  direccionDesconocida   Boolean @default(false)
+  telefonoDesconocido    Boolean @default(false)
   canalIngreso           CanalIngreso?
   // Área de práctica (slug del catálogo AreaPractica) — clasificación gruesa del
   // caso al prospectar. Antes era un enum rígido; ahora sigue el catálogo.

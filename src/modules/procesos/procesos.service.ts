@@ -461,9 +461,14 @@ export async function editarParte(t: TenantContext, procesoId: string, parteId: 
         await rt.updateLitigante(parte.litiganteId, {
           ...(l.nombre !== undefined ? { nombre: l.nombre } : {}),
           ...(l.tipoPersona !== undefined ? { tipoPersona: l.tipoPersona } : {}),
+          ...(l.naturalezaJuridica !== undefined ? { naturalezaJuridica: l.naturalezaJuridica } : {}),
           ...(l.tipoDocumento !== undefined ? { tipoDocumento: l.tipoDocumento } : {}),
           ...(l.numeroDocumento !== undefined ? { numeroDocumento: l.numeroDocumento } : {}),
           ...(l.telefono !== undefined ? { telefono: l.telefono } : {}),
+          ...(l.direccion !== undefined ? { direccion: l.direccion } : {}),
+          ...(l.correoDesconocido !== undefined ? { correoDesconocido: l.correoDesconocido } : {}),
+          ...(l.direccionDesconocida !== undefined ? { direccionDesconocida: l.direccionDesconocida } : {}),
+          ...(l.telefonoDesconocido !== undefined ? { telefonoDesconocido: l.telefonoDesconocido } : {}),
           ...correosPatch,
         });
       }

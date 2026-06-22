@@ -2,6 +2,7 @@ import {
   CuantiaTipo,
   EstadoProceso,
   Instancia,
+  NaturalezaJuridica,
   Prioridad,
   RolParte,
   TipoDocumento,
@@ -17,14 +18,20 @@ const parteSchema = z
     litigante: z
       .object({
         tipoPersona: z.nativeEnum(TipoPersona).default(TipoPersona.NATURAL),
+        naturalezaJuridica: z.nativeEnum(NaturalezaJuridica).nullish(),
         nombre: z.string().min(1),
         tipoDocumento: z.nativeEnum(TipoDocumento).optional(),
         numeroDocumento: z.string().optional(),
         telefono: z.string().optional(),
+        direccion: z.string().optional(),
         email: z.string().email().optional(),
         // Lista de correos (peticionarios adicionales, contraparte…); el primero
         // es el principal y se refleja en `email`.
         correos: z.array(z.string().trim().email()).optional(),
+        // Marcas "se desconocen los datos" de notificación.
+        correoDesconocido: z.boolean().optional(),
+        direccionDesconocida: z.boolean().optional(),
+        telefonoDesconocido: z.boolean().optional(),
       })
       .optional(),
     rol: z.nativeEnum(RolParte),
@@ -46,12 +53,17 @@ const procesoClienteSchema = z
       .object({
         nombre: z.string().min(1),
         tipoPersona: z.nativeEnum(TipoPersona).optional(),
+        naturalezaJuridica: z.nativeEnum(NaturalezaJuridica).nullish(),
         tipoDocumento: z.nativeEnum(TipoDocumento).optional(),
         numeroDocumento: z.string().optional(),
         telefono: z.string().optional(),
+        direccion: z.string().optional(),
         email: z.string().email().optional(),
         correos: z.array(z.string().trim().email()).optional(),
         ciudad: z.string().optional(),
+        correoDesconocido: z.boolean().optional(),
+        direccionDesconocida: z.boolean().optional(),
+        telefonoDesconocido: z.boolean().optional(),
       })
       .optional(),
     rol: z.nativeEnum(RolParte),
@@ -111,12 +123,17 @@ export const addParteSchema = z
     litigante: z
       .object({
         tipoPersona: z.nativeEnum(TipoPersona).default(TipoPersona.NATURAL),
+        naturalezaJuridica: z.nativeEnum(NaturalezaJuridica).nullish(),
         nombre: z.string().min(1),
         tipoDocumento: z.nativeEnum(TipoDocumento).nullish(),
         numeroDocumento: z.string().nullish(),
         telefono: z.string().nullish(),
+        direccion: z.string().nullish(),
         email: z.string().email().nullish(),
         correos: z.array(z.string().trim().email()).optional(),
+        correoDesconocido: z.boolean().optional(),
+        direccionDesconocida: z.boolean().optional(),
+        telefonoDesconocido: z.boolean().optional(),
       })
       .optional(),
     rol: z.nativeEnum(RolParte),
@@ -134,12 +151,17 @@ export const updateParteSchema = z
     litigante: z
       .object({
         tipoPersona: z.nativeEnum(TipoPersona).optional(),
+        naturalezaJuridica: z.nativeEnum(NaturalezaJuridica).nullable().optional(),
         nombre: z.string().min(1).optional(),
         tipoDocumento: z.nativeEnum(TipoDocumento).nullable().optional(),
         numeroDocumento: z.string().nullable().optional(),
         telefono: z.string().nullable().optional(),
+        direccion: z.string().nullable().optional(),
         email: z.string().email().nullable().optional(),
         correos: z.array(z.string().trim().email()).optional(),
+        correoDesconocido: z.boolean().optional(),
+        direccionDesconocida: z.boolean().optional(),
+        telefonoDesconocido: z.boolean().optional(),
       })
       .optional(),
   })
