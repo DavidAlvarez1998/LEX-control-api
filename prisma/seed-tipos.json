@@ -1828,19 +1828,6 @@
         "ayuda": "Documento que contiene la obligación (art. 422 CGP)."
       },
       {
-        "key": "claseObligacion",
-        "label": "Clase de obligación",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Dar suma de dinero",
-          "Hacer",
-          "No hacer",
-          "Dar especie / cuerpo cierto"
-        ],
-        "ayuda": "Determina el tipo de mandamiento de pago."
-      },
-      {
         "key": "capitalAdeudado",
         "label": "Capital adeudado",
         "tipo": "numero",
@@ -1881,10 +1868,10 @@
       },
       {
         "key": "pruebas",
-        "label": "Pruebas",
+        "label": "Pruebas a solicitar",
         "tipo": "textoLargo",
         "requerido": false,
-        "ayuda": "Una por línea."
+        "ayuda": "Enuncia las pruebas que pides (una por línea). Los documentos súbelos arriba."
       },
       {
         "key": "ciudadReparto",
@@ -1925,7 +1912,7 @@
       },
       {
         "key": "empleadorDemandado",
-        "label": "Empleador del demandado (embargo de salarios)",
+        "label": "Empleador del demandado",
         "tipo": "texto",
         "requerido": false,
         "mostrarSi": {
@@ -2264,7 +2251,6 @@
         "reglas": {
           "camposRequeridos": [
             "tipoTitulo",
-            "claseObligacion",
             "capitalAdeudado",
             "fechaExigibilidad",
             "cuantia",
@@ -2276,8 +2262,17 @@
             "poder.pdf",
             "demanda.pdf"
           ],
-          "documentosOpcionales": [
-            "solicitud-cautelares.pdf"
+          "opcionalesSi": [
+            {
+              "si": {
+                "campo": "solicitaCautelares",
+                "igualA": "Sí"
+              },
+              "anclaCampo": "otrasCautelares",
+              "documentosOpcionales": [
+                "solicitud-cautelares.pdf"
+              ]
+            }
           ]
         }
       },
