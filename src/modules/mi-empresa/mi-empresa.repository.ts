@@ -57,6 +57,14 @@ export class MiEmpresaRepository {
     return this.db.usuario.findFirst({ where: { id, empresaId: this.empresaId }, select: { id: true } });
   }
 
+  /** Contacto (email/nombre) scoped por empresa, para el correo de reenvío. */
+  findMiembroContacto(id: string) {
+    return this.db.usuario.findFirst({
+      where: { id, empresaId: this.empresaId },
+      select: { email: true, nombre: true },
+    });
+  }
+
   rolesActuales(usuarioId: string) {
     return this.db.usuarioRolEmpresa.findMany({ where: { usuarioId }, select: { rolEmpresa: true } });
   }

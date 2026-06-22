@@ -31,6 +31,11 @@ vi.mock("../src/index", () => {
   return { prisma };
 });
 
+// El envío de correo (invitación/reenvío) es best-effort y NO debe tocar la red en tests.
+vi.mock("../src/modules/notificaciones/correo.client", () => ({
+  enviarCorreo: vi.fn().mockResolvedValue({ enviado: true, messageId: "test" }),
+}));
+
 import { createApp } from "../src/app";
 import { prisma } from "../src/index";
 import { signToken } from "../src/modules/auth/auth.service";

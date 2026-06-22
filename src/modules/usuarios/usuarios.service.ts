@@ -6,6 +6,7 @@ import { Prisma, type Rol, RolEmpresa } from "@prisma/client";
 import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
 import { generateActivationToken } from "../auth/auth.service";
+import { enviarInvitacionCuenta, enviarResetCuenta, type ContextoInvitacion } from "../notificaciones";
 import { assertSeatAvailable, assignRole, removeRole } from "../roles/roles.service";
 import { ACTIVATION_TTL_MS, activationUrl } from "./usuarios.shared";
 import { UsuariosRepository } from "./usuarios.repository";
@@ -46,7 +47,18 @@ export async function createUsuario(input: CreateUsuarioInput) {
       }
       return r.create(data);
     });
-    return { user, activationUrl: activationUrl(raw, user.rol) };
+    // El correo se envía FUERA de la tx (best-effort): si SES falla, la creación
+    // ya quedó firme y el admin comparte el link de respaldo. Nunca lanza.
+    const url = activationUrl(raw, user.rol);
+    const contexto: ContextoInvitacion =
+      finalRol === "ADMIN" ? "admin" : finalRol === "COMERCIAL" ? "comercial" : "empresa";
+    const correoEnviado = await enviarInvitacionCuenta({
+      to: user.email,
+      nombre: user.nombre,
+      activationUrl: url,
+      contexto,
+    });
+    return { user, activationUrl: url, correoEnviado };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2002") throw new HttpError(409, "Ya existe un usuario con ese correo");
@@ -89,7 +101,13 @@ export async function resetPassword(id: string) {
       activationExpires: new Date(Date.now() + ACTIVATION_TTL_MS),
       tokenVersion: { increment: 1 },
     });
-    return { activationUrl: activationUrl(raw, usuario.rol) };
+    const url = activationUrl(raw, usuario.rol);
+    const correoEnviado = await enviarResetCuenta({
+      to: usuario.email,
+      nombre: usuario.nombre,
+      activationUrl: url,
+    });
+    return { activationUrl: url, correoEnviado };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
       throw new HttpError(404, "Usuario no encontrado");

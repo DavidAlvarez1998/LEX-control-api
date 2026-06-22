@@ -7,6 +7,7 @@ import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { generateActivationToken } from "../auth/auth.service";
+import { enviarInvitacionCuenta } from "../notificaciones";
 import { resolveEntitlements } from "../entitlements/entitlements.service";
 import { assertSeatAvailable } from "../roles/roles.service";
 import { ACTIVATION_TTL_MS, activationUrl } from "../usuarios/usuarios.shared";
@@ -59,7 +60,15 @@ export async function createMiembro(t: TenantContext, input: CreateMiembroInput)
       for (const rolEmpresa of roles) await r.createRolEmpresa(u.id, rolEmpresa, t.userId);
       return { ...u, roles };
     });
-    return { user, activationUrl: activationUrl(raw, user.rol) };
+    // Correo de invitación fuera de la tx (best-effort): el link queda de respaldo.
+    const url = activationUrl(raw, user.rol);
+    const correoEnviado = await enviarInvitacionCuenta({
+      to: user.email,
+      nombre: user.nombre,
+      activationUrl: url,
+      contexto: "empresa",
+    });
+    return { user, activationUrl: url, correoEnviado };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       throw new HttpError(409, "Ya existe un usuario con ese correo");
@@ -115,12 +124,23 @@ export async function updateMiembro(t: TenantContext, targetId: string, input: U
 export async function resendActivation(t: TenantContext, targetId: string) {
   const empresaId = empresaIdOrThrow(t);
   const { raw, hash } = generateActivationToken();
-  const count = await new MiEmpresaRepository(empresaId).updateScoped(targetId, {
+  const repo = new MiEmpresaRepository(empresaId);
+  const count = await repo.updateScoped(targetId, {
     activationToken: hash,
     activationExpires: new Date(Date.now() + ACTIVATION_TTL_MS),
     tokenVersion: { increment: 1 },
   });
   if (count === 0) throw new HttpError(404, "Usuario no encontrado");
   // Los miembros del equipo son siempre USUARIO → link al portal del cliente.
-  return { activationUrl: activationUrl(raw, "USUARIO") };
+  const url = activationUrl(raw, "USUARIO");
+  const contacto = await repo.findMiembroContacto(targetId);
+  const correoEnviado = contacto
+    ? await enviarInvitacionCuenta({
+        to: contacto.email,
+        nombre: contacto.nombre,
+        activationUrl: url,
+        contexto: "empresa",
+      })
+    : false;
+  return { activationUrl: url, correoEnviado };
 }

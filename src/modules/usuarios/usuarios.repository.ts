@@ -38,9 +38,13 @@ export class UsuariosRepository {
     return this.db.usuario.update({ where: { id }, data, select: PUBLIC_SELECT });
   }
 
-  /** Update devolviendo solo el rol (reset-password: arma la URL de activación). */
+  /** Update devolviendo rol + contacto (reset-password: arma la URL y el correo). */
   updateForReset(id: string, data: Prisma.UsuarioUncheckedUpdateInput) {
-    return this.db.usuario.update({ where: { id }, data, select: { rol: true } });
+    return this.db.usuario.update({
+      where: { id },
+      data,
+      select: { rol: true, email: true, nombre: true },
+    });
   }
 
   delete(id: string) {
