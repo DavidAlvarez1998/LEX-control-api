@@ -56,6 +56,13 @@ procesoRoutes.get("/:id/actuaciones/sugerencias", requireAuth, requirePermiso("p
 procesoRoutes.get("/:id/rama/detalle", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => res.json(await actuaciones.obtenerDetalleRama(tenant(req), req.params.id))));
 
+// Partes que reporta la Rama: sugerir e importar como partes del proceso (P10).
+procesoRoutes.get("/:id/rama/partes", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.sugerirPartesRama(tenant(req), req.params.id))));
+
+procesoRoutes.post("/:id/rama/partes/importar", requireAuth, requirePermiso("proceso.editar"), validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.importarPartesRama(tenant(req), req.params.id, req.body?.nombres))));
+
 // Documentos del expediente (Rama): listar disponibles e importar PDFs al proceso (P9).
 procesoRoutes.get("/:id/rama/documentos", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => res.json(await actuaciones.listarDocumentosRama(tenant(req), req.params.id))));

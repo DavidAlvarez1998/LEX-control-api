@@ -16,6 +16,13 @@ export type ProcesoRama = {
   esPrivado: boolean;
 };
 
+/** Una parte del proceso (Endpoint Sujetos). */
+export type SujetoRama = {
+  tipoSujeto: string | null; // "Demandante" | "Demandado" | …
+  nombreRazonSocial: string | null;
+  identificacion: string | null;
+};
+
 /** Detalle del proceso en la Rama (Endpoint Detalle). Dato estrella: `ubicacion`. */
 export type DetalleRama = {
   tipoProceso: string | null;

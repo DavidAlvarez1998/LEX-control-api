@@ -6,7 +6,7 @@
 // Tenant-scoped: el proceso debe ser de la empresa del solicitante. Ver
 // openspec/changes/rama-judicial-actuaciones.
 import { createHash } from "crypto";
-import { Prisma } from "@prisma/client";
+import { Prisma, RolParte, TipoPersona } from "@prisma/client";
 import { env } from "../../config/env";
 import { HttpError } from "../../middleware/error";
 import { logger } from "../../shared/logger";
@@ -14,7 +14,7 @@ import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { carpetaModulo, subirDocumento } from "../documentos/documentos.client";
 import { enviarNovedadActuaciones } from "../notificaciones";
-import { consultarRadicado, descargarDocumento, obtenerActuaciones, obtenerDetalle, obtenerDocumentos, type ActuacionRama } from "../rama-judicial";
+import { consultarRadicado, descargarDocumento, obtenerActuaciones, obtenerDetalle, obtenerDocumentos, obtenerSujetos, type ActuacionRama } from "../rama-judicial";
 import { detectarHitos } from "./hitos-actuaciones";
 import { categoriaDoc } from "./procesos.service";
 
@@ -340,6 +340,85 @@ async function idRegsImportados(procesoId: string): Promise<Set<string>> {
     select: { origenRamaIdReg: true },
   });
   return new Set(filas.map((d) => String(d.origenRamaIdReg)));
+}
+
+// ===================== P10 — Importar partes (Sujetos) =====================
+
+const normNombre = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+function rolDeSujeto(tipoSujeto: string | null, esEjecutivo: boolean): RolParte {
+  const t = (tipoSujeto ?? "").toLowerCase();
+  if (t.includes("demandante") || t.includes("ejecutante") || t.includes("accionante"))
+    return esEjecutivo ? RolParte.EJECUTANTE : RolParte.DEMANDANTE;
+  if (t.includes("demandado") || t.includes("ejecutado") || t.includes("accionado"))
+    return esEjecutivo ? RolParte.EJECUTADO : RolParte.DEMANDADO;
+  return RolParte.OTRO;
+}
+
+function inferTipoPersona(nombre: string): TipoPersona {
+  return /\b(s\.?a\.?s|ltda|e\.?s\.?p|s\.?a\.?|nit|sociedad|empresa|banco|fundaci|corporaci|cooperativa)\b/i.test(nombre)
+    ? TipoPersona.JURIDICA
+    : TipoPersona.NATURAL;
+}
+
+async function cargarParaPartes(t: TenantContext, procesoId: string) {
+  const empresaId = empresaIdOrThrow(t);
+  const proceso = await prisma.proceso.findFirst({
+    where: { id: procesoId, empresaId },
+    select: {
+      radicado: true, idProcesoRama: true,
+      tipoProceso: { select: { nombre: true } },
+      partes: { select: { litigante: { select: { nombre: true } } } },
+    },
+  });
+  if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+  return { empresaId, proceso };
+}
+
+/** P10: partes que reporta la Rama, marcando cuáles ya están en el proceso. */
+export async function sugerirPartesRama(t: TenantContext, procesoId: string) {
+  const { proceso } = await cargarParaPartes(t, procesoId);
+  const idProceso = await resolverIdProceso(proceso.radicado, proceso.idProcesoRama);
+  if (!idProceso) return { encontrado: false, sujetos: [] as Array<Record<string, unknown>> };
+  const sujetos = await obtenerSujetos(idProceso);
+  const existentes = new Set(proceso.partes.map((p) => normNombre(p.litigante?.nombre)));
+  const esEjec = /ejecutivo/i.test(proceso.tipoProceso?.nombre ?? "");
+  return {
+    encontrado: true,
+    sujetos: sujetos
+      .filter((s) => s.nombreRazonSocial)
+      .map((s) => ({ ...s, rol: rolDeSujeto(s.tipoSujeto, esEjec), yaExiste: existentes.has(normNombre(s.nombreRazonSocial)) })),
+  };
+}
+
+/** P10: crea como partes los sujetos seleccionados (o todos los que faltan). No pisa. */
+export async function importarPartesRama(t: TenantContext, procesoId: string, nombres?: string[]) {
+  const { empresaId, proceso } = await cargarParaPartes(t, procesoId);
+  const idProceso = await resolverIdProceso(proceso.radicado, proceso.idProcesoRama);
+  if (!idProceso) return { importadas: 0 };
+  const sujetos = await obtenerSujetos(idProceso);
+  const existentes = new Set(proceso.partes.map((p) => normNombre(p.litigante?.nombre)));
+  const esEjec = /ejecutivo/i.test(proceso.tipoProceso?.nombre ?? "");
+  const sel = nombres && nombres.length ? new Set(nombres.map(normNombre)) : null;
+
+  let importadas = 0;
+  for (const s of sujetos) {
+    const nom = (s.nombreRazonSocial ?? "").trim();
+    if (!nom || existentes.has(normNombre(nom)) || (sel && !sel.has(normNombre(nom)))) continue;
+    try {
+      const lit = await prisma.litigante.create({
+        data: { empresaId, nombre: nom, tipoPersona: inferTipoPersona(nom), numeroDocumento: s.identificacion ?? undefined },
+      });
+      await prisma.parteProceso.create({
+        data: { procesoId, litiganteId: lit.id, rol: rolDeSujeto(s.tipoSujeto, esEjec), esNuestroCliente: false },
+      });
+      existentes.add(normNombre(nom));
+      importadas++;
+    } catch (err) {
+      logger.warn("import parte rama falló", { procesoId, nombre: nom, err: String(err) });
+    }
+  }
+  return { importadas };
 }
 
 /** P11: detalle del proceso en el juzgado (tipo/clase/ubicación/última actualización). */
