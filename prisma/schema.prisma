@@ -416,6 +416,9 @@ model Proceso {
   actuacionesVistasAt DateTime?
   // Última vez que se sincronizó con la Rama (frescura: "sincronizado hace X").
   actuacionesSyncAt  DateTime?
+  // Contador denormalizado de actuaciones no leídas (createdAt > actuacionesVistasAt):
+  // lo recalcula el sync y lo resetea "marcar vistas". La lista lo lee O(1) (P1).
+  actuacionesNuevas  Int           @default(0)
   casoRelacionadoId  String? // enlaza una tutela a su caso base
   clienteId          String? // cliente (CRM) al que pertenece el caso; se setea al crear
   creadoPorId        String?

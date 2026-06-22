@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../src/index", () => ({
   prisma: {
     proceso: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() },
-    actuacionProceso: { findMany: vi.fn(), createMany: vi.fn() },
+    actuacionProceso: { findMany: vi.fn(), createMany: vi.fn(), count: vi.fn() },
   },
 }));
 vi.mock("../src/modules/rama-judicial", () => ({
@@ -60,8 +60,10 @@ describe("sincronizarActuaciones", () => {
   it("inserta nuevas, cachea idProcesoRama y autollena ultimaActuacion + juzgado + fechaRadicacion", async () => {
     p.proceso.findFirst.mockResolvedValue({
       id: "pr1", radicado: RAD, idProcesoRama: null, datos: { foo: "bar" }, despachoJuzgado: null,
+      actuacionesVistasAt: new Date("2026-01-01"),
       tipoProceso: { esquemaFormulario: [{ key: "ultimaActuacion" }, { key: "juzgado" }, { key: "fechaRadicacion" }] },
     });
+    p.actuacionProceso.count.mockResolvedValue(2); // 2 no-leídas desde vistasAt (P1)
     mockConsultar.mockResolvedValue({
       encontrado: true, idProceso: 1810780324, esPrivado: false,
       despacho: "JUZGADO 003 ADMINISTRATIVO DE PEREIRA", fechaProceso: "2014-06-06T00:00:00",
@@ -88,6 +90,7 @@ describe("sincronizarActuaciones", () => {
       fechaRadicacion: "2014-06-06",
     });
     expect(update.data.despachoJuzgado).toBe("JUZGADO 003 ADMINISTRATIVO DE PEREIRA");
+    expect(update.data.actuacionesNuevas).toBe(2); // P1: contador de no-leídas recalculado
   });
 
   it("no autollena campos que el tipo no tiene (sin claves desconocidas)", async () => {

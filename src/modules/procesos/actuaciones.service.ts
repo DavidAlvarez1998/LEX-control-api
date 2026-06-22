@@ -31,6 +31,7 @@ type ProcesoSync = {
   despachoJuzgado?: string | null;
   titulo?: string;
   responsable?: { email: string; nombre: string } | null;
+  actuacionesVistasAt?: Date | null; // para recalcular el contador de "nuevas" (P1)
   // Keys del formulario del tipo: para autollenar SOLO campos que existen (sin
   // introducir claves desconocidas en `datos`).
   esquema?: Array<{ key: string }>;
@@ -148,11 +149,19 @@ export async function sincronizarProceso(
   fijar("juzgado", despacho?.trim()); // #4: juzgado asignado
   fijar("fechaRadicacion", fechaProceso?.slice(0, 10)); // fecha de radicación (de fechaProceso)
 
+  // P1: contador denormalizado de no-leídas (createdAt > actuacionesVistasAt). Si nunca
+  // se marcó "vistas", 0 (no inunda en la primera carga; igual que listarActuaciones).
+  const vistasAt = proceso.actuacionesVistasAt ?? null;
+  const actuacionesNuevas = vistasAt
+    ? await prisma.actuacionProceso.count({ where: { procesoId: proceso.id, createdAt: { gt: vistasAt } } })
+    : 0;
+
   await prisma.proceso.update({
     where: { id: proceso.id },
     data: {
       idProcesoRama: idProceso,
       actuacionesSyncAt: new Date(), // frescura (P5): última sincronización con la Rama
+      actuacionesNuevas, // P1: novedades para la lista
       ...(datosCambio ? { datos: datosPatch as Prisma.InputJsonValue } : {}),
       // Espejo a la columna canónica del despacho (genérico), SOLO si está vacía.
       ...(despacho && vacio(proceso.despachoJuzgado) ? { despachoJuzgado: despacho } : {}),
@@ -196,7 +205,7 @@ export async function sincronizarTodas(): Promise<{
     where: { radicado: { not: null }, estado: { notIn: ["CERRADO", "ARCHIVADO"] } },
     select: {
       id: true, radicado: true, idProcesoRama: true, datos: true, despachoJuzgado: true,
-      titulo: true, responsable: { select: { email: true, nombre: true } },
+      titulo: true, actuacionesVistasAt: true, responsable: { select: { email: true, nombre: true } },
       tipoProceso: { select: { esquemaFormulario: true } },
     },
   });
@@ -249,7 +258,7 @@ export async function listarActuaciones(t: TenantContext, procesoId: string) {
 /** #3: marca todas las actuaciones del proceso como vistas (sello = ahora). */
 export async function marcarActuacionesVistas(t: TenantContext, procesoId: string) {
   const proceso = await cargarProcesoScoped(t, procesoId);
-  await prisma.proceso.update({ where: { id: proceso.id }, data: { actuacionesVistasAt: new Date() } });
+  await prisma.proceso.update({ where: { id: proceso.id }, data: { actuacionesVistasAt: new Date(), actuacionesNuevas: 0 } });
   return { ok: true };
 }
 

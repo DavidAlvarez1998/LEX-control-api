@@ -88,6 +88,7 @@ export async function listProcesos(t: TenantContext, query: Record<string, unkno
     ...(query.radicado ? { radicado: String(query.radicado) } : {}),
     ...(query.area ? { tipoProceso: { areas: { some: { area: { slug: String(query.area) } } } } } : {}),
     ...(query.litiganteId ? { partes: { some: { litiganteId: String(query.litiganteId) } } } : {}),
+    ...(query.conNovedades ? { actuacionesNuevas: { gt: 0 } } : {}), // P1: solo con novedades del juzgado
     ...(q ? { OR: [{ codigoInterno: { contains: q } }, { titulo: { contains: q } }, { radicado: { contains: q } }, { cliente: { is: { nombre: { contains: q } } } }] } : {}),
   };
   const scope = scopeMisClientes(t);

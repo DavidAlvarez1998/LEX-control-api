@@ -24,7 +24,7 @@ type ListRow = {
   id: string; codigoInterno: string; radicado: string | null; titulo: string;
   jurisdiccion: unknown; estado: unknown; prioridad: unknown; proximaAudiencia: Date | null;
   etapaActual: string; fechaLimite: Date | null; responsableId: string | null;
-  casoRelacionadoId: string | null;
+  casoRelacionadoId: string | null; actuacionesNuevas: number;
   tipoProceso: { nombre: string; esJudicial: boolean; grupo: unknown; etapas: unknown; areas: { area: { slug: string } }[] };
   responsable: { nombre: string } | null;
   cliente: { nombre: string } | null;
@@ -43,6 +43,7 @@ export function toProcesoListItem(t: ListRow, semaforo: (f: Date | null) => Sema
     responsableId: t.responsableId, responsableNombre: t.responsable?.nombre ?? null,
     clienteNombre: t.cliente?.nombre ?? null, casoRelacionadoId: t.casoRelacionadoId,
     tieneDerivados: t._count.derivados > 0,
+    actuacionesNuevas: t.actuacionesNuevas, // P1: novedades del juzgado para la lista
   };
 }
 
