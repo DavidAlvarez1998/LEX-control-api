@@ -72,6 +72,16 @@ export const env = {
     userAgent:
       process.env.RAMA_JUDICIAL_USER_AGENT ??
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    // Reintentos con backoff exponencial ante 403/429/5xx / fallo de red.
+    retryAttempts: Number(process.env.RAMA_JUDICIAL_RETRY_ATTEMPTS ?? 4),
+    retryInitialMs: Number(process.env.RAMA_JUDICIAL_RETRY_INITIAL_MS ?? 3_000),
+    retryMaxMs: Number(process.env.RAMA_JUDICIAL_RETRY_MAX_MS ?? 20_000),
+    // Sincronización MASIVA (cron): lotes y esperas para no gatillar el rate-limit.
+    batchSize: Number(process.env.RAMA_JUDICIAL_BATCH_SIZE ?? 8),
+    delayRequestMs: Number(process.env.RAMA_JUDICIAL_DELAY_REQUEST_MS ?? 1_200),
+    delayLoteMs: Number(process.env.RAMA_JUDICIAL_DELAY_LOTE_MS ?? 5_000),
+    maxConsecutiveErrors: Number(process.env.RAMA_JUDICIAL_MAX_CONSECUTIVE_ERRORS ?? 3),
+    pauseOnErrorsMs: Number(process.env.RAMA_JUDICIAL_PAUSE_ON_ERRORS_MS ?? 45_000),
   },
 };
 

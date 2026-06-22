@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/index", () => ({
   prisma: {
-    proceso: { findFirst: vi.fn(), update: vi.fn() },
+    proceso: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() },
     actuacionProceso: { findMany: vi.fn(), createMany: vi.fn() },
   },
 }));
@@ -13,10 +13,14 @@ vi.mock("../src/modules/rama-judicial", () => ({
   consultarRadicado: vi.fn(),
   obtenerActuaciones: vi.fn(),
 }));
+// No tocar la red al notificar novedades (best-effort).
+vi.mock("../src/modules/notificaciones", () => ({
+  enviarNovedadActuaciones: vi.fn().mockResolvedValue(true),
+}));
 
 import { prisma } from "../src/index";
 import { consultarRadicado, obtenerActuaciones } from "../src/modules/rama-judicial";
-import { normalizarRadicado, sincronizarActuaciones, validarRadicado } from "../src/modules/procesos/actuaciones.service";
+import { normalizarRadicado, sincronizarActuaciones, sincronizarTodas, validarRadicado } from "../src/modules/procesos/actuaciones.service";
 
 const p = prisma as any;
 const mockConsultar = consultarRadicado as unknown as ReturnType<typeof vi.fn>;
@@ -88,5 +92,32 @@ describe("sincronizarActuaciones", () => {
     expect(r).toMatchObject({ nuevas: 0, total: 1 });
     expect(p.actuacionProceso.createMany).not.toHaveBeenCalled();
     expect(mockConsultar).not.toHaveBeenCalled(); // idProcesoRama cacheado → no llama Endpoint A
+  });
+});
+
+describe("sincronizarTodas (cron masivo)", () => {
+  it("recorre los procesos con radicado, tolera fallos y totaliza", async () => {
+    p.proceso.findMany.mockResolvedValue([
+      { id: "pr1", radicado: RAD, idProcesoRama: "111", datos: {} },
+      { id: "pr2", radicado: RAD, idProcesoRama: "222", datos: {} },
+      { id: "pr3", radicado: RAD, idProcesoRama: "333", datos: {} },
+    ]);
+    // pr1: 1 nueva · pr2: la Rama falla (502) · pr3: sin novedades
+    mockActuaciones
+      .mockResolvedValueOnce([{ fechaActuacion: "2026-03-09T00:00:00", actuacion: "A", anotacion: null }])
+      .mockRejectedValueOnce(new Error("502"))
+      .mockResolvedValueOnce([{ fechaActuacion: "2026-03-09T00:00:00", actuacion: "B", anotacion: null }]);
+    p.actuacionProceso.findMany
+      .mockResolvedValueOnce([]) // pr1: ninguna existente → 1 nueva
+      .mockResolvedValueOnce([{ huella: "x" }]); // pr3: ya existe (huella coincide abajo no importa)
+    p.actuacionProceso.createMany.mockResolvedValue({ count: 1 });
+    p.proceso.update.mockResolvedValue({});
+
+    const r = await sincronizarTodas();
+
+    expect(r.procesos).toBe(3);
+    expect(r.errores).toBe(1);
+    expect(r.conNovedad).toBeGreaterThanOrEqual(1);
+    expect(mockActuaciones).toHaveBeenCalledTimes(3);
   });
 });

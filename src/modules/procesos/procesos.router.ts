@@ -42,6 +42,12 @@ procesoRoutes.get("/:id/actuaciones", requireAuth, requirePermiso("proceso.ver")
 procesoRoutes.post("/:id/actuaciones/sincronizar", requireAuth, requirePermiso("proceso.editar"), validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => res.json(await actuaciones.sincronizarActuaciones(tenant(req), req.params.id))));
 
+procesoRoutes.post("/:id/actuaciones/marcar-vistas", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.marcarActuacionesVistas(tenant(req), req.params.id))));
+
+procesoRoutes.get("/:id/actuaciones/sugerencias", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.sugerenciasDeProceso(tenant(req), req.params.id))));
+
 // ===================== CASO / DETALLE =====================
 procesoRoutes.get("/:id/caso", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => res.json(await procesos.getCaso(tenant(req), req.params.id))));

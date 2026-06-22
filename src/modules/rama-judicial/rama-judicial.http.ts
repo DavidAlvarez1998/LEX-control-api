@@ -6,7 +6,9 @@ import { HttpError } from "../../middleware/error";
 
 const FUENTE = "la Rama Judicial";
 
-export async function getJson<T>(path: string): Promise<T> {
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function pedirUnaVez<T>(path: string): Promise<T> {
   const { baseUrl, timeoutMs, userAgent } = env.ramaJudicial;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -34,6 +36,26 @@ export async function getJson<T>(path: string): Promise<T> {
   }
 
   return (await res.json().catch(() => null)) as T;
+}
+
+/** GET con reintentos + backoff exponencial. La Rama bloquea (403/429) si la golpeas
+ *  rápido; el transporte mapea esos fallos a 502 y aquí reintentamos. En tests no
+ *  reintenta (intentos=1) para no introducir esperas ni cambiar el contrato. */
+export async function getJson<T>(path: string): Promise<T> {
+  const { retryAttempts, retryInitialMs, retryMaxMs } = env.ramaJudicial;
+  const intentos = process.env.NODE_ENV === "test" ? 1 : Math.max(1, retryAttempts);
+
+  let ultimo: unknown;
+  for (let i = 1; i <= intentos; i++) {
+    try {
+      return await pedirUnaVez<T>(path);
+    } catch (err) {
+      ultimo = err;
+      if (i === intentos) break;
+      await dormir(Math.min(retryMaxMs, retryInitialMs * 2 ** (i - 1)));
+    }
+  }
+  throw ultimo;
 }
 
 /** Espera entre páginas para no gatillar el rate-limit (se omite en tests). */

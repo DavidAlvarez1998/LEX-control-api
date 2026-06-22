@@ -404,6 +404,9 @@ model Proceso {
   // idProceso interno de la Rama Judicial (CPNU), cacheado tras validar el radicado;
   // evita repetir la consulta radicado→idProceso en cada sync de actuaciones.
   idProcesoRama      String?
+  // "Visto hasta": una actuación es "nueva" si su createdAt > este sello. Marca de
+  // no-leídas persistente (por proceso) para el panel de actuaciones de la ficha.
+  actuacionesVistasAt DateTime?
   casoRelacionadoId  String? // enlaza una tutela a su caso base
   clienteId          String? // cliente (CRM) al que pertenece el caso; se setea al crear
   creadoPorId        String?
