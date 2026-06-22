@@ -490,6 +490,8 @@ model DocumentoProceso {
   generadoDePlantilla String?
   tipo                String? // mime informativo (application/pdf, image/jpeg…)
   subidoPorId         String? // auditoría: quién subió el archivo
+  // Si se importó del expediente de la Rama: idRegDocumento de la CPNU (idempotencia).
+  origenRamaIdReg     String?
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @default(now()) @updatedAt
 
@@ -497,6 +499,7 @@ model DocumentoProceso {
   plantilla PlantillaDocumento? @relation(fields: [generadoDePlantilla], references: [id], onDelete: SetNull)
   subidoPor Usuario?            @relation("DocumentosProcesoSubidos", fields: [subidoPorId], references: [id], onDelete: SetNull)
 
+  @@unique([procesoId, origenRamaIdReg]) // no reimportar el mismo documento de la Rama
   @@index([procesoId])
   @@index([generadoDePlantilla])
   @@index([categoria])

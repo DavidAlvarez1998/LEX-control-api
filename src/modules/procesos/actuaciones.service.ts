@@ -12,9 +12,11 @@ import { HttpError } from "../../middleware/error";
 import { logger } from "../../shared/logger";
 import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
+import { carpetaModulo, subirDocumento } from "../documentos/documentos.client";
 import { enviarNovedadActuaciones } from "../notificaciones";
-import { consultarRadicado, obtenerActuaciones, type ActuacionRama } from "../rama-judicial";
+import { consultarRadicado, descargarDocumento, obtenerActuaciones, obtenerDocumentos, type ActuacionRama } from "../rama-judicial";
 import { detectarHitos } from "./hitos-actuaciones";
+import { categoriaDoc } from "./procesos.service";
 
 // En tests no esperamos (evita esperas reales del batching/anti-bloqueo).
 const dormir = (ms: number) =>
@@ -278,4 +280,86 @@ export async function sugerenciasDeProceso(t: TenantContext, procesoId: string) 
   const esquema = (proceso.tipoProceso?.esquemaFormulario ?? []) as Array<{ key: string }>;
   const datos = (proceso.datos ?? {}) as Record<string, unknown>;
   return detectarHitos(proceso.actuaciones, etapas, esquema, datos);
+}
+
+// ===================== P9 — Documentos del expediente (importar PDFs) =====================
+
+/** idProceso de la Rama (cacheado o resuelto vía Endpoint A). null si no aplica. */
+async function resolverIdProceso(radicado: string | null, idCache: string | null): Promise<string | null> {
+  if (idCache) return idCache;
+  const norm = normalizarRadicado(radicado);
+  if (!norm) return null;
+  const info = await consultarRadicado(norm);
+  return info.encontrado && info.idProceso != null ? String(info.idProceso) : null;
+}
+
+async function idRegsImportados(procesoId: string): Promise<Set<string>> {
+  const filas = await prisma.documentoProceso.findMany({
+    where: { procesoId, origenRamaIdReg: { not: null } },
+    select: { origenRamaIdReg: true },
+  });
+  return new Set(filas.map((d) => String(d.origenRamaIdReg)));
+}
+
+/** Lista los documentos del expediente en la Rama, marcando los ya importados. */
+export async function listarDocumentosRama(t: TenantContext, procesoId: string) {
+  const empresaId = empresaIdOrThrow(t);
+  const proceso = await prisma.proceso.findFirst({
+    where: { id: procesoId, empresaId },
+    select: { id: true, radicado: true, idProcesoRama: true },
+  });
+  if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+  const idProceso = await resolverIdProceso(proceso.radicado, proceso.idProcesoRama);
+  if (!idProceso) return { encontrado: false, documentos: [] as Array<Record<string, unknown>> };
+  const docs = await obtenerDocumentos(idProceso);
+  const importados = await idRegsImportados(procesoId);
+  return { encontrado: true, documentos: docs.map((d) => ({ ...d, yaImportado: importados.has(String(d.idRegDocumento)) })) };
+}
+
+/** Importa (descarga + guarda en el proceso) los documentos del expediente. Idempotente;
+ *  espacia las descargas (anti-bloqueo §4). On-demand: NO se llama desde el cron. */
+export async function importarDocumentosRama(t: TenantContext, procesoId: string, idRegs?: string[]) {
+  const empresaId = empresaIdOrThrow(t);
+  const proceso = await prisma.proceso.findFirst({
+    where: { id: procesoId, empresaId },
+    select: { id: true, radicado: true, idProcesoRama: true, codigoInterno: true, empresa: { select: { id: true, nombre: true } } },
+  });
+  if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+  const idProceso = await resolverIdProceso(proceso.radicado, proceso.idProcesoRama);
+  if (!idProceso) return { importados: 0, omitidos: 0, fallidos: 0 };
+
+  const docs = await obtenerDocumentos(idProceso);
+  const yaImport = await idRegsImportados(procesoId);
+  const filtro = idRegs && idRegs.length ? new Set(idRegs.map(String)) : null;
+  const objetivo = docs.filter((d) => (!filtro || filtro.has(String(d.idRegDocumento))) && !yaImport.has(String(d.idRegDocumento)));
+
+  let importados = 0;
+  let fallidos = 0;
+  for (const d of objetivo) {
+    try {
+      const bin = await descargarDocumento(d.idRegDocumento);
+      if (!bin) { fallidos++; continue; } // no es PDF o excede el tamaño máximo
+      const nombre = (d.descripcion ?? `Documento ${d.idRegDocumento}`).trim();
+      const subido = await subirDocumento({
+        archivo: bin.buffer,
+        nombreArchivo: `${nombre}.pdf`,
+        documento: proceso.codigoInterno ?? proceso.id,
+        carpeta: carpetaModulo(proceso.empresa, "PROCESOS"),
+        tipo: "application/pdf",
+      });
+      await prisma.documentoProceso.create({
+        data: {
+          procesoId, nombre, url: subido.path, tipo: "application/pdf",
+          subidoPorId: t.userId, categoria: categoriaDoc(nombre), origenRamaIdReg: String(d.idRegDocumento),
+        },
+      });
+      importados++;
+    } catch (err) {
+      fallidos++;
+      logger.warn("import doc rama falló", { procesoId, idReg: d.idRegDocumento, err: String(err) });
+    }
+    await dormir(env.ramaJudicial.delayRequestMs);
+  }
+  logger.info("documentos rama importados", { procesoId, importados, fallidos });
+  return { importados, omitidos: docs.length - objetivo.length, fallidos };
 }

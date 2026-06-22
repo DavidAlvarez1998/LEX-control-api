@@ -7,24 +7,35 @@ vi.mock("../src/index", () => ({
   prisma: {
     proceso: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() },
     actuacionProceso: { findMany: vi.fn(), createMany: vi.fn(), count: vi.fn() },
+    documentoProceso: { findMany: vi.fn(), create: vi.fn() },
   },
 }));
 vi.mock("../src/modules/rama-judicial", () => ({
   consultarRadicado: vi.fn(),
   obtenerActuaciones: vi.fn(),
+  obtenerDocumentos: vi.fn(),
+  descargarDocumento: vi.fn(),
 }));
 // No tocar la red al notificar novedades (best-effort).
 vi.mock("../src/modules/notificaciones", () => ({
   enviarNovedadActuaciones: vi.fn().mockResolvedValue(true),
 }));
+// Evitar la subida real a tecnovapp y la dependencia pesada de procesos.service.
+vi.mock("../src/modules/documentos/documentos.client", () => ({
+  subirDocumento: vi.fn().mockResolvedValue({ path: "ruta/doc.pdf" }),
+  carpetaModulo: vi.fn().mockReturnValue("EMP_PROCESOS"),
+}));
+vi.mock("../src/modules/procesos/procesos.service", () => ({ categoriaDoc: vi.fn().mockReturnValue("OTRO") }));
 
 import { prisma } from "../src/index";
-import { consultarRadicado, obtenerActuaciones } from "../src/modules/rama-judicial";
-import { normalizarRadicado, sincronizarActuaciones, sincronizarTodas, validarRadicado } from "../src/modules/procesos/actuaciones.service";
+import { consultarRadicado, obtenerActuaciones, obtenerDocumentos, descargarDocumento } from "../src/modules/rama-judicial";
+import { importarDocumentosRama, normalizarRadicado, sincronizarActuaciones, sincronizarTodas, validarRadicado } from "../src/modules/procesos/actuaciones.service";
 
 const p = prisma as any;
 const mockConsultar = consultarRadicado as unknown as ReturnType<typeof vi.fn>;
 const mockActuaciones = obtenerActuaciones as unknown as ReturnType<typeof vi.fn>;
+const mockDocs = obtenerDocumentos as unknown as ReturnType<typeof vi.fn>;
+const mockDescarga = descargarDocumento as unknown as ReturnType<typeof vi.fn>;
 const t = { empresaId: "e1", userId: "u1" } as any;
 const RAD = "66001333300320140049500"; // 23 dígitos
 
@@ -152,5 +163,38 @@ describe("sincronizarTodas (cron masivo)", () => {
     expect(r.errores).toBe(1);
     expect(r.conNovedad).toBeGreaterThanOrEqual(1);
     expect(mockActuaciones).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("importarDocumentosRama (P9)", () => {
+  it("importa solo los no importados (idempotente) y descarga+guarda el PDF", async () => {
+    p.proceso.findFirst.mockResolvedValue({
+      id: "pr1", radicado: RAD, idProcesoRama: "111", codigoInterno: "EXP-1", empresa: { id: "e1", nombre: "Bufete" },
+    });
+    mockDocs.mockResolvedValue([
+      { idRegDocumento: 100, descripcion: "Auto admisorio", fechaCarga: "2026-01-01", consActuacion: null },
+      { idRegDocumento: 200, descripcion: "Certificación", fechaCarga: "2026-02-01", consActuacion: null },
+    ]);
+    p.documentoProceso.findMany.mockResolvedValue([{ origenRamaIdReg: "100" }]); // 100 ya importado
+    mockDescarga.mockResolvedValue({ buffer: Buffer.from("%PDF-..."), tipo: "application/pdf" });
+    p.documentoProceso.create.mockResolvedValue({});
+
+    const r = await importarDocumentosRama(t, "pr1");
+
+    expect(r).toMatchObject({ importados: 1, omitidos: 1, fallidos: 0 });
+    expect(mockDescarga).toHaveBeenCalledTimes(1); // solo el 200
+    expect(mockDescarga).toHaveBeenCalledWith(200);
+    const creado = p.documentoProceso.create.mock.calls[0][0].data;
+    expect(creado).toMatchObject({ procesoId: "pr1", origenRamaIdReg: "200", tipo: "application/pdf" });
+  });
+
+  it("un documento no-PDF/grande (descarga null) se cuenta como fallido, no rompe", async () => {
+    p.proceso.findFirst.mockResolvedValue({ id: "pr1", radicado: RAD, idProcesoRama: "111", codigoInterno: "EXP-1", empresa: { id: "e1", nombre: "B" } });
+    mockDocs.mockResolvedValue([{ idRegDocumento: 300, descripcion: "X", fechaCarga: null, consActuacion: null }]);
+    p.documentoProceso.findMany.mockResolvedValue([]);
+    mockDescarga.mockResolvedValue(null); // no es PDF / excede tamaño
+    const r = await importarDocumentosRama(t, "pr1");
+    expect(r).toMatchObject({ importados: 0, fallidos: 1 });
+    expect(p.documentoProceso.create).not.toHaveBeenCalled();
   });
 });

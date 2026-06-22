@@ -16,6 +16,14 @@ export type ProcesoRama = {
   esPrivado: boolean;
 };
 
+/** Un documento del expediente (Endpoint Documentos). Se descarga por `idRegDocumento`. */
+export type DocumentoRama = {
+  idRegDocumento: number;
+  descripcion: string | null;
+  fechaCarga: string | null;
+  consActuacion: number | null; // actuación a la que pertenece (correlación)
+};
+
 /** Una actuación (movimiento) del juzgado (Endpoint B). Título = texto libre. */
 export type ActuacionRama = {
   fechaActuacion: string | null;

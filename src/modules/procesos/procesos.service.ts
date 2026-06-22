@@ -514,7 +514,7 @@ export async function listPlantillas(t: TenantContext, id: string) {
  * El gating de etapa sigue siendo por `nombre`; esto es metadata para filtrar.
  * Si no se reconoce, queda OTRO.
  */
-function categoriaDoc(nombre: string): CategoriaDocumentoProceso {
+export function categoriaDoc(nombre: string): CategoriaDocumentoProceso {
   const n = nombre.toLowerCase();
   if (n.includes("poder")) return CategoriaDocumentoProceso.PODER;
   if (n.includes("demanda")) return CategoriaDocumentoProceso.DEMANDA;

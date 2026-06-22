@@ -82,6 +82,8 @@ export const env = {
     delayLoteMs: Number(process.env.RAMA_JUDICIAL_DELAY_LOTE_MS ?? 5_000),
     maxConsecutiveErrors: Number(process.env.RAMA_JUDICIAL_MAX_CONSECUTIVE_ERRORS ?? 3),
     pauseOnErrorsMs: Number(process.env.RAMA_JUDICIAL_PAUSE_ON_ERRORS_MS ?? 45_000),
+    // Tamaño máximo de un documento del expediente al importarlo (MB).
+    docMaxBytes: Number(process.env.RAMA_JUDICIAL_DOC_MAX_MB ?? 25) * 1024 * 1024,
   },
 };
 

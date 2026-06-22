@@ -1,8 +1,9 @@
 // Cliente de la API de la Rama Judicial (CPNU). Dos pasos: radicado → idProceso
 // (Endpoint A) y idProceso → actuaciones paginadas (Endpoint B). Solo consulta
 // (lectura). Ver contrato en openspec/changes/rama-judicial-actuaciones/specs.
-import { getJson, esperarEntrePaginas } from "./rama-judicial.http";
-import type { ActuacionRama, ProcesoRama } from "./rama-judicial.types";
+import { env } from "../../config/env";
+import { getJson, getBuffer, esperarEntrePaginas } from "./rama-judicial.http";
+import type { ActuacionRama, DocumentoRama, ProcesoRama } from "./rama-judicial.types";
 
 type ConsultaResp = {
   procesos?: Array<{
@@ -63,4 +64,26 @@ export async function obtenerActuaciones(idProceso: number | string): Promise<Ac
     if (Array.isArray(extra?.actuaciones)) acc.push(...extra.actuaciones);
   }
   return acc;
+}
+
+/** idProceso → lista de documentos del expediente (Endpoint Documentos; array directo). */
+export async function obtenerDocumentos(idProceso: number | string): Promise<DocumentoRama[]> {
+  const data = await getJson<Array<Record<string, unknown>>>(`/Proceso/Documentos/${idProceso}`);
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter((d) => d.idRegDocumento != null)
+    .map((d) => ({
+      idRegDocumento: Number(d.idRegDocumento),
+      descripcion: (d.descripcion as string) ?? (d.nombre as string) ?? null,
+      fechaCarga: (d.fechaCarga as string) ?? null,
+      consActuacion: d.consActuacion != null ? Number(d.consActuacion) : null,
+    }));
+}
+
+/** Descarga el PDF de un documento. Devuelve null si no es PDF o excede el tamaño máximo. */
+export async function descargarDocumento(idRegDocumento: number | string): Promise<{ buffer: Buffer; tipo: string } | null> {
+  const r = await getBuffer(`/Descarga/Documento/${idRegDocumento}`);
+  if (!r.tipo.toLowerCase().includes("application/pdf")) return null;
+  if (r.buffer.length > env.ramaJudicial.docMaxBytes) return null;
+  return r;
 }

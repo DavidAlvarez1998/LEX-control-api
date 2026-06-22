@@ -48,6 +48,13 @@ procesoRoutes.post("/:id/actuaciones/marcar-vistas", requireAuth, requirePermiso
 procesoRoutes.get("/:id/actuaciones/sugerencias", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => res.json(await actuaciones.sugerenciasDeProceso(tenant(req), req.params.id))));
 
+// Documentos del expediente (Rama): listar disponibles e importar PDFs al proceso (P9).
+procesoRoutes.get("/:id/rama/documentos", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.listarDocumentosRama(tenant(req), req.params.id))));
+
+procesoRoutes.post("/:id/rama/documentos/importar", requireAuth, requirePermiso("proceso.editar"), validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.importarDocumentosRama(tenant(req), req.params.id, req.body?.idRegs))));
+
 // ===================== CASO / DETALLE =====================
 procesoRoutes.get("/:id/caso", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => res.json(await procesos.getCaso(tenant(req), req.params.id))));
