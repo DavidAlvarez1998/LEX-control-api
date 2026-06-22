@@ -401,6 +401,9 @@ model Proceso {
   cuantiaTipo        CuantiaTipo?
   cuantiaValor       Decimal?      @db.Decimal(14, 2)
   despachoJuzgado    String?
+  // idProceso interno de la Rama Judicial (CPNU), cacheado tras validar el radicado;
+  // evita repetir la consulta radicado→idProceso en cada sync de actuaciones.
+  idProcesoRama      String?
   casoRelacionadoId  String? // enlaza una tutela a su caso base
   clienteId          String? // cliente (CRM) al que pertenece el caso; se setea al crear
   creadoPorId        String?
@@ -426,6 +429,7 @@ model Proceso {
   casoRelacionado    Proceso?                    @relation("CasoRelacionado", fields: [casoRelacionadoId], references: [id], onDelete: SetNull)
   derivados          Proceso[]                   @relation("CasoRelacionado")
   historial          EtapaProceso[]
+  actuaciones        ActuacionProceso[]
   documentos         DocumentoProceso[]
   partes             ParteProceso[]
   // comercial: la solicitud (si la hubo) que materializó este proceso (1:1).
@@ -496,6 +500,31 @@ enum CategoriaDocumentoProceso {
   IMPUGNACION
   GENERADO // borrador generado desde plantilla
   OTRO
+}
+
+// Actuación judicial sincronizada desde la Consulta de Procesos de la Rama Judicial
+// (CPNU) por el radicado. Es la BITÁCORA EXTERNA del juzgado (qué publica la Rama),
+// distinta de EtapaProceso (avance interno del despacho). Ver
+// openspec/changes/rama-judicial-actuaciones.
+model ActuacionProceso {
+  id             String    @id @default(cuid())
+  procesoId      String    @map("tramiteId")
+  fechaActuacion DateTime
+  actuacion      String    @db.Text // título del movimiento (texto libre del juzgado)
+  anotacion      String?   @db.Text
+  fechaInicial   DateTime?
+  fechaFinal     DateTime?
+  fechaRegistro  DateTime?
+  // Huella anti-duplicado: la CPNU no da id por actuación → hash estable de
+  // (fecha + actuacion + anotacion) para no reinsertar al re-sincronizar.
+  huella         String
+  createdAt      DateTime  @default(now())
+
+  proceso Proceso @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+
+  @@unique([procesoId, huella])
+  @@index([procesoId])
+  @@map("actuaciones_tramite")
 }
 
 // Litigante: cliente final / parte del despacho, reutilizable entre trámites.

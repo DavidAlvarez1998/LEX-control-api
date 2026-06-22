@@ -59,6 +59,20 @@ export const env = {
     // Timeout por request (ms). Una llamada/SMS no debe colgar la API.
     timeoutMs: Number(process.env.NOTIFICAR_TIMEOUT_MS ?? 15_000),
   },
+
+  // API pública de la Rama Judicial (Consulta de Procesos Nacional Unificada, CPNU):
+  // radicado → idProceso → actuaciones. Pública, sin API key, PERO exige User-Agent
+  // de navegador (sin él puede responder 403) y usa el PUERTO 448 (no 443).
+  // Ver openspec/changes/rama-judicial-actuaciones.
+  ramaJudicial: {
+    baseUrl: (process.env.RAMA_JUDICIAL_URL ?? "https://consultaprocesos.ramajudicial.gov.co:448/api/v2").replace(/\/+$/, ""),
+    timeoutMs: Number(process.env.RAMA_JUDICIAL_TIMEOUT_MS ?? 20_000),
+    // Espera entre páginas de actuaciones (anti rate-limit agresivo de la Rama).
+    delayPaginasMs: Number(process.env.RAMA_JUDICIAL_DELAY_PAGINAS_MS ?? 800),
+    userAgent:
+      process.env.RAMA_JUDICIAL_USER_AGENT ??
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  },
 };
 
 export const isProd = env.nodeEnv === "production";

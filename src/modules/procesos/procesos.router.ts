@@ -14,6 +14,7 @@ import {
   updateDocumentoSchema, updateParteSchema, updateProcesoSchema,
 } from "./procesos.schemas";
 import * as procesos from "./procesos.service";
+import * as actuaciones from "./actuaciones.service";
 
 export const procesoRoutes: Router = Router();
 
@@ -29,6 +30,17 @@ procesoRoutes.get("/vencimientos", requireAuth, requirePermiso("proceso.ver"),
 
 procesoRoutes.post("/calcular-vencimiento", requireAuth,
   asyncHandler(async (req, res) => res.json(await procesos.calcularVencimiento(tenant(req), req.body))));
+
+// ===================== RAMA JUDICIAL (actuaciones) =====================
+// Validar un radicado contra la Rama al pegarlo (Endpoint A). Va ANTES de "/:id".
+procesoRoutes.get("/validar-radicado", requireAuth, requirePermiso("proceso.ver"),
+  asyncHandler(async (req, res) => res.json(await actuaciones.validarRadicado(String(req.query.radicado ?? "")))));
+
+procesoRoutes.get("/:id/actuaciones", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.listarActuaciones(tenant(req), req.params.id))));
+
+procesoRoutes.post("/:id/actuaciones/sincronizar", requireAuth, requirePermiso("proceso.editar"), validate({ params: procesoIdParams }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.sincronizarActuaciones(tenant(req), req.params.id))));
 
 // ===================== CASO / DETALLE =====================
 procesoRoutes.get("/:id/caso", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
