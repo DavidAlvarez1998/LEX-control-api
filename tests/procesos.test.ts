@@ -647,10 +647,13 @@ describe("PATCH /procesos/:id — editar datos del formulario (gap datos)", () =
     expect(proceso.update.mock.calls[0][0].data.datos).toEqual({ entidad: "DIAN" });
   });
 
-  it("400 si datos trae una clave desconocida", async () => {
+  it("descarta claves obsoletas (drift de esquema) en vez de bloquear", async () => {
     proceso.findFirst.mockResolvedValue({ id: "tr1", tipoProceso: { esquemaFormulario: esquemaDdP } });
-    const res = await request(app).patch("/procesos/tr1").set(auth(token)).send({ datos: { basura: "x" } });
-    expect(res.status).toBe(400);
+    proceso.update.mockResolvedValue({ id: "tr1" });
+    const res = await request(app).patch("/procesos/tr1").set(auth(token)).send({ datos: { entidad: "DIAN", claseObligacion: "x" } });
+    expect(res.status).toBe(200);
+    // La clave obsoleta no se persiste; el campo vigente sí.
+    expect(proceso.update.mock.calls[0][0].data.datos).toEqual({ entidad: "DIAN" });
   });
 
   it("400 si un select trae una opción inválida", async () => {

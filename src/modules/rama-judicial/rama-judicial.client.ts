@@ -10,6 +10,7 @@ type ConsultaResp = {
     despacho?: string;
     departamento?: string;
     sujetosProcesales?: string;
+    fechaProceso?: string;
     fechaUltimaActuacion?: string;
     esPrivado?: boolean;
   }>;
@@ -26,6 +27,7 @@ const VACIO: ProcesoRama = {
   despacho: null,
   departamento: null,
   sujetosProcesales: null,
+  fechaProceso: null,
   fechaUltimaActuacion: null,
   esPrivado: false,
 };
@@ -44,6 +46,7 @@ export async function consultarRadicado(radicado: string): Promise<ProcesoRama> 
     despacho: p.despacho ?? null,
     departamento: p.departamento ?? null,
     sujetosProcesales: p.sujetosProcesales ?? null,
+    fechaProceso: p.fechaProceso ?? null,
     fechaUltimaActuacion: p.fechaUltimaActuacion ?? null,
     esPrivado: Boolean(p.esPrivado),
   };

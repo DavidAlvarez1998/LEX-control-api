@@ -9,6 +9,8 @@ export type ProcesoRama = {
   despacho: string | null;
   departamento: string | null;
   sujetosProcesales: string | null;
+  /** Fecha en que el proceso se radicó/repartió en la Rama (autollena fechaRadicacion). */
+  fechaProceso: string | null;
   fechaUltimaActuacion: string | null;
   /** true = proceso reservado/privado (la Rama no muestra sus actuaciones). */
   esPrivado: boolean;

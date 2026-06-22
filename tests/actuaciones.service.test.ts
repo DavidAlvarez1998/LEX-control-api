@@ -57,9 +57,15 @@ describe("sincronizarActuaciones", () => {
     await expect(sincronizarActuaciones(t, "pr1")).rejects.toMatchObject({ status: 400 });
   });
 
-  it("inserta solo las nuevas, cachea idProcesoRama y autollena ultimaActuacion", async () => {
-    p.proceso.findFirst.mockResolvedValue({ id: "pr1", radicado: RAD, idProcesoRama: null, datos: { foo: "bar" } });
-    mockConsultar.mockResolvedValue({ encontrado: true, idProceso: 1810780324, esPrivado: false });
+  it("inserta nuevas, cachea idProcesoRama y autollena ultimaActuacion + juzgado + fechaRadicacion", async () => {
+    p.proceso.findFirst.mockResolvedValue({
+      id: "pr1", radicado: RAD, idProcesoRama: null, datos: { foo: "bar" }, despachoJuzgado: null,
+      tipoProceso: { esquemaFormulario: [{ key: "ultimaActuacion" }, { key: "juzgado" }, { key: "fechaRadicacion" }] },
+    });
+    mockConsultar.mockResolvedValue({
+      encontrado: true, idProceso: 1810780324, esPrivado: false,
+      despacho: "JUZGADO 003 ADMINISTRATIVO DE PEREIRA", fechaProceso: "2014-06-06T00:00:00",
+    });
     mockActuaciones.mockResolvedValue([
       { fechaActuacion: "2026-03-09T00:00:00", actuacion: "RECIBE MEMORIALES", anotacion: "x" },
       { fechaActuacion: "2025-11-14T00:00:00", actuacion: "MANDAMIENTO", anotacion: null },
@@ -74,8 +80,32 @@ describe("sincronizarActuaciones", () => {
     expect(p.actuacionProceso.createMany).toHaveBeenCalledTimes(1);
     const update = p.proceso.update.mock.calls[0][0];
     expect(update.data.idProcesoRama).toBe("1810780324");
-    // la más reciente (2026-03-09) alimenta ultimaActuacion, conservando datos previos
-    expect(update.data.datos).toMatchObject({ foo: "bar", ultimaActuacion: "RECIBE MEMORIALES" });
+    // #4: juzgado + fecha de radicación + última actuación (conservando datos previos)
+    expect(update.data.datos).toMatchObject({
+      foo: "bar",
+      ultimaActuacion: "RECIBE MEMORIALES",
+      juzgado: "JUZGADO 003 ADMINISTRATIVO DE PEREIRA",
+      fechaRadicacion: "2014-06-06",
+    });
+    expect(update.data.despachoJuzgado).toBe("JUZGADO 003 ADMINISTRATIVO DE PEREIRA");
+  });
+
+  it("no autollena campos que el tipo no tiene (sin claves desconocidas)", async () => {
+    p.proceso.findFirst.mockResolvedValue({
+      id: "pr1", radicado: RAD, idProcesoRama: null, datos: {}, despachoJuzgado: null,
+      tipoProceso: { esquemaFormulario: [] }, // tipo sin esos campos
+    });
+    mockConsultar.mockResolvedValue({ encontrado: true, idProceso: 1, esPrivado: false, despacho: "JUZGADO X", fechaProceso: "2020-01-01T00:00:00" });
+    mockActuaciones.mockResolvedValue([{ fechaActuacion: "2026-01-01T00:00:00", actuacion: "A", anotacion: null }]);
+    p.actuacionProceso.findMany.mockResolvedValue([]);
+    p.actuacionProceso.createMany.mockResolvedValue({ count: 1 });
+    p.proceso.update.mockResolvedValue({});
+
+    await sincronizarActuaciones(t, "pr1");
+    const update = p.proceso.update.mock.calls[0][0];
+    // No mete juzgado/fechaRadicacion/ultimaActuacion en datos; sí espeja la columna.
+    expect(update.data.datos).toBeUndefined();
+    expect(update.data.despachoJuzgado).toBe("JUZGADO X");
   });
 
   it("idempotente: si todas ya existen, no inserta", async () => {

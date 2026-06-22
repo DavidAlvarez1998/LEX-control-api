@@ -6,6 +6,7 @@
 // Tenant-scoped: el proceso debe ser de la empresa del solicitante. Ver
 // openspec/changes/rama-judicial-actuaciones.
 import { createHash } from "crypto";
+import { Prisma } from "@prisma/client";
 import { env } from "../../config/env";
 import { HttpError } from "../../middleware/error";
 import { logger } from "../../shared/logger";
@@ -30,6 +31,9 @@ type ProcesoSync = {
   despachoJuzgado?: string | null;
   titulo?: string;
   responsable?: { email: string; nombre: string } | null;
+  // Keys del formulario del tipo: para autollenar SOLO campos que existen (sin
+  // introducir claves desconocidas en `datos`).
+  esquema?: Array<{ key: string }>;
 };
 type ResultadoSync = { encontrado: boolean; reservado: boolean; nuevas: number; total: number };
 
@@ -67,10 +71,16 @@ async function cargarProcesoScoped(t: TenantContext, procesoId: string) {
       id: true, radicado: true, idProcesoRama: true, datos: true, despachoJuzgado: true,
       titulo: true, actuacionesVistasAt: true,
       responsable: { select: { email: true, nombre: true } },
+      tipoProceso: { select: { esquemaFormulario: true } },
     },
   });
   if (!proceso) throw new HttpError(404, "Proceso no encontrado");
   return proceso;
+}
+
+/** Adapta el proceso cargado (con tipoProceso anidado) a ProcesoSync. */
+function aProcesoSync(p: { tipoProceso?: { esquemaFormulario: unknown } | null } & Record<string, unknown>): ProcesoSync {
+  return { ...(p as unknown as ProcesoSync), esquema: (p.tipoProceso?.esquemaFormulario ?? []) as Array<{ key: string }> };
 }
 
 /** CORE de sincronización (SIN tenant): lo comparten el endpoint on-demand y el
@@ -85,7 +95,8 @@ export async function sincronizarProceso(
 
   // idProceso: usar el cacheado o resolverlo vía Endpoint A.
   let idProceso = proceso.idProcesoRama;
-  let despacho: string | null = null; // #4: solo lo trae el Endpoint A
+  let despacho: string | null = null; // #4: juzgado, solo lo trae el Endpoint A
+  let fechaProceso: string | null = null; // fecha de radicación, idem
   if (!idProceso) {
     const info = await consultarRadicado(radicado);
     if (info.esPrivado) return { encontrado: false, reservado: true, nuevas: 0, total: 0 };
@@ -94,6 +105,7 @@ export async function sincronizarProceso(
     }
     idProceso = String(info.idProceso);
     despacho = info.despacho;
+    fechaProceso = info.fechaProceso;
   }
 
   const actuaciones = await obtenerActuaciones(idProceso);
@@ -120,17 +132,28 @@ export async function sincronizarProceso(
     });
   }
 
-  // Cachear idProcesoRama + autollenar datos.ultimaActuacion (la más reciente por fecha).
+  // Cachear idProcesoRama + autollenar campos de `datos` SOLO si existen en el esquema
+  // del tipo y están vacíos (no pisa lo del abogado ni mete claves desconocidas).
   const masReciente = [...actuaciones].sort(
     (x, y) => (parseFecha(y.fechaActuacion)?.getTime() ?? 0) - (parseFecha(x.fechaActuacion)?.getTime() ?? 0),
   )[0];
   const datos = (proceso.datos ?? {}) as Record<string, unknown>;
+  const campos = new Set((proceso.esquema ?? []).map((c) => c.key));
+  const datosPatch: Record<string, unknown> = { ...datos };
+  let datosCambio = false;
+  const fijar = (key: string, valor: string | null | undefined) => {
+    if (valor && campos.has(key) && vacio(datos[key])) { datosPatch[key] = valor; datosCambio = true; }
+  };
+  if (masReciente && campos.has("ultimaActuacion")) { datosPatch.ultimaActuacion = masReciente.actuacion; datosCambio = true; }
+  fijar("juzgado", despacho?.trim()); // #4: juzgado asignado
+  fijar("fechaRadicacion", fechaProceso?.slice(0, 10)); // fecha de radicación (de fechaProceso)
+
   await prisma.proceso.update({
     where: { id: proceso.id },
     data: {
       idProcesoRama: idProceso,
-      ...(masReciente ? { datos: { ...datos, ultimaActuacion: masReciente.actuacion } } : {}),
-      // #4: autollenar el juzgado SOLO si está vacío (no pisa lo que escribió el abogado).
+      ...(datosCambio ? { datos: datosPatch as Prisma.InputJsonValue } : {}),
+      // Espejo a la columna canónica del despacho (genérico), SOLO si está vacía.
       ...(despacho && vacio(proceso.despachoJuzgado) ? { despachoJuzgado: despacho } : {}),
     },
   });
@@ -155,7 +178,7 @@ export async function sincronizarProceso(
 /** On-demand (tenant-scoped): valida pertenencia y sincroniza un proceso. */
 export async function sincronizarActuaciones(t: TenantContext, procesoId: string): Promise<ResultadoSync> {
   const proceso = await cargarProcesoScoped(t, procesoId);
-  return sincronizarProceso(proceso);
+  return sincronizarProceso(aProcesoSync(proceso));
 }
 
 /** Sincronización MASIVA (cron): recorre todos los procesos abiertos con radicado en
@@ -173,6 +196,7 @@ export async function sincronizarTodas(): Promise<{
     select: {
       id: true, radicado: true, idProcesoRama: true, datos: true, despachoJuzgado: true,
       titulo: true, responsable: { select: { email: true, nombre: true } },
+      tipoProceso: { select: { esquemaFormulario: true } },
     },
   });
 
@@ -184,7 +208,7 @@ export async function sincronizarTodas(): Promise<{
 
   for (let i = 0; i < procesos.length; i++) {
     try {
-      const r = await sincronizarProceso(procesos[i], { notificar: true });
+      const r = await sincronizarProceso(aProcesoSync(procesos[i]), { notificar: true });
       if (r.nuevas > 0) { conNovedad++; nuevasTotal += r.nuevas; }
       erroresSeguidos = 0;
     } catch (err) {

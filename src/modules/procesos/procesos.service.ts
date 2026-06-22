@@ -4,6 +4,7 @@
 import { CategoriaDocumentoProceso, Prisma, RolEmpresa, RolParte, type EstadoProceso } from "@prisma/client";
 import type { z } from "zod";
 import { HttpError } from "../../middleware/error";
+import { logger } from "../../shared/logger";
 import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { fusionarCorreos } from "../../correos";
@@ -333,6 +334,17 @@ export async function updateProceso(t: TenantContext, id: string, body: In<typeo
   let espejo: ReturnType<typeof espejoColumnasDesdeDatos> = {};
   if (body.datos !== undefined) {
     const esquema = existe.tipoProceso.esquemaFormulario as unknown as CampoEsquema[];
+    // Drift de esquema: si el tipo evolucionó (campos renombrados/eliminados), un
+    // proceso viejo puede traer claves que ya no existen. Se DESCARTAN (limpieza) en
+    // vez de bloquear el guardado; los campos vigentes sí se validan.
+    const keys = new Set(esquema.map((c) => c.key));
+    const clavesObsoletas = Object.keys(body.datos as Record<string, unknown>).filter((k) => !keys.has(k));
+    if (clavesObsoletas.length) {
+      body.datos = Object.fromEntries(
+        Object.entries(body.datos as Record<string, unknown>).filter(([k]) => keys.has(k)),
+      ) as typeof body.datos;
+      logger.info("datos: claves obsoletas descartadas", { procesoId: id, claves: clavesObsoletas });
+    }
     const { ok, errores, faltantes } = validarDatosContraEsquema(esquema, body.datos, { exigirRequeridos: false });
     if (!ok) throw new HttpError(400, "Datos del formulario inválidos", { faltantes, errores });
     espejo = espejoColumnasDesdeDatos(esquema, body.datos as Record<string, unknown>, {
