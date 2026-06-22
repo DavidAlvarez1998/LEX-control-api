@@ -3,7 +3,7 @@
 // (lectura). Ver contrato en openspec/changes/rama-judicial-actuaciones/specs.
 import { env } from "../../config/env";
 import { getJson, getBuffer, esperarEntrePaginas } from "./rama-judicial.http";
-import type { ActuacionRama, DocumentoRama, ProcesoRama } from "./rama-judicial.types";
+import type { ActuacionRama, DetalleRama, DocumentoRama, ProcesoRama } from "./rama-judicial.types";
 
 type ConsultaResp = {
   procesos?: Array<{
@@ -64,6 +64,18 @@ export async function obtenerActuaciones(idProceso: number | string): Promise<Ac
     if (Array.isArray(extra?.actuaciones)) acc.push(...extra.actuaciones);
   }
   return acc;
+}
+
+/** idProceso → detalle del proceso (Endpoint Detalle). */
+export async function obtenerDetalle(idProceso: number | string): Promise<DetalleRama | null> {
+  const d = await getJson<Record<string, unknown>>(`/Proceso/Detalle/${idProceso}`);
+  if (!d || typeof d !== "object") return null;
+  const s = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : null);
+  return {
+    tipoProceso: s("tipoProceso"), claseProceso: s("claseProceso"), subclaseProceso: s("subclaseProceso"),
+    ponente: s("ponente"), recurso: s("recurso"), ubicacion: s("ubicacion"),
+    contenidoRadicacion: s("contenidoRadicacion"), ultimaActualizacion: s("ultimaActualizacion"),
+  };
 }
 
 /** idProceso → lista de documentos del expediente (Endpoint Documentos; array directo). */

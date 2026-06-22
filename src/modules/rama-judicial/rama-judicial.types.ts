@@ -16,6 +16,18 @@ export type ProcesoRama = {
   esPrivado: boolean;
 };
 
+/** Detalle del proceso en la Rama (Endpoint Detalle). Dato estrella: `ubicacion`. */
+export type DetalleRama = {
+  tipoProceso: string | null;
+  claseProceso: string | null;
+  subclaseProceso: string | null;
+  ponente: string | null;
+  recurso: string | null;
+  ubicacion: string | null;
+  contenidoRadicacion: string | null;
+  ultimaActualizacion: string | null;
+};
+
 /** Un documento del expediente (Endpoint Documentos). Se descarga por `idRegDocumento`. */
 export type DocumentoRama = {
   idRegDocumento: number;

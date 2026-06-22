@@ -14,7 +14,7 @@ import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { carpetaModulo, subirDocumento } from "../documentos/documentos.client";
 import { enviarNovedadActuaciones } from "../notificaciones";
-import { consultarRadicado, descargarDocumento, obtenerActuaciones, obtenerDocumentos, type ActuacionRama } from "../rama-judicial";
+import { consultarRadicado, descargarDocumento, obtenerActuaciones, obtenerDetalle, obtenerDocumentos, type ActuacionRama } from "../rama-judicial";
 import { detectarHitos } from "./hitos-actuaciones";
 import { categoriaDoc } from "./procesos.service";
 
@@ -102,8 +102,12 @@ export async function sincronizarProceso(
   let fechaProceso: string | null = null; // fecha de radicación, idem
   if (!idProceso) {
     const info = await consultarRadicado(radicado);
-    if (info.esPrivado) return { encontrado: false, reservado: true, nuevas: 0, total: 0 };
+    if (info.esPrivado) {
+      await prisma.proceso.update({ where: { id: proceso.id }, data: { ramaEstado: "RESERVADO", actuacionesSyncAt: new Date() } });
+      return { encontrado: false, reservado: true, nuevas: 0, total: 0 };
+    }
     if (!info.encontrado || info.idProceso == null) {
+      await prisma.proceso.update({ where: { id: proceso.id }, data: { ramaEstado: "NO_PUBLICADO", actuacionesSyncAt: new Date() } });
       return { encontrado: false, reservado: false, nuevas: 0, total: 0 };
     }
     idProceso = String(info.idProceso);
@@ -144,12 +148,14 @@ export async function sincronizarProceso(
   const campos = new Set((proceso.esquema ?? []).map((c) => c.key));
   const datosPatch: Record<string, unknown> = { ...datos };
   let datosCambio = false;
+  const camposRama: string[] = []; // P8: campos que llenó la Rama (para el chip "de la Rama")
   const fijar = (key: string, valor: string | null | undefined) => {
-    if (valor && campos.has(key) && vacio(datos[key])) { datosPatch[key] = valor; datosCambio = true; }
+    if (valor && campos.has(key) && vacio(datos[key])) { datosPatch[key] = valor; datosCambio = true; camposRama.push(key); }
   };
   if (masReciente && campos.has("ultimaActuacion")) { datosPatch.ultimaActuacion = masReciente.actuacion; datosCambio = true; }
   fijar("juzgado", despacho?.trim()); // #4: juzgado asignado
   fijar("fechaRadicacion", fechaProceso?.slice(0, 10)); // fecha de radicación (de fechaProceso)
+  if (despacho && vacio(proceso.despachoJuzgado)) camposRama.push("despachoJuzgado");
 
   // P1: contador denormalizado de no-leídas (createdAt > actuacionesVistasAt). Si nunca
   // se marcó "vistas", 0 (no inunda en la primera carga; igual que listarActuaciones).
@@ -164,6 +170,8 @@ export async function sincronizarProceso(
       idProcesoRama: idProceso,
       actuacionesSyncAt: new Date(), // frescura (P5): última sincronización con la Rama
       actuacionesNuevas, // P1: novedades para la lista
+      ramaEstado: "OK", // P6
+      ...(camposRama.length ? { camposRamaCsv: [...new Set(camposRama)].join(",") } : {}), // P8
       ...(datosCambio ? { datos: datosPatch as Prisma.InputJsonValue } : {}),
       // Espejo a la columna canónica del despacho (genérico), SOLO si está vacía.
       ...(despacho && vacio(proceso.despachoJuzgado) ? { despachoJuzgado: despacho } : {}),
@@ -299,6 +307,19 @@ async function idRegsImportados(procesoId: string): Promise<Set<string>> {
     select: { origenRamaIdReg: true },
   });
   return new Set(filas.map((d) => String(d.origenRamaIdReg)));
+}
+
+/** P11: detalle del proceso en el juzgado (tipo/clase/ubicación/última actualización). */
+export async function obtenerDetalleRama(t: TenantContext, procesoId: string) {
+  const empresaId = empresaIdOrThrow(t);
+  const proceso = await prisma.proceso.findFirst({
+    where: { id: procesoId, empresaId },
+    select: { radicado: true, idProcesoRama: true },
+  });
+  if (!proceso) throw new HttpError(404, "Proceso no encontrado");
+  const idProceso = await resolverIdProceso(proceso.radicado, proceso.idProcesoRama);
+  if (!idProceso) return null;
+  return obtenerDetalle(idProceso);
 }
 
 /** Lista los documentos del expediente en la Rama, marcando los ya importados. */

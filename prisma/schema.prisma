@@ -419,6 +419,10 @@ model Proceso {
   // Contador denormalizado de actuaciones no leídas (createdAt > actuacionesVistasAt):
   // lo recalcula el sync y lo resetea "marcar vistas". La lista lo lee O(1) (P1).
   actuacionesNuevas  Int           @default(0)
+  // Estado del proceso en la Rama tras el último sync: OK | RESERVADO | NO_PUBLICADO (P6).
+  ramaEstado         String?
+  // Campos (CSV) que autollenó la Rama, para mostrar "de la Rama" en la ficha (P8).
+  camposRamaCsv      String?
   casoRelacionadoId  String? // enlaza una tutela a su caso base
   clienteId          String? // cliente (CRM) al que pertenece el caso; se setea al crear
   creadoPorId        String?
