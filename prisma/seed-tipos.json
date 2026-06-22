@@ -2465,6 +2465,25 @@
             "auto-terminacion.pdf"
           ]
         }
+      },
+      {
+        "key": "archivado_rechazo",
+        "nombre": "Archivo (rechazo de la demanda)",
+        "orden": 11,
+        "terminal": true,
+        "resultado": "Demanda rechazada (art. 90 CGP): el proceso termina sin trámite, no se libra mandamiento de pago. No hay cosa juzgada (cabe re-demandar corrigiendo); en mínima cuantía (única instancia) solo procede reposición.",
+        "disponibleSi": {
+          "todas": [
+            {
+              "campo": "decisionCalificacion",
+              "igualA": "Inadmite"
+            },
+            {
+              "campo": "decisionTrasSubsanacion",
+              "igualA": "Rechazar"
+            }
+          ]
+        }
       }
     ],
     "actualizado": true
