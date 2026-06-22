@@ -414,6 +414,8 @@ model Proceso {
   // "Visto hasta": una actuación es "nueva" si su createdAt > este sello. Marca de
   // no-leídas persistente (por proceso) para el panel de actuaciones de la ficha.
   actuacionesVistasAt DateTime?
+  // Última vez que se sincronizó con la Rama (frescura: "sincronizado hace X").
+  actuacionesSyncAt  DateTime?
   casoRelacionadoId  String? // enlaza una tutela a su caso base
   clienteId          String? // cliente (CRM) al que pertenece el caso; se setea al crear
   creadoPorId        String?

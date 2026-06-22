@@ -152,6 +152,7 @@ export async function sincronizarProceso(
     where: { id: proceso.id },
     data: {
       idProcesoRama: idProceso,
+      actuacionesSyncAt: new Date(), // frescura (P5): última sincronización con la Rama
       ...(datosCambio ? { datos: datosPatch as Prisma.InputJsonValue } : {}),
       // Espejo a la columna canónica del despacho (genérico), SOLO si está vacía.
       ...(despacho && vacio(proceso.despachoJuzgado) ? { despachoJuzgado: despacho } : {}),
