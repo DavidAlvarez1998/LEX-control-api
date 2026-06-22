@@ -180,7 +180,14 @@ export class ProcesosRepository {
     return this.db.plantillaDocumento.findMany({ where: { tipoProcesoId }, select: { id: true, nombre: true, contenido: true }, orderBy: { nombre: "asc" } });
   }
   findProcesoConPartes(id: string) {
-    return this.db.proceso.findFirst({ where: { id, empresaId: this.e }, include: { partes: { include: { litigante: true } } } });
+    return this.db.proceso.findFirst({
+      where: { id, empresaId: this.e },
+      include: {
+        partes: { include: { litigante: true } },
+        // Abogado responsable: para firmar escritos generados (proceso.responsable.* en plantillas).
+        responsable: { select: { nombre: true, cedula: true, tarjetaProfesional: true, email: true } },
+      },
+    });
   }
   findProcesoCodigo(id: string) {
     return this.db.proceso.findFirst({

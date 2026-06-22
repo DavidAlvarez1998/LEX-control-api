@@ -49,6 +49,24 @@ export async function generarCodigoInterno(
   return `${prefix}${String(seq + 1).padStart(4, "0")}`;
 }
 
+/** Espejo `datos.* → columnas de primera clase` (radicado/juzgado/cuantía). Cuando el tipo
+ *  define estos campos en su esquema (p. ej. el ejecutivo de mínima cuantía, cuya fuente
+ *  ÚNICA es `datos.*` para que las plantillas lean un solo lugar), su valor alimenta las
+ *  columnas que usan la búsqueda, la lista y la ficha — sin perder el filtrado por radicado.
+ *  No pisa un valor provisto explícitamente por la columna (`yaProvisto`). */
+function espejoColumnasDesdeDatos(
+  esquema: CampoEsquema[],
+  datos: Record<string, unknown>,
+  yaProvisto: { radicado?: boolean; despachoJuzgado?: boolean; cuantiaValor?: boolean } = {},
+): { radicado?: string | null; despachoJuzgado?: string | null; cuantiaValor?: Prisma.Decimal | null } {
+  const tiene = (k: string) => esquema.some((c) => c.key === k);
+  const out: { radicado?: string | null; despachoJuzgado?: string | null; cuantiaValor?: Prisma.Decimal | null } = {};
+  if (!yaProvisto.radicado && tiene("radicado") && typeof datos.radicado === "string") out.radicado = datos.radicado.trim() || null;
+  if (!yaProvisto.despachoJuzgado && tiene("juzgado") && typeof datos.juzgado === "string") out.despachoJuzgado = datos.juzgado.trim() || null;
+  if (!yaProvisto.cuantiaValor && tiene("cuantia") && datos.cuantia != null && datos.cuantia !== "") out.cuantiaValor = new Prisma.Decimal(String(datos.cuantia));
+  return out;
+}
+
 /** Un COMERCIAL (sin JURIDICO ni admin de empresa) solo ve los procesos de SUS clientes. */
 function scopeMisClientes(t: TenantContext): Prisma.ProcesoWhereInput | null {
   const roles = t.rolesEmpresa;
@@ -94,9 +112,14 @@ export async function calcularVencimiento(t: TenantContext, body: { tipoProcesoI
   const tipo = await new ProcesosRepository(empresaId ?? "").findTipoCalcular(body.tipoProcesoId);
   if (!tipo || (tipo.empresaId !== null && tipo.empresaId !== empresaId)) throw new HttpError(404, "Tipo de proceso no encontrado");
   const etapas = tipo.etapas as unknown as EtapaDef[];
-  const conPlazo = body.desdeCampo ? etapas.find((e) => e.reglas?.plazoDesdeCampo === body.desdeCampo) : etapas.find((e) => e.reglas?.plazoDesdeCampo);
-  const reglas = conPlazo?.reglas;
   const datos = body.datos ?? {};
+  // Solo considerar etapas APLICABLES según los datos actuales (respeta `disponibleSi`):
+  // p. ej. la subsanación (plazo 5 días háb.) solo aplica si el juez INADMITE; si admite
+  // —o aún no decide— no debe estimarse su vencimiento. Sin este filtro se tomaba el primer
+  // plazo del flujo (subsanación) siempre, mostrando un término de 5 días que no corría.
+  const aplicables = etapas.filter((e) => !e.disponibleSi || evaluarCondicion(e.disponibleSi, datos));
+  const conPlazo = body.desdeCampo ? aplicables.find((e) => e.reglas?.plazoDesdeCampo === body.desdeCampo) : aplicables.find((e) => e.reglas?.plazoDesdeCampo);
+  const reglas = conPlazo?.reglas;
   const fechaLimite = reglas ? derivarFechaLimite(reglas, datos) : null;
   let dias: number | null = null;
   if (reglas?.plazoDiasPorValorDe) dias = reglas.plazoDiasPorValorDe.mapa[String(datos[reglas.plazoDiasPorValorDe.campo] ?? "")] ?? null;
@@ -177,11 +200,14 @@ export async function createProceso(t: TenantContext, body: In<typeof createProc
       if (campo.auto && !datosFinales[campo.key]) datosFinales[campo.key] = codigoInterno.replace(/^[A-Z]+/, "RAD");
     }
     const fechaLimiteEntrada = entrada.reglas?.plazoDesdeCampo ? derivarFechaLimite(entrada.reglas, datosFinales) : null;
+    const espejo = espejoColumnasDesdeDatos(esquema, datosFinales, {
+      radicado: body.radicado !== undefined, despachoJuzgado: body.despachoJuzgado !== undefined, cuantiaValor: body.cuantiaValor != null,
+    });
     const creado = await rt.createProceso({
       codigoInterno, radicado: body.radicado, empresaId, tipoProcesoId: tipo.id, tipoEsquemaVersion: tipo.esquemaVersion,
       jurisdiccion: tipo.jurisdiccion, instancia: body.instancia, cuantiaTipo: body.cuantiaTipo,
       cuantiaValor: body.cuantiaValor != null ? new Prisma.Decimal(body.cuantiaValor) : null,
-      despachoJuzgado: body.despachoJuzgado, casoRelacionadoId: body.casoRelacionadoId,
+      despachoJuzgado: body.despachoJuzgado, ...espejo, casoRelacionadoId: body.casoRelacionadoId,
       clienteId: clienteVinculado?.clienteId, creadoPorId: t.userId, responsableId, titulo: body.titulo,
       datos: datosFinales as Prisma.InputJsonValue, fechaLimite: fechaLimiteEntrada, etapaActual: entrada.key,
       historial: { create: { etapaKey: entrada.key, usuarioId: t.userId } },
@@ -304,10 +330,14 @@ export async function updateProceso(t: TenantContext, id: string, body: In<typeo
   const existe = await r.findParaPatch(id);
   if (!existe) throw new HttpError(404, "Proceso no encontrado");
 
+  let espejo: ReturnType<typeof espejoColumnasDesdeDatos> = {};
   if (body.datos !== undefined) {
     const esquema = existe.tipoProceso.esquemaFormulario as unknown as CampoEsquema[];
     const { ok, errores, faltantes } = validarDatosContraEsquema(esquema, body.datos, { exigirRequeridos: false });
     if (!ok) throw new HttpError(400, "Datos del formulario inválidos", { faltantes, errores });
+    espejo = espejoColumnasDesdeDatos(esquema, body.datos as Record<string, unknown>, {
+      radicado: body.radicado !== undefined, despachoJuzgado: body.despachoJuzgado !== undefined, cuantiaValor: body.cuantiaValor !== undefined,
+    });
   }
   if (body.responsableId && !(await r.findUsuarioScoped(body.responsableId))) {
     throw new HttpError(400, "El responsable no pertenece a tu despacho");
@@ -325,6 +355,7 @@ export async function updateProceso(t: TenantContext, id: string, body: In<typeo
     ...(body.estado !== undefined ? { estado: body.estado } : {}),
     ...(body.prioridad !== undefined ? { prioridad: body.prioridad } : {}),
     ...(body.responsableId !== undefined ? { responsable: body.responsableId ? { connect: { id: body.responsableId } } : { disconnect: true } } : {}),
+    ...espejo,
   };
   await r.updateProceso(existe.id, data);
   if (body.datos !== undefined) await autoavanzarEtapas(empresaId, existe.id, t.userId);
@@ -353,21 +384,28 @@ async function autoavanzarEtapas(empresaId: string, procesoId: string, usuarioId
   }
 }
 
-/** Recalcula el título de LITIGIO "demandante vs. demandado" tras cambiar partes (salvo título
- *  manual). Aplica al laboral y a los verbales civiles (CGP): litigio entre dos partes. */
-async function recomputarTituloLaboral(empresaId: string, procesoId: string, tx?: Prisma.TransactionClient): Promise<void> {
+/** Recalcula el título de LITIGIO tras cambiar partes (salvo título manual). Aplica al laboral, a
+ *  los verbales civiles (CGP) y al ejecutivo de mínima cuantía. El orden siempre pone primero a la
+ *  parte ACTIVA: "demandante vs. demandado" o "ejecutante vs. ejecutado". */
+async function recomputarTituloLitigio(empresaId: string, procesoId: string, tx?: Prisma.TransactionClient): Promise<void> {
   const r = new ProcesosRepository(empresaId, tx);
   const proceso = await r.findParaRecompute(procesoId);
   if (!proceso || proceso.tituloManual) return;
+  const esEjecutivo = proceso.tipoProceso.nombre === "Proceso ejecutivo de mínima cuantía";
   const esLitigioVs =
     proceso.tipoProceso.grupo === "LABORAL" ||
-    ["Proceso verbal", "Proceso verbal sumario"].includes(proceso.tipoProceso.nombre);
+    ["Proceso verbal", "Proceso verbal sumario"].includes(proceso.tipoProceso.nombre) ||
+    esEjecutivo;
   if (!esLitigioVs) return;
   const otras = proceso.partes.filter((p) => !p.esNuestroCliente);
   const nombreCliente = proceso.partes.find((p) => p.esNuestroCliente)?.litigante.nombre.trim() ?? "";
-  const contraparte = (otras.find((p) => p.rol === RolParte.DEMANDADO) ?? otras[0])?.litigante.nombre.trim() ?? "";
-  const representamosDemandado = String((proceso.datos as { rol?: unknown })?.rol ?? "") === "Demandado";
-  const partesTit = [representamosDemandado ? contraparte : nombreCliente, representamosDemandado ? nombreCliente : contraparte].filter(Boolean).join(" vs. ");
+  // parte pasiva = demandado / ejecutado (va segunda en el título)
+  const rolPasivo = esEjecutivo ? RolParte.EJECUTADO : RolParte.DEMANDADO;
+  const contraparte = (otras.find((p) => p.rol === rolPasivo) ?? otras[0])?.litigante.nombre.trim() ?? "";
+  const clienteEsPasivo = esEjecutivo
+    ? proceso.partes.find((p) => p.esNuestroCliente)?.rol === RolParte.EJECUTADO
+    : String((proceso.datos as { rol?: unknown })?.rol ?? "") === "Demandado";
+  const partesTit = [clienteEsPasivo ? contraparte : nombreCliente, clienteEsPasivo ? nombreCliente : contraparte].filter(Boolean).join(" vs. ");
   const titulo = [proceso.tipoProceso.nombre, partesTit].filter(Boolean).join(" — ");
   if (titulo && titulo !== proceso.titulo) await r.updateTitulo(procesoId, titulo);
 }
@@ -387,7 +425,7 @@ export async function agregarParte(t: TenantContext, procesoId: string, p: In<ty
     // alta de parte + recálculo del título en una sola transacción (consistencia)
     await prisma.$transaction(async (tx) => {
       await new ProcesosRepository(empresaId, tx).createParte({ procesoId, litiganteId: litiganteId!, rol: p.rol, rolEtiqueta: p.rolEtiqueta, esNuestroCliente: false });
-      await recomputarTituloLaboral(empresaId, procesoId, tx);
+      await recomputarTituloLitigio(empresaId, procesoId, tx);
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new HttpError(409, "Esa parte ya está registrada con ese rol");
@@ -420,7 +458,7 @@ export async function editarParte(t: TenantContext, procesoId: string, parteId: 
       if (body.rol !== undefined || body.rolEtiqueta !== undefined) {
         await rt.updateParte(parte.id, { ...(body.rol !== undefined ? { rol: body.rol } : {}), ...(body.rolEtiqueta !== undefined ? { rolEtiqueta: body.rolEtiqueta } : {}) });
       }
-      await recomputarTituloLaboral(empresaId, procesoId, tx);
+      await recomputarTituloLitigio(empresaId, procesoId, tx);
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new HttpError(409, "Esa parte ya está registrada con ese rol");
@@ -438,7 +476,7 @@ export async function eliminarParte(t: TenantContext, procesoId: string, parteId
   await prisma.$transaction(async (tx) => {
     const rt = new ProcesosRepository(empresaId, tx);
     await rt.deleteParte(parte.id);
-    await recomputarTituloLaboral(empresaId, procesoId, tx);
+    await recomputarTituloLitigio(empresaId, procesoId, tx);
   });
   return serializeDetalle(await r.findDetalle(procesoId));
 }

@@ -98,6 +98,12 @@ model Usuario {
   activo         Boolean @default(true)
   esAdminEmpresa Boolean @default(false)
 
+  // Datos del abogado para firmar escritos generados (demanda, cautelares,
+  // terminación, etc.). Opcionales; se exponen como `proceso.responsable.*` en el
+  // motor de plantillas para no re-teclearlos por proceso.
+  cedula             String?
+  tarjetaProfesional String?
+
   // Solo aplica a rol COMERCIAL: % de comisión por defecto de este vendedor,
   // aplicado al precio de venta. Un monto fijo por venta puede sobreescribirlo.
   porcentajeComision Decimal? @db.Decimal(5, 2)
@@ -503,6 +509,10 @@ model Litigante {
   email           String? // correo principal (espejo de correos[0]); se conserva por compat.
   correos         Json? // lista de correos (string[]); el primero es el principal.
   telefono        String?
+  // Domicilio del litigante (parte). Opcional; se expone como `parte.*.{direccion,ciudad}`
+  // en el motor de plantillas (notificaciones de la demanda, solicitud de cautelares).
+  direccion       String?
+  ciudad          String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 

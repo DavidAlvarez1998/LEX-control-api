@@ -237,6 +237,9 @@ interface ProcesoParaContexto {
   proximaAudiencia: Date | null;
   createdAt: Date;
   datos: unknown;
+  // Abogado responsable del proceso (para firmar escritos generados). Opcional:
+  // findProcesoConPartes lo carga con select { nombre, cedula, tarjetaProfesional, email }.
+  responsable?: { nombre: string; cedula: string | null; tarjetaProfesional: string | null; email: string | null } | null;
   partes: Array<{
     rol: string;
     rolEtiqueta: string | null;
@@ -269,6 +272,8 @@ export function construirContexto(
     email: p.litigante.email,
     correos: p.litigante.correos, // string[] (varios correos del litigante)
     telefono: p.litigante.telefono,
+    direccion: p.litigante.direccion,
+    ciudad: p.litigante.ciudad,
   }));
 
   // parte.<rol> → primera parte de ese rol (rol en minúsculas: parte.demandante).
@@ -288,6 +293,17 @@ export function construirContexto(
     if (!parte.cliente) parte.cliente = cliente;
     if (!parte.accionante) parte.accionante = cliente;
     if (!parte.demandante) parte.demandante = cliente;
+    if (!parte.ejecutante) parte.ejecutante = cliente;
+  }
+  // La parte PASIVA (demandado / ejecutado / accionado) → primera contraparte, con alias
+  // cruzado entre términos equivalentes: una plantilla escrita con "demandado" resuelve
+  // aunque el proceso use rol "EJECUTADO" (y viceversa). En el ejecutivo el ejecutante/
+  // ejecutado son el demandante/demandado del escrito.
+  const contraparte = parte.demandado ?? parte.ejecutado ?? parte.accionado ?? partes.find((p) => !p.esNuestroCliente);
+  if (contraparte) {
+    if (!parte.demandado) parte.demandado = contraparte;
+    if (!parte.ejecutado) parte.ejecutado = contraparte;
+    if (!parte.accionado) parte.accionado = contraparte;
   }
 
   const procesoCtx = {
@@ -303,6 +319,8 @@ export function construirContexto(
     estado: proceso.estado,
     proximaAudiencia: proceso.proximaAudiencia,
     createdAt: proceso.createdAt,
+    // Abogado responsable (firma de escritos generados). null si no se cargó/asignó.
+    responsable: proceso.responsable ?? null,
   };
 
   const ctx: Contexto = {

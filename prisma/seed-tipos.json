@@ -1867,25 +1867,11 @@
         "ayuda": "Mínima cuantía: hasta 40 SMLMV."
       },
       {
-        "key": "medidasCautelaresSolicitadas",
-        "label": "Medidas cautelares solicitadas",
-        "tipo": "multiselect",
-        "requerido": false,
-        "opciones": [
-          "Embargo de inmuebles",
-          "Embargo de muebles",
-          "Secuestro",
-          "Embargo de cuentas bancarias",
-          "Embargo de salarios",
-          "Embargo de vehículos",
-          "Inscripción de la demanda"
-        ]
-      },
-      {
         "key": "hechos",
         "label": "Hechos en que se funda la ejecución",
         "tipo": "textoLargo",
-        "requerido": true
+        "requerido": true,
+        "ayuda": "Numéralos (uno por línea)."
       },
       {
         "key": "pretensiones",
@@ -1894,22 +1880,89 @@
         "requerido": true
       },
       {
+        "key": "pruebas",
+        "label": "Pruebas",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "ayuda": "Una por línea."
+      },
+      {
+        "key": "ciudadReparto",
+        "label": "Ciudad del juzgado (reparto)",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
+        "key": "solicitaCautelares",
+        "label": "¿Solicita medidas cautelares?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "ayuda": "Si es No, el flujo salta la notificación de cautelares."
+      },
+      {
+        "key": "embargoSalarios",
+        "label": "¿Solicita embargo de salarios?",
+        "tipo": "boolean",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaCautelares",
+          "igualA": "Sí"
+        }
+      },
+      {
+        "key": "embargoCuentas",
+        "label": "¿Solicita embargo de cuentas bancarias?",
+        "tipo": "boolean",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaCautelares",
+          "igualA": "Sí"
+        }
+      },
+      {
+        "key": "empleadorDemandado",
+        "label": "Empleador del demandado (embargo de salarios)",
+        "tipo": "texto",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaCautelares",
+          "igualA": "Sí"
+        }
+      },
+      {
+        "key": "otrasCautelares",
+        "label": "Otras medidas cautelares (inmuebles, muebles, secuestro, vehículos, inscripción)",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "solicitaCautelares",
+          "igualA": "Sí"
+        }
+      },
+      {
         "key": "radicado",
         "label": "Número de radicado",
         "tipo": "texto",
-        "requerido": false
+        "requerido": false,
+        "soloFicha": true
       },
       {
         "key": "juzgado",
         "label": "Juzgado asignado",
         "tipo": "texto",
-        "requerido": false
+        "requerido": false,
+        "soloFicha": true
       },
       {
         "key": "fechaRadicacion",
         "label": "Fecha de radicación",
         "tipo": "fecha",
-        "requerido": false
+        "requerido": false,
+        "soloFicha": true
       },
       {
         "key": "decisionCalificacion",
@@ -1919,19 +1972,26 @@
         "opciones": [
           "Admite",
           "Inadmite"
-        ]
+        ],
+        "soloFicha": true
       },
       {
         "key": "fechaAdmision",
         "label": "Fecha del auto de calificación",
         "tipo": "fecha",
-        "requerido": false
+        "requerido": false,
+        "soloFicha": true
       },
       {
         "key": "causalInadmision",
         "label": "Causal de inadmisión",
         "tipo": "texto",
-        "requerido": false
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "decisionCalificacion",
+          "igualA": "Inadmite"
+        },
+        "soloFicha": true
       },
       {
         "key": "decisionTrasSubsanacion",
@@ -1941,32 +2001,45 @@
         "opciones": [
           "Admitir",
           "Rechazar"
-        ]
+        ],
+        "mostrarSi": {
+          "campo": "decisionCalificacion",
+          "igualA": "Inadmite"
+        },
+        "soloFicha": true
       },
       {
         "key": "fechaSubsanacion",
         "label": "Fecha de la subsanación",
         "tipo": "fecha",
-        "requerido": false
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "decisionCalificacion",
+          "igualA": "Inadmite"
+        },
+        "soloFicha": true
       },
       {
         "key": "entidadesOficiadas",
         "label": "Entidades oficiadas (medidas cautelares)",
         "tipo": "textoLargo",
         "requerido": false,
-        "ayuda": "Bancos, Tránsito, oficinas de registro, empleador, etc."
+        "ayuda": "Bancos, Tránsito, oficinas de registro, empleador, etc.",
+        "soloFicha": true
       },
       {
         "key": "fechaMandamiento",
         "label": "Fecha del mandamiento de pago",
         "tipo": "fecha",
-        "requerido": false
+        "requerido": false,
+        "soloFicha": true
       },
       {
         "key": "fechaNotificacion",
         "label": "Fecha de notificación al demandado",
         "tipo": "fecha",
-        "requerido": false
+        "requerido": false,
+        "soloFicha": true
       },
       {
         "key": "contesto",
@@ -1976,20 +2049,191 @@
         "opciones": [
           "Sí",
           "No"
-        ]
+        ],
+        "soloFicha": true
       },
       {
         "key": "excepcionesPropuestas",
         "label": "Excepciones propuestas",
         "tipo": "textoLargo",
-        "requerido": false
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaAudiencia",
+        "label": "Fecha de la audiencia (art. 392)",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "sentenciaExcepciones",
+        "label": "Sentencia sobre las excepciones",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Prosperan",
+          "No prosperan"
+        ],
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
       },
       {
         "key": "descripcionImpulso",
         "label": "Impulsos procesales",
         "tipo": "textoLargo",
         "requerido": false,
-        "ayuda": "Memoriales, oficios, solicitudes de avalúo/remate, requerimientos."
+        "ayuda": "Memoriales, oficios, requerimientos.",
+        "soloFicha": true
+      },
+      {
+        "key": "continuaARemate",
+        "label": "¿Continúa a liquidación y remate?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "ayuda": "Sí: sigue la ejecución forzada. No: termina (pago/acuerdo/desistimiento).",
+        "soloFicha": true
+      },
+      {
+        "key": "valorLiquidacion",
+        "label": "Valor de la liquidación del crédito (art. 446)",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "continuaARemate",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "valorAvaluo",
+        "label": "Valor del avalúo",
+        "tipo": "numero",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "continuaARemate",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "fechaRemate",
+        "label": "Fecha del remate",
+        "tipo": "fecha",
+        "requerido": false,
+        "mostrarSi": {
+          "campo": "continuaARemate",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "numeroCredito",
+        "label": "Número de crédito (acuerdo de pago)",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "numeroCuotas",
+        "label": "Número de cuotas",
+        "tipo": "numero",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "cronograma",
+        "label": "Cronograma de cuotas",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "ayuda": "Una línea por cuota: N° | fecha | valor.",
+        "soloFicha": true
+      },
+      {
+        "key": "titularRecaudo",
+        "label": "Titular para recaudo (a nombre de)",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "contactoSoporte",
+        "label": "Contacto para enviar soportes de pago",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "ciudadFirmaAcuerdo",
+        "label": "Ciudad de firma del acuerdo",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "fechaAcuerdo",
+        "label": "Fecha del acuerdo de pago",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "asuntoMemorial",
+        "label": "Asunto del memorial",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Por defecto: solicitud de estado del proceso.",
+        "soloFicha": true
+      },
+      {
+        "key": "ultimaActuacion",
+        "label": "Última actuación registrada (memorial)",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "repLegalNombre",
+        "label": "Representante legal del otorgante (si es sociedad)",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "repLegalDocumento",
+        "label": "C.C. del representante legal",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "ciudadFirmaPoder",
+        "label": "Ciudad de firma del poder",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
+        "key": "fechaPoder",
+        "label": "Fecha de otorgamiento del poder",
+        "tipo": "fecha",
+        "requerido": false,
+        "soloFicha": true
       },
       {
         "key": "motivoTerminacion",
@@ -2001,13 +2245,15 @@
           "Sentencia: seguir adelante la ejecución y remate",
           "Acuerdo de pago cumplido",
           "Desistimiento tácito (art. 317 CGP)"
-        ]
+        ],
+        "soloFicha": true
       },
       {
         "key": "fechaTerminacion",
         "label": "Fecha de terminación",
         "tipo": "fecha",
-        "requerido": false
+        "requerido": false,
+        "soloFicha": true
       }
     ],
     "etapas": [
@@ -2018,10 +2264,13 @@
         "reglas": {
           "camposRequeridos": [
             "tipoTitulo",
+            "claseObligacion",
             "capitalAdeudado",
             "fechaExigibilidad",
             "cuantia",
-            "pretensiones"
+            "hechos",
+            "pretensiones",
+            "solicitaCautelares"
           ],
           "documentosRequeridos": [
             "poder.pdf",
@@ -2097,6 +2346,10 @@
         "key": "notifCautelares",
         "nombre": "Notificación de las medidas cautelares",
         "orden": 5,
+        "disponibleSi": {
+          "campo": "solicitaCautelares",
+          "igualA": "Sí"
+        },
         "reglas": {
           "camposRequeridos": [
             "entidadesOficiadas"
@@ -2122,42 +2375,85 @@
           ],
           "plazoDesdeCampo": "fechaNotificacion",
           "plazoTipoDias": "habiles",
-          "plazoDias": 10,
-          "requeridosSi": [
-            {
-              "si": {
-                "campo": "contesto",
-                "igualA": "Sí"
-              },
-              "camposRequeridos": [
-                "excepcionesPropuestas"
-              ],
-              "documentosRequeridos": [
-                "excepciones.pdf"
-              ]
-            }
+          "plazoDias": 10
+        }
+      },
+      {
+        "key": "audiencia",
+        "nombre": "Audiencia única y sentencia de excepciones (art. 392)",
+        "orden": 7,
+        "disponibleSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "excepcionesPropuestas",
+            "fechaAudiencia",
+            "sentenciaExcepciones"
+          ],
+          "documentosRequeridos": [
+            "excepciones.pdf",
+            "acta-audiencia.pdf",
+            "sentencia.pdf"
           ]
         }
       },
       {
         "key": "impulsos",
         "nombre": "Impulsos procesales",
-        "orden": 7,
+        "orden": 8,
         "reglas": {
           "camposRequeridos": [
-            "descripcionImpulso"
+            "descripcionImpulso",
+            "continuaARemate"
           ],
           "documentosOpcionales": [
             "memorial.pdf",
+            "avaluo.pdf"
+          ]
+        }
+      },
+      {
+        "key": "liquidacionCredito",
+        "nombre": "Liquidación del crédito (art. 446)",
+        "orden": 9,
+        "disponibleSi": {
+          "campo": "continuaARemate",
+          "igualA": "Sí"
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "valorLiquidacion"
+          ],
+          "documentosRequeridos": [
+            "liquidacion-credito.pdf"
+          ]
+        }
+      },
+      {
+        "key": "avaluoRemate",
+        "nombre": "Avalúo y remate (arts. 444–457)",
+        "orden": 10,
+        "disponibleSi": {
+          "campo": "continuaARemate",
+          "igualA": "Sí"
+        },
+        "reglas": {
+          "camposRequeridos": [
+            "valorAvaluo",
+            "fechaRemate"
+          ],
+          "documentosRequeridos": [
             "avaluo.pdf",
-            "remate.pdf"
+            "acta-remate.pdf"
           ]
         }
       },
       {
         "key": "terminacion",
         "nombre": "Terminación del proceso",
-        "orden": 8,
+        "orden": 11,
         "terminal": true,
         "resultado": "Proceso ejecutivo de mínima cuantía terminado.",
         "reglas": {

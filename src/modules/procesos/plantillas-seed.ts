@@ -262,6 +262,168 @@ ______________________________
 Firma del responsable
 [[falta: nombre, cargo y entidad que responde]]`;
 
+// --- Proceso ejecutivo de mínima cuantía (6 plantillas) ---
+// El abogado firmante sale de `proceso.responsable.*` (Usuario.cedula/tarjetaProfesional);
+// el domicilio de las partes de `parte.*.{direccion,ciudad}` (Litigante). `{{#if}}` solo
+// evalúa verdad/falsedad → los condicionales usan booleans (embargoSalarios/embargoCuentas)
+// o presencia de campos, nunca el valor "Sí/No" de un select.
+
+const EJ_DEMANDA = `Señor
+JUEZ CIVIL MUNICIPAL DE {{mayus datos.ciudadReparto}} (REPARTO)
+E.  S.  D.
+
+REFERENCIA: PROCESO EJECUTIVO DE MÍNIMA CUANTÍA
+DEMANDANTE: {{mayus parte.demandante.nombre}}
+DEMANDADO: {{mayus parte.demandado.nombre}}
+
+{{parte.demandante.nombre}}, persona {{parte.demandante.tipoPersona}} identificada con {{parte.demandante.tipoDocumento}} No. {{parte.demandante.numeroDocumento}}, domiciliada en la ciudad de {{parte.demandante.ciudad}}, en ejercicio de mis derechos formulo ante su Despacho DEMANDA EJECUTIVA DE MÍNIMA CUANTÍA contra {{parte.demandado.nombre}}, identificado(a) con cédula No. {{parte.demandado.numeroDocumento}}, para que se libre MANDAMIENTO DE PAGO por las sumas indicadas en las pretensiones.
+
+HECHOS
+{{datos.hechos}}
+
+PRETENSIONES
+{{datos.pretensiones}}
+Que se condene al demandado(a) al pago del capital de $ {{moneda datos.capitalAdeudado}} ({{enLetras datos.capitalAdeudado}} PESOS){{#if datos.tasaInteresMoratorio}}, más los intereses de mora a la tasa {{datos.tasaInteresMoratorio}} causados desde el {{fecha datos.fechaExigibilidad}} hasta el pago total{{/if}}, junto con las costas del proceso.
+
+DERECHO
+Artículos 619 a 670 y 709 a 711 del Código de Comercio; artículos 82, 422 y siguientes del Código General del Proceso, y demás normas concordantes.
+
+CLASE DE PROCESO, COMPETENCIA Y CUANTÍA
+Se trata de un proceso ejecutivo de mínima cuantía. Es usted competente por el lugar de cumplimiento de la obligación y por la cuantía, que estimo en $ {{moneda datos.cuantia}} ({{enLetras datos.cuantia}} PESOS).
+
+PRUEBAS
+{{#if datos.pruebas}}{{datos.pruebas}}{{else}}[[falta: datos.pruebas]]{{/if}}
+
+ANEXOS
+- Los documentos enunciados como pruebas.
+- Poder a mí conferido.
+
+NOTIFICACIONES
+El demandante recibirá notificaciones en la secretaría del Juzgado y en el correo: {{parte.demandante.email}}.
+El demandado(a) en {{parte.demandado.direccion}}, ciudad de {{parte.demandado.ciudad}}; teléfono {{parte.demandado.telefono}}; correo {{parte.demandado.email}}.
+
+Atentamente,
+
+
+{{proceso.responsable.nombre}}
+Abogado(a) — T.P. No. {{proceso.responsable.tarjetaProfesional}}`;
+
+const EJ_PODER = `PODER ESPECIAL
+
+{{#if datos.repLegalNombre}}Yo, {{mayus datos.repLegalNombre}}, mayor de edad, identificado(a) con cédula de ciudadanía No. {{datos.repLegalDocumento}}, actuando en calidad de Representante Legal de {{mayus parte.cliente.nombre}} (identificada con {{parte.cliente.tipoDocumento}} No. {{parte.cliente.numeroDocumento}}){{else}}Yo, {{mayus parte.cliente.nombre}}, mayor de edad, identificado(a) con {{parte.cliente.tipoDocumento}} No. {{parte.cliente.numeroDocumento}}{{/if}}, por medio del presente escrito confiero PODER ESPECIAL, amplio y suficiente, a {{mayus proceso.responsable.nombre}}, identificado(a) con cédula de ciudadanía No. {{proceso.responsable.cedula}} y Tarjeta Profesional No. {{proceso.responsable.tarjetaProfesional}}, para que actúe en mi nombre y representación ante entidades públicas y privadas, personas naturales o jurídicas, con el fin de realizar las actuaciones, gestiones, consultas, verificaciones y trámites necesarios para la defensa de mis intereses.
+
+En ejercicio de este poder, el apoderado podrá solicitar información, presentar peticiones, allegar documentos, recibir respuestas, efectuar consultas en bases de datos de acceso autorizado, realizar seguimiento a trámites, gestionar requerimientos y, en general, adelantar todas las actuaciones que sean necesarias, dentro del marco legal vigente.
+
+El presente poder se otorga a partir de la fecha de su firma y permanecerá vigente hasta su revocatoria expresa o el cumplimiento de la gestión encomendada.
+
+Se firma en la ciudad de {{datos.ciudadFirmaPoder}}, el {{fecha datos.fechaPoder}}.
+
+
+OTORGANTE,
+
+
+______________________________
+{{#if datos.repLegalNombre}}{{mayus datos.repLegalNombre}}
+C.C. No. {{datos.repLegalDocumento}}
+Representante Legal de {{mayus parte.cliente.nombre}}{{else}}{{mayus parte.cliente.nombre}}
+C.C. No. {{parte.cliente.numeroDocumento}}{{/if}}`;
+
+const EJ_CAUTELARES = `Señor
+JUEZ CIVIL MUNICIPAL DE {{mayus datos.ciudadReparto}} (REPARTO)
+E.  S.  D.
+
+REFERENCIA: PROCESO EJECUTIVO DE MÍNIMA CUANTÍA{{#if datos.radicado}} — Radicado {{datos.radicado}}{{/if}}
+DEMANDANTE: {{mayus parte.demandante.nombre}}
+DEMANDADO: {{mayus parte.demandado.nombre}}
+
+{{parte.demandante.nombre}}, identificado(a) con {{parte.demandante.tipoDocumento}} No. {{parte.demandante.numeroDocumento}}, en el proceso de la referencia que adelanto contra {{parte.demandado.nombre}}, respetuosamente solicito al Despacho, conforme al artículo 599 y siguientes del Código General del Proceso, decretar las siguientes MEDIDAS CAUTELARES sobre los bienes del demandado(a):
+
+{{#if datos.embargoSalarios}}1) EMBARGO Y RETENCIÓN DE SALARIOS del señor(a) {{parte.demandado.nombre}}, identificado(a) con cédula No. {{parte.demandado.numeroDocumento}}, en su calidad de empleado(a) de la empresa {{datos.empleadorDemandado}}, en las proporciones legales. Ruego oficiar al empleador para que efectúe la retención y la consigne a órdenes del Despacho.
+
+{{/if}}{{#if datos.embargoCuentas}}2) EMBARGO DE CUENTAS BANCARIAS Y DEPÓSITOS a nombre del señor(a) {{parte.demandado.nombre}}, con cédula No. {{parte.demandado.numeroDocumento}}. Ruego oficiar a las siguientes entidades del sistema financiero:
+Banco de Bogotá, Banco Popular, Bancolombia, Scotiabank Colpatria, Banco GNB Sudameris, BBVA Colombia, Banco de Occidente, Banco Caja Social, Banco Davivienda, Banco Colpatria Red Multibanca, Banco Agrario, Banco AV Villas, Banco ProCredit, Banca Mía S.A., Banco W S.A., Bancoomeva, Banco Finandina, Banco Falabella S.A., Banco Pichincha S.A., Banco Cooperativo Coopcentral, Banco Santander de Negocios Colombia S.A., Banco Mundo Mujer, Banco Multibank S.A., Banco Compartir S.A. y Banco Itaú.
+
+{{/if}}{{#if datos.otrasCautelares}}3) OTRAS MEDIDAS: {{datos.otrasCautelares}}
+
+{{/if}}Del señor Juez, atentamente,
+
+
+{{proceso.responsable.nombre}}
+Abogado(a) — T.P. No. {{proceso.responsable.tarjetaProfesional}}`;
+
+const EJ_MEMORIAL = `Señor
+JUEZ {{datos.juzgado}}
+E.  S.  D.
+
+Referencia: Proceso ejecutivo de mínima cuantía{{#if datos.radicado}} — Radicado {{datos.radicado}}{{/if}}
+Demandante: {{parte.demandante.nombre}}
+Demandado: {{parte.demandado.nombre}}
+Asunto: {{#if datos.asuntoMemorial}}{{datos.asuntoMemorial}}{{else}}Solicitud de información sobre el estado del proceso de la referencia{{/if}}
+
+Respetado señor Juez:
+
+{{parte.demandante.nombre}}, en mi calidad de parte demandante dentro del proceso de la referencia, respetuosamente solicito se sirva informar el estado actual del mismo, teniendo en cuenta que la última actuación registrada es: {{#if datos.ultimaActuacion}}{{datos.ultimaActuacion}}{{else}}[[falta: datos.ultimaActuacion]]{{/if}}.
+
+En consecuencia, solicito informar:
+1. El estado actual del proceso.
+2. Si se surtió el trámite correspondiente y su resultado.
+3. Si existe auto que apruebe, modifique o niegue las pretensiones.
+4. Las actuaciones posteriores a la última registrada.
+5. Si existen actuaciones pendientes a cargo del despacho o de la parte.
+
+Lo anterior con el fin de contar con información actualizada y adelantar lo procedente.
+
+Cordialmente,
+
+
+{{proceso.responsable.nombre}}
+Abogado(a) — T.P. No. {{proceso.responsable.tarjetaProfesional}}`;
+
+const EJ_ACUERDO = `ACUERDO DE PAGO{{#if datos.numeroCredito}} — CRÉDITO N.º {{datos.numeroCredito}}{{/if}}
+
+Entre los suscritos: {{mayus parte.demandado.nombre}}, identificado(a) con {{parte.demandado.tipoDocumento}} No. {{parte.demandado.numeroDocumento}}, quien en adelante se denominará EL DEUDOR; y {{mayus parte.demandante.nombre}}, identificado(a) con {{parte.demandante.tipoDocumento}} No. {{parte.demandante.numeroDocumento}}, quien en adelante se denominará EL ACREEDOR, se acuerda:
+
+PRIMERA. OBJETO. El DEUDOR se obliga a pagar al ACREEDOR la obligación{{#if datos.numeroCredito}} del crédito N.º {{datos.numeroCredito}}{{/if}}, por un capital de $ {{moneda datos.capitalAdeudado}} ({{enLetras datos.capitalAdeudado}} PESOS).
+
+SEGUNDA. FORMA DE PAGO. El DEUDOR pagará en {{datos.numeroCuotas}} cuotas, conforme al siguiente cronograma (N.º cuota | fecha de pago | valor):
+{{datos.cronograma}}
+PARÁGRAFO. Los pagos se harán a nombre de {{datos.titularRecaudo}} por los medios autorizados, compartiendo el soporte a {{datos.contactoSoporte}}.
+
+TERCERA. OBLIGACIONES DEL ACREEDOR. Emitir el Paz y Salvo a nombre de {{parte.demandado.nombre}} una vez cancelada la totalidad de la deuda, y actualizar la información en las centrales de riesgo.
+
+CUARTA. INCUMPLIMIENTO. Ante el incumplimiento de cualquier cuota, el ACREEDOR podrá continuar las acciones legales correspondientes (medidas cautelares en demanda ejecutiva, cobro de intereses moratorios y costas, embargo de bienes/salarios/cuentas y reporte a centrales de riesgo).
+
+QUINTA. CLÁUSULA ACELERATORIA. El DEUDOR autoriza al ACREEDOR para declarar extinguido el plazo y exigir el pago total de la obligación, sin necesidad de requerimiento judicial ni extrajudicial, ante: a) el incumplimiento de cualquiera de las cuotas; b) la insolvencia del DEUDOR o el inicio de un proceso ejecutivo en su contra.
+
+En constancia, se firma en {{datos.ciudadFirmaAcuerdo}}, el {{fecha datos.fechaAcuerdo}}.
+
+
+______________________________        ______________________________
+EL DEUDOR                              EL ACREEDOR
+{{parte.demandado.nombre}}            {{parte.demandante.nombre}}`;
+
+const EJ_TERMINACION = `Señores
+JUZGADO {{datos.juzgado}}
+E.  S.  D.
+
+REFERENCIA: TERMINACIÓN DEL PROCESO
+DEMANDANTE: {{mayus parte.demandante.nombre}}
+DEMANDADO: {{mayus parte.demandado.nombre}}
+RADICADO: {{datos.radicado}}
+
+{{mayus proceso.responsable.nombre}}, identificado(a) con cédula de ciudadanía No. {{proceso.responsable.cedula}}, abogado(a) en ejercicio con Tarjeta Profesional No. {{proceso.responsable.tarjetaProfesional}} del Consejo Superior de la Judicatura, actuando como apoderado(a) de {{parte.demandante.nombre}}, me permito solicitar al Despacho la TERMINACIÓN del proceso de la referencia, toda vez que el demandado(a) cumplió con lo solicitado en las pretensiones de la demanda{{#if datos.fechaTerminacion}}, hecho verificado el {{fecha datos.fechaTerminacion}}{{/if}}.
+
+En consecuencia, solicito declarar terminado el proceso, ordenar su archivo y el levantamiento de las medidas cautelares que se hubieren decretado.
+
+Recibo notificaciones en el correo electrónico {{proceso.responsable.email}}.
+
+Cordialmente,
+
+
+{{proceso.responsable.nombre}}
+C.C. No. {{proceso.responsable.cedula}}
+T.P. No. {{proceso.responsable.tarjetaProfesional}} C.S.J.`;
+
 export const PLANTILLAS_SEED: PlantillaSeed[] = [
   { tipoNombre: "Derecho de Petición Recibido", nombre: "Respuesta a la petición recibida", contenido: RESPUESTA_DDP_RECIBIDO },
   { tipoNombre: "Derecho de Petición", nombre: "Derecho de petición", contenido: PETICION },
@@ -270,4 +432,11 @@ export const PLANTILLAS_SEED: PlantillaSeed[] = [
   { tipoNombre: "Reclamación Administrativa", nombre: "Reiteración de la reclamación", contenido: REITERACION_RECLAMACION },
   { tipoNombre: "Constitución de Renuencia", nombre: "Constitución de renuencia", contenido: RENUENCIA },
   { tipoNombre: "Acción de tutela", nombre: "Demanda de tutela", contenido: DEMANDA_TUTELA },
+  // Proceso ejecutivo de mínima cuantía — los nombres = slot de archivo para anclar a su etapa.
+  { tipoNombre: "Proceso ejecutivo de mínima cuantía", nombre: "demanda.pdf", contenido: EJ_DEMANDA },
+  { tipoNombre: "Proceso ejecutivo de mínima cuantía", nombre: "poder.pdf", contenido: EJ_PODER },
+  { tipoNombre: "Proceso ejecutivo de mínima cuantía", nombre: "solicitud-cautelares.pdf", contenido: EJ_CAUTELARES },
+  { tipoNombre: "Proceso ejecutivo de mínima cuantía", nombre: "memorial.pdf", contenido: EJ_MEMORIAL },
+  { tipoNombre: "Proceso ejecutivo de mínima cuantía", nombre: "acuerdo-pago.pdf", contenido: EJ_ACUERDO },
+  { tipoNombre: "Proceso ejecutivo de mínima cuantía", nombre: "solicitud-terminacion.pdf", contenido: EJ_TERMINACION },
 ];
