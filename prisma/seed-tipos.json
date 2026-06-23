@@ -2417,6 +2417,15 @@
         "key": "impulsos",
         "nombre": "Impulsos procesales",
         "orden": 8,
+        "disponibleSi": {
+          "alguna": [
+            { "campo": "contesto", "igualA": "No" },
+            { "todas": [
+              { "campo": "contesto", "igualA": "Sí" },
+              { "campo": "sentenciaExcepciones", "igualA": "No prosperan" }
+            ] }
+          ]
+        },
         "reglas": {
           "camposRequeridos": [
             "descripcionImpulso",
@@ -2493,6 +2502,17 @@
               "igualA": "Rechazar"
             }
           ]
+        }
+      },
+      {
+        "key": "terminado_excepciones",
+        "nombre": "Terminación por excepciones probadas (a favor del demandado)",
+        "orden": 11,
+        "terminal": true,
+        "resultado": "El juez declaró probadas las excepciones del demandado: el proceso termina a su favor; no sigue la ejecución (sin liquidación, avalúo ni remate). En mínima cuantía solo procede reposición.",
+        "disponibleSi": {
+          "campo": "sentenciaExcepciones",
+          "igualA": "Prosperan"
         }
       }
     ],
