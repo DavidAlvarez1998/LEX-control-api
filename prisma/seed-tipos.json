@@ -5481,91 +5481,6 @@
         "soloFicha": true
       },
       {
-        "key": "hayReconvencion",
-        "label": "¿Hay reconvención?",
-        "tipo": "select",
-        "requerido": false,
-        "opciones": [
-          "Sí",
-          "No"
-        ],
-        "soloFicha": true
-      },
-      {
-        "key": "reconPretensiones",
-        "label": "Reconvención — pretensiones",
-        "tipo": "textoLargo",
-        "requerido": false,
-        "mostrarSi": {
-          "campo": "hayReconvencion",
-          "igualA": "Sí"
-        },
-        "soloFicha": true
-      },
-      {
-        "key": "reconFecha",
-        "label": "Reconvención — fecha",
-        "tipo": "fecha",
-        "requerido": false,
-        "mostrarSi": {
-          "campo": "hayReconvencion",
-          "igualA": "Sí"
-        },
-        "soloFicha": true
-      },
-      {
-        "key": "reconHayContestacion",
-        "label": "¿Se contestó la reconvención?",
-        "tipo": "select",
-        "requerido": false,
-        "opciones": [
-          "Sí",
-          "No"
-        ],
-        "mostrarSi": {
-          "campo": "hayReconvencion",
-          "igualA": "Sí"
-        },
-        "soloFicha": true
-      },
-      {
-        "key": "reconFechaContestacion",
-        "label": "Reconvención — fecha de contestación",
-        "tipo": "fecha",
-        "requerido": false,
-        "mostrarSi": {
-          "campo": "reconHayContestacion",
-          "igualA": "Sí"
-        },
-        "soloFicha": true
-      },
-      {
-        "key": "reconDecisionJuez",
-        "label": "Reconvención — decisión del juez",
-        "tipo": "select",
-        "requerido": false,
-        "opciones": [
-          "Admitir",
-          "Rechazar"
-        ],
-        "mostrarSi": {
-          "campo": "hayReconvencion",
-          "igualA": "Sí"
-        },
-        "soloFicha": true
-      },
-      {
-        "key": "reconFechaDecision",
-        "label": "Reconvención — fecha de la decisión",
-        "tipo": "fecha",
-        "requerido": false,
-        "mostrarSi": {
-          "campo": "hayReconvencion",
-          "igualA": "Sí"
-        },
-        "soloFicha": true
-      },
-      {
         "key": "contesto",
         "label": "¿El demandado contestó?",
         "tipo": "select",
@@ -6196,7 +6111,7 @@
       },
       {
         "key": "contestacion",
-        "nombre": "Contestación y reconvención",
+        "nombre": "Contestación",
         "orden": 6,
         "fase": 3,
         "reglas": {
@@ -6212,17 +6127,6 @@
               },
               "documentosRequeridos": [
                 "contestacion.pdf"
-              ]
-            }
-          ],
-          "opcionalesSi": [
-            {
-              "si": {
-                "campo": "hayReconvencion",
-                "igualA": "Sí"
-              },
-              "documentosOpcionales": [
-                "reconvencion.pdf"
               ]
             }
           ]
