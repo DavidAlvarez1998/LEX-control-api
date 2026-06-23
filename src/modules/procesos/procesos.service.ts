@@ -208,6 +208,14 @@ export async function createProceso(t: TenantContext, body: In<typeof createProc
     for (const campo of esquema) {
       if (campo.auto && !datosFinales[campo.key]) datosFinales[campo.key] = codigoInterno.replace(/^[A-Z]+/, "RAD");
     }
+    // El radicado/juzgado se capturan en el form de creación como COLUMNAS (body.radicado
+    // / body.despachoJuzgado). Si el tipo además los tiene como campos del esquema (verbal,
+    // verbal sumario: `radicado`/`juzgado`), se reflejan a `datos` para que el formulario de
+    // la ficha los muestre — si no, "Radicado judicial" queda en blanco tras crear aunque el
+    // encabezado sí lo muestre. (El sentido inverso datos→columna lo hace espejoColumnas.)
+    const tieneEnEsquema = (k: string) => esquema.some((c) => c.key === k);
+    if (body.radicado && tieneEnEsquema("radicado") && !datosFinales.radicado) datosFinales.radicado = body.radicado;
+    if (body.despachoJuzgado && tieneEnEsquema("juzgado") && !datosFinales.juzgado) datosFinales.juzgado = body.despachoJuzgado;
     const fechaLimiteEntrada = entrada.reglas?.plazoDesdeCampo ? derivarFechaLimite(entrada.reglas, datosFinales) : null;
     const espejo = espejoColumnasDesdeDatos(esquema, datosFinales, {
       radicado: body.radicado !== undefined, despachoJuzgado: body.despachoJuzgado !== undefined, cuantiaValor: body.cuantiaValor != null,
