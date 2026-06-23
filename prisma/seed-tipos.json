@@ -1846,7 +1846,10 @@
         "label": "Período de la tasa de mora",
         "tipo": "select",
         "requerido": false,
-        "opciones": ["efectivo anual", "mensual"],
+        "opciones": [
+          "efectivo anual",
+          "mensual"
+        ],
         "ayuda": "Solo aplica si arriba pusiste una tasa. Por defecto, efectivo anual (E.A.)."
       },
       {
@@ -2094,11 +2097,22 @@
         "soloFicha": true,
         "mostrarSi": {
           "alguna": [
-            { "campo": "contesto", "igualA": "No" },
-            { "todas": [
-              { "campo": "contesto", "igualA": "Sí" },
-              { "campo": "sentenciaExcepciones", "igualA": "No prosperan" }
-            ] }
+            {
+              "campo": "contesto",
+              "igualA": "No"
+            },
+            {
+              "todas": [
+                {
+                  "campo": "contesto",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "sentenciaExcepciones",
+                  "igualA": "No prosperan"
+                }
+              ]
+            }
           ]
         }
       },
@@ -2115,11 +2129,22 @@
         "soloFicha": true,
         "mostrarSi": {
           "alguna": [
-            { "campo": "contesto", "igualA": "No" },
-            { "todas": [
-              { "campo": "contesto", "igualA": "Sí" },
-              { "campo": "sentenciaExcepciones", "igualA": "No prosperan" }
-            ] }
+            {
+              "campo": "contesto",
+              "igualA": "No"
+            },
+            {
+              "todas": [
+                {
+                  "campo": "contesto",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "sentenciaExcepciones",
+                  "igualA": "No prosperan"
+                }
+              ]
+            }
           ]
         }
       },
@@ -2419,11 +2444,22 @@
         "orden": 8,
         "disponibleSi": {
           "alguna": [
-            { "campo": "contesto", "igualA": "No" },
-            { "todas": [
-              { "campo": "contesto", "igualA": "Sí" },
-              { "campo": "sentenciaExcepciones", "igualA": "No prosperan" }
-            ] }
+            {
+              "campo": "contesto",
+              "igualA": "No"
+            },
+            {
+              "todas": [
+                {
+                  "campo": "contesto",
+                  "igualA": "Sí"
+                },
+                {
+                  "campo": "sentenciaExcepciones",
+                  "igualA": "No prosperan"
+                }
+              ]
+            }
           ]
         },
         "reglas": {
@@ -10133,215 +10169,6 @@
         "orden": 6,
         "terminal": true,
         "resultado": "Indemnización ordenada / negada"
-      }
-    ]
-  },
-  {
-    "nombre": "Hábeas corpus",
-    "descripcion": "Protege la libertad personal frente a privación ilegal o prolongación ilícita (art. 30 Const.; Ley 1095/2006); se resuelve en 36 horas.",
-    "jurisdiccion": "CONSTITUCIONAL",
-    "areaSlugs": [
-      "constitucional"
-    ],
-    "esquemaFormulario": [
-      {
-        "key": "personaPrivada",
-        "label": "Persona privada de la libertad",
-        "tipo": "texto",
-        "requerido": true
-      },
-      {
-        "key": "lugarReclusion",
-        "label": "Lugar de reclusión o retención",
-        "tipo": "texto",
-        "requerido": true
-      },
-      {
-        "key": "autoridadCaptora",
-        "label": "Autoridad que ordenó o ejecutó la privación",
-        "tipo": "texto",
-        "requerido": true
-      },
-      {
-        "key": "causalHabeasCorpus",
-        "label": "Causal invocada",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Privación ilegal de la libertad",
-          "Prolongación ilícita de la privación",
-          "Violación de garantías constitucionales o legales"
-        ]
-      },
-      {
-        "key": "fechaCaptura",
-        "label": "Fecha y hora de la captura/detención",
-        "tipo": "fecha",
-        "requerido": true
-      },
-      {
-        "key": "hechosHabeasCorpus",
-        "label": "Hechos",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "existeOrdenJudicial",
-        "label": "¿Existe orden judicial o motivo legal de la privación?",
-        "tipo": "boolean",
-        "requerido": true
-      },
-      {
-        "key": "pretensionLibertad",
-        "label": "Pretensión",
-        "tipo": "textoLargo",
-        "requerido": true
-      }
-    ],
-    "etapas": [
-      {
-        "key": "presentacion",
-        "nombre": "Presentación de la petición",
-        "orden": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "personaPrivada",
-            "autoridadCaptora",
-            "causalHabeasCorpus",
-            "hechosHabeasCorpus"
-          ]
-        }
-      },
-      {
-        "key": "resolucion",
-        "nombre": "Resolución del hábeas corpus",
-        "orden": 2,
-        "reglas": {
-          "camposRequeridos": [
-            "existeOrdenJudicial",
-            "pretensionLibertad"
-          ],
-          "plazoDias": 1
-        }
-      },
-      {
-        "key": "terminado",
-        "nombre": "Terminado",
-        "orden": 3,
-        "terminal": true,
-        "resultado": "Libertad concedida / negada (36 horas)"
-      }
-    ]
-  },
-  {
-    "nombre": "Hábeas data",
-    "descripcion": "Protege el derecho a conocer, actualizar y rectificar datos personales (art. 15 Const.; Ley 1581/2012; Ley 1266/2008).",
-    "jurisdiccion": "CONSTITUCIONAL",
-    "areaSlugs": [
-      "constitucional"
-    ],
-    "esquemaFormulario": [
-      {
-        "key": "tipoDato",
-        "label": "Tipo de dato personal",
-        "tipo": "select",
-        "requerido": true,
-        "opciones": [
-          "Dato público",
-          "Dato semiprivado",
-          "Dato privado",
-          "Dato sensible",
-          "Dato financiero / crediticio"
-        ]
-      },
-      {
-        "key": "responsableEncargado",
-        "label": "Responsable o encargado del tratamiento",
-        "tipo": "texto",
-        "requerido": true
-      },
-      {
-        "key": "derechoEjercido",
-        "label": "Derecho ejercido",
-        "tipo": "multiselect",
-        "requerido": true,
-        "opciones": [
-          "Conocer / acceder",
-          "Actualizar",
-          "Rectificar",
-          "Suprimir / eliminar",
-          "Revocar autorización",
-          "Oponerse al tratamiento"
-        ]
-      },
-      {
-        "key": "hechosHabeasData",
-        "label": "Hechos",
-        "tipo": "textoLargo",
-        "requerido": true
-      },
-      {
-        "key": "reclamoPrevio",
-        "label": "¿Se presentó reclamo o consulta previa al responsable?",
-        "tipo": "boolean",
-        "requerido": true
-      },
-      {
-        "key": "datoIncorrectoOdesactualizado",
-        "label": "¿El dato es inexacto, incompleto o desactualizado?",
-        "tipo": "boolean",
-        "requerido": false
-      },
-      {
-        "key": "pretensionHabeasData",
-        "label": "Pretensión",
-        "tipo": "textoLargo",
-        "requerido": true
-      }
-    ],
-    "etapas": [
-      {
-        "key": "reclamoAnteResponsable",
-        "nombre": "Reclamo ante el responsable/encargado",
-        "orden": 1,
-        "reglas": {
-          "camposRequeridos": [
-            "tipoDato",
-            "responsableEncargado",
-            "derechoEjercido",
-            "hechosHabeasData"
-          ],
-          "plazoDias": 15
-        }
-      },
-      {
-        "key": "quejaSic",
-        "nombre": "Queja ante la SIC / autoridad de control",
-        "orden": 2,
-        "reglas": {
-          "camposRequeridos": [
-            "reclamoPrevio",
-            "pretensionHabeasData"
-          ]
-        }
-      },
-      {
-        "key": "decision",
-        "nombre": "Decisión administrativa",
-        "orden": 3,
-        "reglas": {
-          "camposRequeridos": [
-            "pretensionHabeasData"
-          ],
-          "plazoDias": 30
-        }
-      },
-      {
-        "key": "terminado",
-        "nombre": "Terminado",
-        "orden": 4,
-        "terminal": true,
-        "resultado": "Dato corregido/suprimido / negado"
       }
     ]
   },
