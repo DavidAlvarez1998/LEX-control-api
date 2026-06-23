@@ -41,7 +41,7 @@ describe("Proceso (declarativo) verbal — CGP (fiel al doc)", () => {
   const base = {
     calidad: "Demandante", sintesis: "x", fechaPresentacion: "2026-01-01", medioRadicacion: "Ventanilla",
     cuantia: "Mayor", unidadMedida: "Pesos", tipoPretension: "Indeterminadas",
-    radicadoJudicial: "R1", juzgado: "Juzgado 1 Civil", solicitaMedidaCautelar: "No",
+    radicado: "R1", juzgado: "Juzgado 1 Civil", solicitaMedidaCautelar: "No",
   };
   // Tras admisión: traslado, contestación y audiencia inicial fallida (sin conciliar).
   const hastaAudiencia = {
@@ -133,7 +133,7 @@ describe("Proceso verbal sumario — CGP (única instancia, fiel al doc)", () =>
   const base = {
     calidad: "Demandante", demandaModo: "Verbal", sintesis: "x", fechaPresentacion: "2026-01-01",
     medioRadicacion: "Ventanilla", cuantia: "Mínima", unidadMedida: "SMMLV", tipoPretension: "Indeterminadas",
-    esMinimaCuantia: "Sí", radicadoJudicial: "R1", juzgado: "Juzgado 1 Civil Municipal", solicitaMedidaCautelar: "No",
+    esMinimaCuantia: "Sí", radicado: "R1", juzgado: "Juzgado 1 Civil Municipal", solicitaMedidaCautelar: "No",
   };
   const hastaContestacion = {
     estadoDemanda: "Admitida", demandadoNotificado: "Sí", trasladoFechaInicio: "2026-02-01", contesto: "Sí",

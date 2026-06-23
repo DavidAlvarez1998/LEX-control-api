@@ -2954,7 +2954,7 @@
         "soloFicha": true
       },
       {
-        "key": "radicadoJudicial",
+        "key": "radicado",
         "label": "Radicado judicial",
         "tipo": "texto",
         "requerido": false,
@@ -4199,7 +4199,7 @@
         "fase": 1,
         "reglas": {
           "camposRequeridos": [
-            "radicadoJudicial",
+            "radicado",
             "juzgado"
           ]
         }
@@ -5140,7 +5140,7 @@
         "soloFicha": true
       },
       {
-        "key": "radicadoJudicial",
+        "key": "radicado",
         "label": "Radicado judicial",
         "tipo": "texto",
         "requerido": false,
@@ -5847,7 +5847,7 @@
         "fase": 1,
         "reglas": {
           "camposRequeridos": [
-            "radicadoJudicial",
+            "radicado",
             "juzgado"
           ]
         }
