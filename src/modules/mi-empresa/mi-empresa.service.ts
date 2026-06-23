@@ -7,7 +7,7 @@ import { HttpError } from "../../middleware/error";
 import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { generateActivationToken } from "../auth/auth.service";
-import { enviarInvitacionCuenta } from "../notificaciones";
+import { enviarInvitacionCuenta, enviarResetCuenta } from "../notificaciones";
 import { resolveEntitlements } from "../entitlements/entitlements.service";
 import { assertSeatAvailable } from "../roles/roles.service";
 import { ACTIVATION_TTL_MS, activationUrl } from "../usuarios/usuarios.shared";
@@ -123,8 +123,15 @@ export async function updateMiembro(t: TenantContext, targetId: string, input: U
 
 export async function resendActivation(t: TenantContext, targetId: string) {
   const empresaId = empresaIdOrThrow(t);
-  const { raw, hash } = generateActivationToken();
   const repo = new MiEmpresaRepository(empresaId);
+  // Estado ANTES de regenerar el token: si ya no tiene token pendiente, el miembro ya
+  // había activado su cuenta → esto es un RESET de contraseña; si aún lo tiene, es un
+  // reenvío de la INVITACIÓN. Define qué correo (texto) se envía.
+  const contacto = await repo.findMiembroContacto(targetId);
+  if (!contacto) throw new HttpError(404, "Usuario no encontrado");
+  const yaActivado = contacto.activationToken === null;
+
+  const { raw, hash } = generateActivationToken();
   const count = await repo.updateScoped(targetId, {
     activationToken: hash,
     activationExpires: new Date(Date.now() + ACTIVATION_TTL_MS),
@@ -133,14 +140,13 @@ export async function resendActivation(t: TenantContext, targetId: string) {
   if (count === 0) throw new HttpError(404, "Usuario no encontrado");
   // Los miembros del equipo son siempre USUARIO → link al portal del cliente.
   const url = activationUrl(raw, "USUARIO");
-  const contacto = await repo.findMiembroContacto(targetId);
-  const correoEnviado = contacto
-    ? await enviarInvitacionCuenta({
+  const correoEnviado = yaActivado
+    ? await enviarResetCuenta({ to: contacto.email, nombre: contacto.nombre, activationUrl: url })
+    : await enviarInvitacionCuenta({
         to: contacto.email,
         nombre: contacto.nombre,
         activationUrl: url,
         contexto: "empresa",
-      })
-    : false;
+      });
   return { activationUrl: url, correoEnviado };
 }

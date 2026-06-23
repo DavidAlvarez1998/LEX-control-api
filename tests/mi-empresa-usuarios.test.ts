@@ -39,6 +39,8 @@ vi.mock("../src/modules/notificaciones/correo.client", () => ({
 import { createApp } from "../src/app";
 import { prisma } from "../src/index";
 import { signToken } from "../src/modules/auth/auth.service";
+import { enviarCorreo } from "../src/modules/notificaciones/correo.client";
+const correoMock = vi.mocked(enviarCorreo);
 
 const app = createApp();
 const usuario = prisma.usuario as unknown as Record<
@@ -347,6 +349,22 @@ describe("POST /mi-empresa/usuarios/:id/activation (reenviar enlace)", () => {
       .post("/mi-empresa/usuarios/ajeno/activation")
       .set(auth(adminEmpresaToken));
     expect(res.status).toBe(404);
+  });
+
+  it("miembro PENDIENTE (con token) → correo de INVITACIÓN", async () => {
+    correoMock.mockClear();
+    usuario.findFirst.mockResolvedValue({ email: "x@y.com", nombre: "X", activationToken: "hash" });
+    usuario.updateMany.mockResolvedValue({ count: 1 });
+    await request(app).post("/mi-empresa/usuarios/u1/activation").set(auth(adminEmpresaToken));
+    expect(correoMock).toHaveBeenCalledWith(expect.objectContaining({ subject: "Activa tu cuenta de LEX Control" }));
+  });
+
+  it("miembro ya ACTIVADO (sin token) → correo de RESTABLECIMIENTO", async () => {
+    correoMock.mockClear();
+    usuario.findFirst.mockResolvedValue({ email: "x@y.com", nombre: "X", activationToken: null });
+    usuario.updateMany.mockResolvedValue({ count: 1 });
+    await request(app).post("/mi-empresa/usuarios/u1/activation").set(auth(adminEmpresaToken));
+    expect(correoMock).toHaveBeenCalledWith(expect.objectContaining({ subject: "Restablece tu contraseña de LEX Control" }));
   });
 });
 

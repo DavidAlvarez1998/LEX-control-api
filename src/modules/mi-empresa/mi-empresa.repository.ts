@@ -61,7 +61,7 @@ export class MiEmpresaRepository {
   findMiembroContacto(id: string) {
     return this.db.usuario.findFirst({
       where: { id, empresaId: this.empresaId },
-      select: { email: true, nombre: true },
+      select: { email: true, nombre: true, activationToken: true },
     });
   }
 
