@@ -2354,11 +2354,7 @@
           "campo": "solicitaCautelares",
           "igualA": "Sí"
         },
-        "reglas": {
-          "camposRequeridos": [
-            "entidadesOficiadas"
-          ]
-        }
+        "reglas": {}
       },
       {
         "key": "mandamientoPago",
