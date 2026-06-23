@@ -7091,6 +7091,21 @@
         "ayuda": "Si se actúa por apoderado, adjunta el poder."
       },
       {
+        "key": "radicado",
+        "label": "Radicado judicial",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true,
+        "ayuda": "Número único de radicación (23 dígitos)."
+      },
+      {
+        "key": "juzgado",
+        "label": "Juzgado / corporación",
+        "tipo": "texto",
+        "requerido": false,
+        "soloFicha": true
+      },
+      {
         "key": "fechaRadicacion",
         "label": "Fecha de radicación de la demanda",
         "tipo": "fecha",
