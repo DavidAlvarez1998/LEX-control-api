@@ -64,7 +64,14 @@ function espejoColumnasDesdeDatos(
   const out: { radicado?: string | null; despachoJuzgado?: string | null; cuantiaValor?: Prisma.Decimal | null } = {};
   if (!yaProvisto.radicado && tiene("radicado") && typeof datos.radicado === "string") out.radicado = datos.radicado.trim() || null;
   if (!yaProvisto.despachoJuzgado && tiene("juzgado") && typeof datos.juzgado === "string") out.despachoJuzgado = datos.juzgado.trim() || null;
-  if (!yaProvisto.cuantiaValor && tiene("cuantia") && datos.cuantia != null && datos.cuantia !== "") out.cuantiaValor = new Prisma.Decimal(String(datos.cuantia));
+  // `cuantia` puede ser un MONTO (p. ej. mínima cuantía) o una CATEGORÍA select
+  // ("Mínima"/"Menor"/"Mayor" en verbal/sumario). Solo se refleja a la columna Decimal
+  // cuando es numérico; una categoría de texto no es un valor monetario y rompía con
+  // `[DecimalError] Invalid argument` → 500 al crear el proceso.
+  if (!yaProvisto.cuantiaValor && tiene("cuantia") && datos.cuantia != null && datos.cuantia !== "") {
+    const raw = String(datos.cuantia).trim();
+    if (/^-?\d+(\.\d+)?$/.test(raw)) out.cuantiaValor = new Prisma.Decimal(raw);
+  }
   return out;
 }
 
