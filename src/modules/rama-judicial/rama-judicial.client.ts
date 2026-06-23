@@ -91,7 +91,8 @@ export async function obtenerDetalle(idProceso: number | string): Promise<Detall
 
 /** idProceso → lista de documentos del expediente (Endpoint Documentos; array directo). */
 export async function obtenerDocumentos(idProceso: number | string): Promise<DocumentoRama[]> {
-  const data = await getJson<Array<Record<string, unknown>>>(`/Proceso/Documentos/${idProceso}`);
+  // 404 = expediente sin documentos publicados (proceso válido): se trata como lista vacía.
+  const data = await getJson<Array<Record<string, unknown>> | null>(`/Proceso/Documentos/${idProceso}`, { on404Null: true });
   if (!Array.isArray(data)) return [];
   return data
     .filter((d) => d.idRegDocumento != null)

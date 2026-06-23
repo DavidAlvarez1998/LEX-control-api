@@ -3,7 +3,7 @@
 // y traducción de 403/conexión a HttpError 502.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { env } from "../src/config/env";
-import { consultarRadicado, obtenerActuaciones } from "../src/modules/rama-judicial";
+import { consultarRadicado, obtenerActuaciones, obtenerDocumentos } from "../src/modules/rama-judicial";
 
 const BASE = env.ramaJudicial.baseUrl;
 
@@ -62,5 +62,18 @@ describe("obtenerActuaciones (Endpoint B, paginado)", () => {
     const acts = await obtenerActuaciones(1);
     expect(acts).toHaveLength(1);
     expect(fn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("obtenerDocumentos (Endpoint E)", () => {
+  it("200 con array → normaliza los documentos", async () => {
+    mockFetchSeq({ body: [{ idRegDocumento: 7, descripcion: "Auto admisorio", fechaCarga: "2026-02-10" }] });
+    const docs = await obtenerDocumentos(1810780324);
+    expect(docs).toEqual([{ idRegDocumento: 7, descripcion: "Auto admisorio", fechaCarga: "2026-02-10", consActuacion: null }]);
+  });
+
+  it("404 (expediente válido SIN documentos) → lista vacía, NO error", async () => {
+    mockFetchSeq({ body: {}, status: 404 });
+    await expect(obtenerDocumentos(3281956241)).resolves.toEqual([]);
   });
 });

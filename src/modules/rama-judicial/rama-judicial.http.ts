@@ -8,7 +8,7 @@ const FUENTE = "la Rama Judicial";
 
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function pedirUnaVez<T>(path: string): Promise<T> {
+async function pedirUnaVez<T>(path: string, on404Null = false): Promise<T> {
   const { baseUrl, timeoutMs, userAgent } = env.ramaJudicial;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -31,6 +31,10 @@ async function pedirUnaVez<T>(path: string): Promise<T> {
   }
 
   if (!res.ok) {
+    // El CPNU devuelve 404 (en vez de lista vacía) cuando un proceso VÁLIDO aún no
+    // tiene datos en ese endpoint (p. ej. expediente sin documentos publicados). En
+    // ese caso `on404Null` lo trata como "sin datos" (null) en vez de error duro.
+    if (res.status === 404 && on404Null) return null as T;
     // 403/429 = rate-limiting de la Rama; 5xx = su servidor. Todo → 502 para el caller.
     throw new HttpError(502, `${FUENTE} respondió ${res.status}. Intenta más tarde.`);
   }
@@ -41,14 +45,14 @@ async function pedirUnaVez<T>(path: string): Promise<T> {
 /** GET con reintentos + backoff exponencial. La Rama bloquea (403/429) si la golpeas
  *  rápido; el transporte mapea esos fallos a 502 y aquí reintentamos. En tests no
  *  reintenta (intentos=1) para no introducir esperas ni cambiar el contrato. */
-export async function getJson<T>(path: string): Promise<T> {
+export async function getJson<T>(path: string, opts?: { on404Null?: boolean }): Promise<T> {
   const { retryAttempts, retryInitialMs, retryMaxMs } = env.ramaJudicial;
   const intentos = process.env.NODE_ENV === "test" ? 1 : Math.max(1, retryAttempts);
 
   let ultimo: unknown;
   for (let i = 1; i <= intentos; i++) {
     try {
-      return await pedirUnaVez<T>(path);
+      return await pedirUnaVez<T>(path, opts?.on404Null);
     } catch (err) {
       ultimo = err;
       if (i === intentos) break;
