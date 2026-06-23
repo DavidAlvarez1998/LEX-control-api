@@ -1830,15 +1830,24 @@
       {
         "key": "capitalAdeudado",
         "label": "Capital adeudado",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": true,
         "ayuda": "Monto principal exigible en pesos."
       },
       {
         "key": "tasaInteresMoratorio",
-        "label": "Tasa de interés moratorio pactada",
-        "tipo": "texto",
-        "requerido": false
+        "label": "Tasa de interés moratorio pactada por (%)",
+        "tipo": "porcentaje",
+        "requerido": false,
+        "ayuda": "Solo el número (máx. 100). Ej.: 28,5"
+      },
+      {
+        "key": "periodoTasaMoratoria",
+        "label": "Período de la tasa de mora",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": ["efectivo anual", "mensual"],
+        "ayuda": "Solo aplica si arriba pusiste una tasa. Por defecto, efectivo anual (E.A.)."
       },
       {
         "key": "fechaExigibilidad",
@@ -1849,7 +1858,7 @@
       {
         "key": "cuantia",
         "label": "Cuantía total estimada",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": true,
         "ayuda": "Mínima cuantía: hasta 40 SMLMV."
       },
@@ -2099,7 +2108,7 @@
       {
         "key": "valorLiquidacion",
         "label": "Valor de la liquidación del crédito (art. 446)",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": false,
         "mostrarSi": {
           "campo": "continuaARemate",
@@ -2110,7 +2119,7 @@
       {
         "key": "valorAvaluo",
         "label": "Valor del avalúo",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": false,
         "mostrarSi": {
           "campo": "continuaARemate",
@@ -8726,7 +8735,7 @@
       {
         "key": "capitalAdeudado",
         "label": "Capital adeudado (COP)",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": true
       },
       {
@@ -9299,7 +9308,7 @@
       {
         "key": "cuantia",
         "label": "Cuantía estimada de las pretensiones",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": false
       },
       {
@@ -9438,7 +9447,7 @@
       {
         "key": "cuantia",
         "label": "Cuantía total estimada de los perjuicios",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": true
       },
       {
@@ -9580,7 +9589,7 @@
       {
         "key": "cuantia",
         "label": "Cuantía estimada de las pretensiones",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": true
       },
       {
@@ -9746,7 +9755,7 @@
       {
         "key": "cuantia",
         "label": "Cuantía de las pretensiones",
-        "tipo": "numero",
+        "tipo": "moneda",
         "requerido": true
       }
     ],

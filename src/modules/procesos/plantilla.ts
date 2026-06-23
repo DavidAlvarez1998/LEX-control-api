@@ -45,10 +45,23 @@ function mayus(valor: unknown): string {
   return String(valor ?? "").toUpperCase();
 }
 
+/**
+ * Decimal con coma colombiana: 28.5 → "28,5", 30 → "30". El valor se guarda con
+ * punto decimal (p. ej. el campo "porcentaje"), así que NO se usa `aNumero` (que
+ * trata el punto como separador de miles); se parsea como número plano.
+ */
+function decimal(valor: unknown): string {
+  if (valor == null || valor === "") return marcador("número");
+  const n = typeof valor === "number" ? valor : Number(String(valor));
+  if (!Number.isFinite(n)) return String(valor);
+  return String(n).replace(".", ",");
+}
+
 const HELPERS: Record<string, Helper> = {
   moneda,
   fecha,
   mayus,
+  decimal,
   enLetras: (v) => {
     const n = aNumero(v);
     return n === null ? marcador("monto") : numeroALetras(Math.round(n));

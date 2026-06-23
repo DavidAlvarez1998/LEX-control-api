@@ -6,6 +6,8 @@ export const CAMPO_TIPOS = [
   "texto",
   "textoLargo",
   "numero",
+  "moneda", // entero en pesos; se captura/muestra con separador de miles (9.999.999)
+  "porcentaje", // número 0–100 con decimales; se captura/muestra con sufijo %
   "fecha",
   "boolean",
   "select",
@@ -187,8 +189,13 @@ export function validarDatosContraEsquema(
       if (arr.some((x) => !campo.opciones?.includes(x))) {
         errores.push(`${campo.label}: opción inválida`);
       }
-    } else if (campo.tipo === "numero") {
+    } else if (campo.tipo === "numero" || campo.tipo === "moneda") {
       if (!Number.isFinite(Number(v))) errores.push(`${campo.label}: número inválido`);
+    } else if (campo.tipo === "porcentaje") {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        errores.push(`${campo.label}: porcentaje inválido (0–100)`);
+      }
     } else if (campo.tipo === "listaCorreos") {
       const arr = Array.isArray(v) ? v : [];
       const correoOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

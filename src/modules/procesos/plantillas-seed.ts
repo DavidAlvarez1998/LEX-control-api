@@ -283,7 +283,7 @@ HECHOS
 
 PRETENSIONES
 {{datos.pretensiones}}
-Que se condene al demandado(a) al pago del capital de $ {{moneda datos.capitalAdeudado}} ({{enLetras datos.capitalAdeudado}} PESOS){{#if datos.tasaInteresMoratorio}}, más los intereses de mora a la tasa {{datos.tasaInteresMoratorio}} causados desde el {{fecha datos.fechaExigibilidad}} hasta el pago total{{/if}}, junto con las costas del proceso.
+Que se condene al demandado(a) al pago del capital de $ {{moneda datos.capitalAdeudado}} ({{enLetras datos.capitalAdeudado}} PESOS){{#if datos.tasaInteresMoratorio}}, más los intereses de mora a la tasa del {{decimal datos.tasaInteresMoratorio}}% {{#if datos.periodoTasaMoratoria}}{{datos.periodoTasaMoratoria}}{{else}}efectivo anual{{/if}} causados desde el {{fecha datos.fechaExigibilidad}} hasta el pago total{{/if}}, junto con las costas del proceso.
 
 DERECHO
 Artículos 619 a 670 y 709 a 711 del Código de Comercio; artículos 82, 422 y siguientes del Código General del Proceso, y demás normas concordantes.
