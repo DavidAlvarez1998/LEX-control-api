@@ -14,14 +14,18 @@ export type SugerenciaHito = {
   etapaNombre: string;
   campoFecha: string | null; // campo de fecha a pre-llenar (si aplica)
   fechaSugerida: string | null; // YYYY-MM-DD de la actuación que disparó el hito
+  campoValor: string | null; // campo (no-fecha, p. ej. un select) a pre-llenar (si aplica)
+  valorSugerido: string | null; // valor para `campoValor` (p. ej. "Admite" / "Inadmite")
   actuacion: string; // título de la actuación detectada
 };
 
-// keyword (normalizada, sin tildes, MAYÚS) → etapa destino + campo fecha a pre-llenar.
-// El orden importa: la primera coincidencia gana por actuación.
-const REGLAS: Array<{ kw: string[]; etapaKey: string; campoFecha: string | null }> = [
-  { kw: ["INADMIT"], etapaKey: "calificacion", campoFecha: "fechaAdmision" },
-  { kw: ["ADMIT", "ADMISOR"], etapaKey: "calificacion", campoFecha: "fechaAdmision" },
+// keyword (normalizada, sin tildes, MAYÚS) → etapa destino + campo fecha a pre-llenar +
+// (opcional) un campo de decisión a pre-llenar con su valor (p. ej. la calificación
+// Admite/Inadmite, que la propia actuación ya revela). El orden importa: la primera
+// coincidencia gana por actuación (INADMIT antes que ADMIT, que es subcadena de él).
+const REGLAS: Array<{ kw: string[]; etapaKey: string; campoFecha: string | null; campoValor?: string; valor?: string }> = [
+  { kw: ["INADMIT"], etapaKey: "calificacion", campoFecha: "fechaAdmision", campoValor: "decisionCalificacion", valor: "Inadmite" },
+  { kw: ["ADMIT", "ADMISOR"], etapaKey: "calificacion", campoFecha: "fechaAdmision", campoValor: "decisionCalificacion", valor: "Admite" },
   { kw: ["MANDAMIENTO"], etapaKey: "mandamientoPago", campoFecha: "fechaMandamiento" },
   { kw: ["NOTIFIC"], etapaKey: "mandamientoPago", campoFecha: "fechaNotificacion" },
   { kw: ["EXCEPCION"], etapaKey: "mandamientoPago", campoFecha: null },
@@ -70,12 +74,18 @@ export function detectarHitos(
     const campoFecha = regla.campoFecha && campos.has(regla.campoFecha) && vacio(datos[regla.campoFecha])
       ? regla.campoFecha
       : null;
+    // Igual para el campo de decisión (p. ej. la calificación Admite/Inadmite).
+    const campoValor = regla.campoValor && regla.valor && campos.has(regla.campoValor) && vacio(datos[regla.campoValor])
+      ? regla.campoValor
+      : null;
 
     porEtapa.set(regla.etapaKey, {
       etapaKey: regla.etapaKey,
       etapaNombre: etapa.nombre,
       campoFecha,
       fechaSugerida: campoFecha ? aISO(a.fechaActuacion) : null,
+      campoValor,
+      valorSugerido: campoValor ? regla.valor! : null,
       actuacion: a.actuacion,
     });
   }

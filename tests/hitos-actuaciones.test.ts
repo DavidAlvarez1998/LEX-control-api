@@ -9,13 +9,23 @@ const ETAPAS = [
   { key: "mandamientoPago", nombre: "Mandamiento de pago" },
   { key: "terminacion", nombre: "Terminación" },
 ];
-const ESQUEMA = [{ key: "fechaAdmision" }, { key: "fechaMandamiento" }, { key: "fechaNotificacion" }, { key: "fechaTerminacion" }];
+const ESQUEMA = [{ key: "fechaAdmision" }, { key: "decisionCalificacion" }, { key: "fechaMandamiento" }, { key: "fechaNotificacion" }, { key: "fechaTerminacion" }];
 
 describe("detectarHitos", () => {
-  it("'AUTO ADMITE LA DEMANDA' → sugiere calificacion + pre-llena fechaAdmision", () => {
+  it("'AUTO ADMITE LA DEMANDA' → calificacion + fechaAdmision + decisionCalificacion=Admite", () => {
     const s = detectarHitos([{ actuacion: "AUTO ADMITE LA DEMANDA", fechaActuacion: "2026-02-10T00:00:00" }], ETAPAS, ESQUEMA, {});
     expect(s).toHaveLength(1);
-    expect(s[0]).toMatchObject({ etapaKey: "calificacion", campoFecha: "fechaAdmision", fechaSugerida: "2026-02-10" });
+    expect(s[0]).toMatchObject({ etapaKey: "calificacion", campoFecha: "fechaAdmision", fechaSugerida: "2026-02-10", campoValor: "decisionCalificacion", valorSugerido: "Admite" });
+  });
+
+  it("'INADMITE LA DEMANDA' → decisionCalificacion=Inadmite (INADMIT gana sobre ADMIT)", () => {
+    const s = detectarHitos([{ actuacion: "AUTO INADMITE LA DEMANDA", fechaActuacion: "2026-02-12T00:00:00" }], ETAPAS, ESQUEMA, {});
+    expect(s[0]).toMatchObject({ etapaKey: "calificacion", campoValor: "decisionCalificacion", valorSugerido: "Inadmite" });
+  });
+
+  it("no re-sugiere la decisión si decisionCalificacion ya está diligenciada (campoValor=null)", () => {
+    const s = detectarHitos([{ actuacion: "AUTO ADMITE LA DEMANDA", fechaActuacion: "2026-02-10T00:00:00" }], ETAPAS, ESQUEMA, { decisionCalificacion: "Admite" });
+    expect(s[0]).toMatchObject({ campoValor: null, valorSugerido: null });
   });
 
   it("'LIBRA MANDAMIENTO DE PAGO' → mandamientoPago/fechaMandamiento", () => {
