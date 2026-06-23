@@ -2357,9 +2357,6 @@
         "reglas": {
           "camposRequeridos": [
             "entidadesOficiadas"
-          ],
-          "documentosRequeridos": [
-            "oficios-cautelares.pdf"
           ]
         }
       },
@@ -2374,8 +2371,7 @@
             "contesto"
           ],
           "documentosRequeridos": [
-            "mandamiento-pago.pdf",
-            "notificacion-demandado.pdf"
+            "mandamiento-pago.pdf"
           ],
           "plazoDesdeCampo": "fechaNotificacion",
           "plazoTipoDias": "habiles",
