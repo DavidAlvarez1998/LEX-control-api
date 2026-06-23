@@ -2087,11 +2087,20 @@
       },
       {
         "key": "descripcionImpulso",
-        "label": "Impulsos procesales",
+        "label": "Descripción del impulso",
         "tipo": "textoLargo",
         "requerido": false,
         "ayuda": "Memoriales, oficios, requerimientos.",
-        "soloFicha": true
+        "soloFicha": true,
+        "mostrarSi": {
+          "alguna": [
+            { "campo": "contesto", "igualA": "No" },
+            { "todas": [
+              { "campo": "contesto", "igualA": "Sí" },
+              { "campo": "sentenciaExcepciones", "igualA": "No prosperan" }
+            ] }
+          ]
+        }
       },
       {
         "key": "continuaARemate",
@@ -2103,7 +2112,16 @@
           "No"
         ],
         "ayuda": "Sí: sigue la ejecución forzada. No: termina (pago/acuerdo/desistimiento).",
-        "soloFicha": true
+        "soloFicha": true,
+        "mostrarSi": {
+          "alguna": [
+            { "campo": "contesto", "igualA": "No" },
+            { "todas": [
+              { "campo": "contesto", "igualA": "Sí" },
+              { "campo": "sentenciaExcepciones", "igualA": "No prosperan" }
+            ] }
+          ]
+        }
       },
       {
         "key": "valorLiquidacion",
