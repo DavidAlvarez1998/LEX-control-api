@@ -2403,9 +2403,6 @@
           "camposRequeridos": [
             "descripcionImpulso",
             "continuaARemate"
-          ],
-          "documentosOpcionales": [
-            "memorial.pdf"
           ]
         }
       },
