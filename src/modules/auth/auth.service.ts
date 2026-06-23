@@ -58,9 +58,19 @@ export async function login(body: LoginInput) {
   const invalidas = new HttpError(401, "Credenciales inválidas");
   const usuario = await new AuthRepository().findByEmail(body.email);
   if (!usuario || !usuario.activo) throw invalidas;
-  if (usuario.activationToken) throw invalidas; // pendiente: la contraseña vieja ya no sirve
   if (usuario.empresa && !usuario.empresa.activo) throw invalidas; // empresa desactivada
-  if (!(await verifyPassword(body.password, usuario.password))) throw invalidas;
+  // Se valida la contraseña ANTES de revelar el estado "pendiente": así un mensaje
+  // específico (activación/reset pendiente) solo se muestra a quien ya conoce la
+  // contraseña — no permite enumerar cuentas. La contraseña vieja sigue coincidiendo
+  // tras un reset (no se borra el hash, solo se exige re-definirla por el enlace).
+  const passwordOk = !!usuario.password && (await verifyPassword(body.password, usuario.password));
+  if (usuario.activationToken) {
+    // Pendiente de activar/restablecer: la contraseña vieja ya no sirve para entrar.
+    throw passwordOk
+      ? new HttpError(401, "Tu cuenta tiene un restablecimiento de contraseña pendiente. Revisa tu correo y usa el enlace para definir una nueva contraseña.")
+      : invalidas;
+  }
+  if (!passwordOk) throw invalidas;
 
   // Portal admin (audience ADMIN) admite ADMIN+COMERCIAL; portal cliente solo USUARIO.
   if (body.audience) {

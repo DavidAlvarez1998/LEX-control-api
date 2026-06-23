@@ -89,6 +89,8 @@ describe("POST /auth/login", () => {
       .send({ email: "admin@lex.com", password: "secret" });
     expect(res.status).toBe(401);
     expect(res.body.token).toBeUndefined();
+    // Con la clave correcta, el mensaje es específico (guía al enlace del correo).
+    expect(res.body.error.message).toMatch(/restablecimiento/i);
   });
 
   it("401 con contraseña incorrecta", async () => {
@@ -97,6 +99,15 @@ describe("POST /auth/login", () => {
       .post("/auth/login")
       .send({ email: "admin@lex.com", password: "wrong" });
     expect(res.status).toBe(401);
+  });
+
+  it("cuenta pendiente + clave INCORRECTA → mensaje genérico (no enumera)", async () => {
+    usuarios.findUnique.mockResolvedValue({ ...(await activeAdmin()), activationToken: "hash-pendiente" });
+    const res = await request(app)
+      .post("/auth/login")
+      .send({ email: "admin@lex.com", password: "wrong" });
+    expect(res.status).toBe(401);
+    expect(res.body.error.message).toBe("Credenciales inválidas");
   });
 
   it("200 + token con credenciales válidas", async () => {
