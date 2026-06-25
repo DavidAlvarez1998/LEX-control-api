@@ -2063,13 +2063,31 @@
         "soloFicha": true
       },
       {
+        "key": "huboAudiencia",
+        "label": "¿Hubo audiencia?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "ayuda": "¿Ya se celebró la audiencia única (art. 392)? Al marcar 'Sí' se habilita la fecha y el acta.",
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
         "key": "fechaAudiencia",
         "label": "Fecha de la audiencia (art. 392)",
         "tipo": "fecha",
         "requerido": false,
         "mostrarSi": {
-          "campo": "contesto",
-          "igualA": "Sí"
+          "todas": [
+            { "campo": "contesto", "igualA": "Sí" },
+            { "campo": "huboAudiencia", "igualA": "Sí" }
+          ]
         },
         "soloFicha": true
       },
@@ -2084,8 +2102,10 @@
         ],
         "ayuda": "Tras la audiencia (art. 392), ¿ya se dictó sentencia que resuelve las excepciones?",
         "mostrarSi": {
-          "campo": "contesto",
-          "igualA": "Sí"
+          "todas": [
+            { "campo": "contesto", "igualA": "Sí" },
+            { "campo": "huboAudiencia", "igualA": "Sí" }
+          ]
         },
         "soloFicha": true
       },
@@ -2460,15 +2480,24 @@
         "reglas": {
           "camposRequeridos": [
             "excepcionesPropuestas",
+            "huboAudiencia",
             "fechaAudiencia",
             "huboSentencia",
             "decisionExcepciones",
             "sentenciaExcepciones"
           ],
           "documentosRequeridos": [
-            "excepciones.pdf",
-            "acta-audiencia.pdf",
-            "sentencia.pdf"
+            "excepciones.pdf"
+          ],
+          "requeridosSi": [
+            {
+              "si": { "campo": "huboAudiencia", "igualA": "Sí" },
+              "documentosRequeridos": ["acta-audiencia.pdf"]
+            },
+            {
+              "si": { "campo": "huboSentencia", "igualA": "Sí" },
+              "documentosRequeridos": ["sentencia.pdf"]
+            }
           ]
         }
       },
