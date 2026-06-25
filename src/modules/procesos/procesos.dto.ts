@@ -31,19 +31,55 @@ type ListRow = {
   _count: { derivados: number };
 };
 
+/**
+ * Descriptor del plazo de la ETAPA ACTUAL para el mensaje de vencimiento unificado
+ * ("qué vence y cuánto"). Se lee de las reglas de la etapa (que ya viajan en
+ * `tipoProceso.etapas`). `plazoDias` solo se resuelve cuando es estático; si el término
+ * depende de un valor (`plazoDiasPorValorDe`) queda null (la fecha persistida ya es correcta).
+ */
+export function descriptorPlazo(etapas: unknown, etapaActual: string) {
+  const e = ((etapas as unknown as EtapaDef[]) ?? []).find((x) => x.key === etapaActual);
+  const r = e?.reglas;
+  return {
+    etapaNombre: e?.nombre ?? etapaActual,
+    plazoEtiqueta: r?.plazoEtiqueta ?? null,
+    plazoDias: typeof r?.plazoDias === "number" ? r.plazoDias : null,
+    plazoTipoDias: r?.plazoTipoDias ?? null,
+  };
+}
+
 export function toProcesoListItem(t: ListRow, semaforo: (f: Date | null) => Semaforo) {
+  const plazo = descriptorPlazo(t.tipoProceso.etapas, t.etapaActual);
   return {
     id: t.id, codigoInterno: t.codigoInterno, radicado: t.radicado, titulo: t.titulo,
     tipoProcesoNombre: t.tipoProceso.nombre, esJudicial: t.tipoProceso.esJudicial, grupo: t.tipoProceso.grupo,
     jurisdiccion: t.jurisdiccion, areaSlug: t.tipoProceso.areas[0]?.area.slug ?? null,
     estado: t.estado, prioridad: t.prioridad, proximaAudiencia: t.proximaAudiencia,
     etapaActual: t.etapaActual,
-    etapaNombre: ((t.tipoProceso.etapas as unknown as EtapaDef[]) ?? []).find((e) => e.key === t.etapaActual)?.nombre ?? t.etapaActual,
+    etapaNombre: plazo.etapaNombre,
+    plazoEtiqueta: plazo.plazoEtiqueta, plazoDias: plazo.plazoDias, plazoTipoDias: plazo.plazoTipoDias,
     fechaLimite: t.fechaLimite, semaforo: semaforo(t.fechaLimite),
     responsableId: t.responsableId, responsableNombre: t.responsable?.nombre ?? null,
     clienteNombre: t.cliente?.nombre ?? null, casoRelacionadoId: t.casoRelacionadoId,
     tieneDerivados: t._count.derivados > 0,
     actuacionesNuevas: t.actuacionesNuevas, // P1: novedades del juzgado para la lista
+  };
+}
+
+type VencimientoRow = {
+  id: string; codigoInterno: string; radicado: string | null; titulo: string;
+  etapaActual: string; estado: unknown; fechaLimite: Date | null;
+  tipoProceso?: { etapas: unknown } | null;
+};
+
+/** Item de `GET /procesos/vencimientos`: incluye el descriptor del plazo (qué vence). */
+export function toVencimientoItem(p: VencimientoRow, semaforo: (f: Date | null) => Semaforo) {
+  const plazo = descriptorPlazo(p.tipoProceso?.etapas, p.etapaActual);
+  return {
+    id: p.id, codigoInterno: p.codigoInterno, radicado: p.radicado, titulo: p.titulo,
+    etapaActual: p.etapaActual, etapaNombre: plazo.etapaNombre,
+    plazoEtiqueta: plazo.plazoEtiqueta, plazoDias: plazo.plazoDias, plazoTipoDias: plazo.plazoTipoDias,
+    estado: p.estado, fechaLimite: p.fechaLimite, semaforo: semaforo(p.fechaLimite),
   };
 }
 

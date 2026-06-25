@@ -49,6 +49,7 @@ export type ReglasEtapa = {
   documentosRequeridos?: string[];
   documentosOpcionales?: string[]; // ofrecidos para adjuntar, NO bloquean (p. ej. reiteracion.pdf)
   plazoDias?: number; // término informativo (existente; sin derivación de fechaLimite)
+  plazoEtiqueta?: string; // nombre humano de QUÉ vence (p. ej. "Plazo para subsanar"); fallback = nombre de la etapa
   // Requeridos condicionales: aplican solo cuando `si` se cumple.
   requeridosSi?: { si: Condicion; camposRequeridos?: string[]; documentosRequeridos?: string[] }[];
   // Opcionales condicionales: se OFRECEN para adjuntar (no bloquean) solo si `si` se cumple

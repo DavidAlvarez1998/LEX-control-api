@@ -17,7 +17,7 @@ import { derivarFechaLimite } from "./diasHabiles";
 import { construirContexto, renderPlantilla } from "./plantilla";
 import { siguienteEtapaAuto, terminalDecidido } from "./maquina-etapas";
 import { ProcesosRepository } from "./procesos.repository";
-import { crearSemaforo, serializeDetalle, toCasoNodo, toProcesoListItem } from "./procesos.dto";
+import { crearSemaforo, serializeDetalle, toCasoNodo, toProcesoListItem, toVencimientoItem } from "./procesos.dto";
 import type {
   addParteSchema, createProcesoSchema, generarDocumentoSchema, moverEtapaSchema,
   updateParteSchema, updateProcesoSchema,
@@ -111,7 +111,8 @@ export async function listProcesos(t: TenantContext, query: Record<string, unkno
 }
 
 export async function vencimientos(t: TenantContext) {
-  const items = (await repo(t).listVencimientos(scopeMisClientes(t) ?? {})).map((p) => ({ ...p, semaforo: crearSemaforo()(p.fechaLimite) }));
+  const sem = crearSemaforo();
+  const items = (await repo(t).listVencimientos(scopeMisClientes(t) ?? {})).map((p) => toVencimientoItem(p, sem));
   return {
     vencido: items.filter((i) => i.semaforo === "vencido"),
     por_vencer: items.filter((i) => i.semaforo === "por_vencer"),

@@ -2436,6 +2436,7 @@
           "documentosRequeridos": [
             "subsanacion.pdf"
           ],
+          "plazoEtiqueta": "Plazo para subsanar",
           "plazoDesdeCampo": "fechaAdmision",
           "plazoTipoDias": "habiles",
           "plazoDias": 5
@@ -2464,6 +2465,7 @@
           "documentosRequeridos": [
             "mandamiento-pago.pdf"
           ],
+          "plazoEtiqueta": "Plazo del demandado para pagar o excepcionar",
           "plazoDesdeCampo": "fechaNotificacion",
           "plazoTipoDias": "habiles",
           "plazoDias": 10

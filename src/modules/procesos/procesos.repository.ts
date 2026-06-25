@@ -74,7 +74,7 @@ export class ProcesosRepository {
   listVencimientos(extra: Prisma.ProcesoWhereInput) {
     return this.db.proceso.findMany({
       where: { empresaId: this.e, estado: { notIn: ["CERRADO", "ARCHIVADO"] }, ...extra },
-      select: { id: true, codigoInterno: true, radicado: true, titulo: true, etapaActual: true, estado: true, fechaLimite: true },
+      select: { id: true, codigoInterno: true, radicado: true, titulo: true, etapaActual: true, estado: true, fechaLimite: true, tipoProceso: { select: { etapas: true } } },
       orderBy: { fechaLimite: { sort: "asc", nulls: "last" } },
     });
   }
