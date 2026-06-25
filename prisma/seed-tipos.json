@@ -1886,6 +1886,32 @@
         "ayuda": "Enuncia las pruebas que pides (una por línea). Los documentos súbelos arriba."
       },
       {
+        "key": "ciudadFirmaPoder",
+        "label": "Ciudad de firma del poder",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Dónde firmó el poderdante (puede diferir de la ciudad del juzgado)."
+      },
+      {
+        "key": "fechaPoder",
+        "label": "Fecha de otorgamiento del poder",
+        "tipo": "fecha",
+        "requerido": false
+      },
+      {
+        "key": "repLegalNombre",
+        "label": "Nombre del representante legal",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Solo si el cliente es una sociedad: quién firma el poder a su nombre. Va en el encabezado del poder."
+      },
+      {
+        "key": "repLegalDocumento",
+        "label": "C.C. del representante legal",
+        "tipo": "texto",
+        "requerido": false
+      },
+      {
         "key": "ciudadReparto",
         "label": "Ciudad del juzgado (reparto)",
         "tipo": "texto",
@@ -2039,6 +2065,14 @@
         "tipo": "fecha",
         "requerido": false,
         "soloFicha": true
+      },
+      {
+        "key": "depositosJudiciales",
+        "label": "Depósitos judiciales (títulos, valores, observaciones)",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "soloFicha": true,
+        "ayuda": "Títulos de depósito a órdenes del juzgado (consignaciones del deudor, embargos, remate). Adjuntá los comprobantes abajo."
       },
       {
         "key": "contesto",
@@ -2295,34 +2329,6 @@
         "key": "ultimaActuacion",
         "label": "Última actuación registrada (memorial)",
         "tipo": "texto",
-        "requerido": false,
-        "soloFicha": true
-      },
-      {
-        "key": "repLegalNombre",
-        "label": "Representante legal del otorgante (si es sociedad)",
-        "tipo": "texto",
-        "requerido": false,
-        "soloFicha": true
-      },
-      {
-        "key": "repLegalDocumento",
-        "label": "C.C. del representante legal",
-        "tipo": "texto",
-        "requerido": false,
-        "soloFicha": true
-      },
-      {
-        "key": "ciudadFirmaPoder",
-        "label": "Ciudad de firma del poder",
-        "tipo": "texto",
-        "requerido": false,
-        "soloFicha": true
-      },
-      {
-        "key": "fechaPoder",
-        "label": "Fecha de otorgamiento del poder",
-        "tipo": "fecha",
         "requerido": false,
         "soloFicha": true
       },
