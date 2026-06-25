@@ -11,7 +11,7 @@ import { tenant } from "../../shared/tenant";
 import {
   addParteSchema, adjuntarDocumentoSchema, createProcesoSchema, documentoIdParams,
   generarDocumentoSchema, moverEtapaSchema, parteIdParams, procesoIdParams,
-  updateDocumentoSchema, updateParteSchema, updateProcesoSchema,
+  sincronizarMisSchema, updateDocumentoSchema, updateParteSchema, updateProcesoSchema,
 } from "./procesos.schemas";
 import * as procesos from "./procesos.service";
 import * as actuaciones from "./actuaciones.service";
@@ -37,8 +37,9 @@ procesoRoutes.get("/validar-radicado", requireAuth, requirePermiso("proceso.ver"
   asyncHandler(async (req, res) => res.json(await actuaciones.validarRadicado(String(req.query.radicado ?? "")))));
 
 // P16: actualizar (sincronizar) mis procesos con radicado de un tirón. Va ANTES de "/:id".
-procesoRoutes.post("/rama/sincronizar-mis", requireAuth, requirePermiso("proceso.editar"),
-  asyncHandler(async (req, res) => res.json(await actuaciones.sincronizarMisProcesos(tenant(req)))));
+// Body opcional `procesoIds` = reintento dirigido de los que fallaron.
+procesoRoutes.post("/rama/sincronizar-mis", requireAuth, requirePermiso("proceso.editar"), validate({ body: sincronizarMisSchema }),
+  asyncHandler(async (req, res) => res.json(await actuaciones.sincronizarMisProcesos(tenant(req), req.body.procesoIds))));
 
 procesoRoutes.get("/:id/actuaciones", requireAuth, requirePermiso("proceso.ver"), validate({ params: procesoIdParams }),
   asyncHandler(async (req, res) => res.json(await actuaciones.listarActuaciones(tenant(req), req.params.id))));

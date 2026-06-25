@@ -112,6 +112,12 @@ export const moverEtapaSchema = z.object({
 
 export const procesoIdParams = z.object({ id: z.string().min(1) });
 
+// P16: body opcional para "Actualizar con Rama". Sin body = sincroniza los pendientes
+// (ventana de 6 h). Con `procesoIds` = reintento dirigido de SOLO esos procesos.
+export const sincronizarMisSchema = z.object({
+  procesoIds: z.array(z.string().min(1)).max(40).optional(),
+});
+
 // --- Partes del proceso (gestión post-creación, desde la ficha) ---
 // Agregar una contraparte/tercero a un proceso ya creado: o referencia un litigante
 // existente (`litiganteId`) o crea uno nuevo inline. Tolera `null` en los campos

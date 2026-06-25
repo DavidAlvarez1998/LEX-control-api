@@ -40,6 +40,32 @@ type ProcesoSync = {
 };
 type ResultadoSync = { encontrado: boolean; reservado: boolean; nuevas: number; total: number };
 
+/** Resultado por proceso de una sincronización on-demand, para mostrar al usuario un
+ *  resumen accionable (no solo un contador). Separa lo que NO es error (no publicado /
+ *  reservado) de las dos causas de error reales: dato (radicado) vs fuente (Rama). */
+export type ResultadoSyncProceso =
+  | "ACTUALIZADO"          // se insertaron actuaciones nuevas
+  | "SIN_NOVEDAD"          // consultado OK, sin novedades
+  | "NO_PUBLICADO"         // el radicado no existe / no está publicado en la Rama (NO es error)
+  | "RESERVADO"            // proceso privado en la Rama (NO es error)
+  | "RADICADO_INVALIDO"    // dato: el radicado guardado no tiene 23 dígitos → lo arregla el usuario
+  | "FUENTE_NO_DISPONIBLE"; // transitorio: la Rama no respondió / bloqueó / 5xx → reintentar
+type ItemResultadoSync = { procesoId: string; titulo: string | null; radicado: string | null; resultado: ResultadoSyncProceso };
+
+/** Mapea el retorno OK de sincronizarProceso a una categoría de usuario. */
+export function categorizarOk(r: ResultadoSync): ResultadoSyncProceso {
+  if (r.reservado) return "RESERVADO";
+  if (!r.encontrado) return "NO_PUBLICADO";
+  return r.nuevas > 0 ? "ACTUALIZADO" : "SIN_NOVEDAD";
+}
+
+/** Distingue las dos causas de error por el status del HttpError: 400 = radicado
+ *  inválido (dato del usuario); cualquier otra cosa = fuente caída (reintentable). */
+export function categorizarError(err: unknown): ResultadoSyncProceso {
+  const status = err instanceof HttpError ? err.status : 0;
+  return status === 400 ? "RADICADO_INVALIDO" : "FUENTE_NO_DISPONIBLE";
+}
+
 /** Deja solo dígitos y exige 23 (radicado CPNU). Devuelve null si no cumple. */
 export function normalizarRadicado(raw: string | null | undefined): string | null {
   const v = (raw ?? "").replace(/\D/g, "");
@@ -251,14 +277,22 @@ export async function sincronizarTodas(): Promise<{
 
 /** P16: sincroniza on-demand los procesos de la empresa (con radicado, no cerrados) que no
  *  se han sincronizado en las últimas 6 h. Acotado a 40 por llamada para no colgar el request;
- *  el barrido completo lo hace el cron. Sin notificar (el usuario lo disparó). */
-export async function sincronizarMisProcesos(t: TenantContext) {
+ *  el barrido completo lo hace el cron. Sin notificar (el usuario lo disparó).
+ *
+ *  `procesoIds` (opcional): reintento dirigido — sincroniza SOLO esos (de la empresa),
+ *  ignorando la ventana de 6 h. Lo usa el botón "Reintentar" sobre los que fallaron por
+ *  fuente no disponible. Devuelve, además de los contadores, `resultados[]` por proceso
+ *  para que la UI muestre un resumen accionable (no solo "N con error"). */
+export async function sincronizarMisProcesos(t: TenantContext, procesoIds?: string[]) {
   const empresaId = empresaIdOrThrow(t);
   const hace6h = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const reintento = Array.isArray(procesoIds) && procesoIds.length > 0;
   const procesos = await prisma.proceso.findMany({
     where: {
       empresaId, radicado: { not: null }, estado: { notIn: ["CERRADO", "ARCHIVADO"] },
-      OR: [{ actuacionesSyncAt: null }, { actuacionesSyncAt: { lt: hace6h } }],
+      ...(reintento
+        ? { id: { in: procesoIds } } // reintento dirigido: sin filtro de frescura
+        : { OR: [{ actuacionesSyncAt: null }, { actuacionesSyncAt: { lt: hace6h } }] }),
     },
     take: 40,
     select: {
@@ -270,16 +304,24 @@ export async function sincronizarMisProcesos(t: TenantContext) {
   let conNovedad = 0;
   let nuevasTotal = 0;
   let errores = 0;
+  const resultados: ItemResultadoSync[] = [];
   for (const p of procesos) {
+    let resultado: ResultadoSyncProceso;
     try {
       const r = await sincronizarProceso(aProcesoSync(p));
       if (r.nuevas > 0) { conNovedad++; nuevasTotal += r.nuevas; }
-    } catch {
+      resultado = categorizarOk(r);
+    } catch (err) {
       errores++;
+      resultado = categorizarError(err);
+      // Antes era silencioso: capturamos motivo+proceso para poder diagnosticar
+      // por qué un proceso cuenta "con error" (radicado inválido vs Rama caída).
+      logger.warn("sync on-demand: proceso falló", { procesoId: p.id, radicado: p.radicado, err: String(err) });
     }
+    resultados.push({ procesoId: p.id, titulo: p.titulo ?? null, radicado: p.radicado ?? null, resultado });
     await dormir(env.ramaJudicial.delayRequestMs);
   }
-  return { procesos: procesos.length, conNovedad, nuevasTotal, errores };
+  return { procesos: procesos.length, conNovedad, nuevasTotal, errores, resultados };
 }
 
 /** Actuaciones guardadas del proceso (más reciente primero). Cada ítem trae `nueva`
