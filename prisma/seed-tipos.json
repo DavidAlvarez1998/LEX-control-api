@@ -2074,6 +2074,36 @@
         "soloFicha": true
       },
       {
+        "key": "huboSentencia",
+        "label": "¿Hubo sentencia sobre las excepciones?",
+        "tipo": "select",
+        "requerido": false,
+        "opciones": [
+          "Sí",
+          "No"
+        ],
+        "ayuda": "Tras la audiencia (art. 392), ¿ya se dictó sentencia que resuelve las excepciones?",
+        "mostrarSi": {
+          "campo": "contesto",
+          "igualA": "Sí"
+        },
+        "soloFicha": true
+      },
+      {
+        "key": "decisionExcepciones",
+        "label": "Decisión sobre las excepciones",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "ayuda": "Qué resolvió el juez sobre cada excepción propuesta (motivación). El resultado formal se registra en 'Sentencia sobre las excepciones'.",
+        "mostrarSi": {
+          "todas": [
+            { "campo": "huboSentencia", "igualA": "Sí" },
+            { "campo": "contesto", "igualA": "Sí" }
+          ]
+        },
+        "soloFicha": true
+      },
+      {
         "key": "sentenciaExcepciones",
         "label": "Sentencia sobre las excepciones",
         "tipo": "select",
@@ -2083,8 +2113,10 @@
           "No prosperan"
         ],
         "mostrarSi": {
-          "campo": "contesto",
-          "igualA": "Sí"
+          "todas": [
+            { "campo": "contesto", "igualA": "Sí" },
+            { "campo": "huboSentencia", "igualA": "Sí" }
+          ]
         },
         "soloFicha": true
       },
@@ -2429,6 +2461,8 @@
           "camposRequeridos": [
             "excepcionesPropuestas",
             "fechaAudiencia",
+            "huboSentencia",
+            "decisionExcepciones",
             "sentenciaExcepciones"
           ],
           "documentosRequeridos": [
