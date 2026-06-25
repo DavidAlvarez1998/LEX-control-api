@@ -1929,23 +1929,50 @@
         "ayuda": "Si es No, el flujo salta la notificación de cautelares."
       },
       {
-        "key": "embargoSalarios",
-        "label": "¿Solicita embargo de salarios?",
-        "tipo": "boolean",
+        "key": "tipoCautelares",
+        "label": "Tipo(s) de medida cautelar",
+        "tipo": "multiselect",
         "requerido": false,
+        "ayuda": "Embargos, secuestro y retención de dineros (arts. 593 y 599 CGP).",
+        "opciones": [
+          "Embargo de cuentas bancarias",
+          "Embargo de salarios",
+          "Embargo de bienes inmuebles (con inscripción en registro)",
+          "Embargo de bienes muebles / vehículos",
+          "Embargo de establecimiento de comercio",
+          "Embargo de acciones / cuotas sociales",
+          "Secuestro de bienes",
+          "Retención de dineros / créditos a favor del demandado",
+          "Otra"
+        ],
         "mostrarSi": {
           "campo": "solicitaCautelares",
           "igualA": "Sí"
         }
       },
       {
-        "key": "embargoCuentas",
-        "label": "¿Solicita embargo de cuentas bancarias?",
-        "tipo": "boolean",
+        "key": "modoEjecucion",
+        "label": "Modo de ejecución",
+        "tipo": "select",
         "requerido": false,
+        "opciones": [
+          "Remate",
+          "Embargo"
+        ],
         "mostrarSi": {
           "campo": "solicitaCautelares",
           "igualA": "Sí"
+        }
+      },
+      {
+        "key": "objetoRemate",
+        "label": "Bienes a rematar",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "ayuda": "Describa los bienes que se llevarán a remate.",
+        "mostrarSi": {
+          "campo": "modoEjecucion",
+          "igualA": "Remate"
         }
       },
       {
@@ -1953,19 +1980,10 @@
         "label": "Empleador del demandado",
         "tipo": "texto",
         "requerido": false,
+        "ayuda": "A quién se oficiará para el embargo de salarios.",
         "mostrarSi": {
-          "campo": "solicitaCautelares",
-          "igualA": "Sí"
-        }
-      },
-      {
-        "key": "otrasCautelares",
-        "label": "Otras medidas cautelares (inmuebles, muebles, secuestro, vehículos, inscripción)",
-        "tipo": "textoLargo",
-        "requerido": false,
-        "mostrarSi": {
-          "campo": "solicitaCautelares",
-          "igualA": "Sí"
+          "campo": "tipoCautelares",
+          "igualA": "Embargo de salarios"
         }
       },
       {
@@ -2050,7 +2068,11 @@
         "tipo": "textoLargo",
         "requerido": false,
         "ayuda": "Bancos, Tránsito, oficinas de registro, empleador, etc.",
-        "soloFicha": true
+        "soloFicha": true,
+        "mostrarSi": {
+          "campo": "solicitaCautelares",
+          "igualA": "Sí"
+        }
       },
       {
         "key": "fechaMandamiento",

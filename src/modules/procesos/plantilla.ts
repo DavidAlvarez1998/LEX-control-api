@@ -13,6 +13,7 @@
 //   {{ fecha proceso.createdAt }}          → 6 de junio de 2026
 //   {{ mayus parte.demandante.nombre }}    → JUAN PÉREZ
 //   {{#if datos.tieneApoderado}} ... {{else}} ... {{/if}}
+//   {{#if incluye datos.tipoCautelares "Embargo de salarios"}} ... {{/if}}
 //   {{#each partes}} {{this.nombre}} ({{this.rol}}) {{/each}}
 //   {{#each datos.hechos}} {{@index}}. {{this}} {{/each}}
 
@@ -202,13 +203,30 @@ function veraz(v: unknown): boolean {
   return Boolean(v);
 }
 
+/**
+ * Evalúa la condición de un `{{#if ...}}`. Dos formas:
+ *  - `path`                       → verdad/falsedad del valor (array no vacío, etc.)
+ *  - `incluye path "literal"`     → el valor contiene el literal (array → pertenencia;
+ *                                   string → igualdad). Útil para multiselects.
+ */
+function evaluarIf(expr: string, ctx: Contexto): boolean {
+  const m = /^incluye\s+(\S+)\s+(?:"([^"]*)"|'([^']*)')$/.exec(expr);
+  if (m) {
+    const valor = resolverPath(m[1], ctx);
+    const literal = m[2] ?? m[3] ?? "";
+    if (Array.isArray(valor)) return valor.map(String).includes(literal);
+    return String(valor ?? "") === literal;
+  }
+  return veraz(resolverPath(expr, ctx));
+}
+
 function renderNodos(nodos: Nodo[], ctx: Contexto): string {
   let out = "";
   for (const n of nodos) {
     if (n.t === "text") out += n.v;
     else if (n.t === "var") out += evaluarVar(n.v, ctx);
     else if (n.t === "if") {
-      out += veraz(resolverPath(n.expr, ctx))
+      out += evaluarIf(n.expr, ctx)
         ? renderNodos(n.then, ctx)
         : renderNodos(n.otherwise, ctx);
     } else if (n.t === "each") {

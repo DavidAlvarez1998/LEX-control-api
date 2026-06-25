@@ -264,9 +264,9 @@ Firma del responsable
 
 // --- Proceso ejecutivo de mínima cuantía (6 plantillas) ---
 // El abogado firmante sale de `proceso.responsable.*` (Usuario.cedula/tarjetaProfesional);
-// el domicilio de las partes de `parte.*.{direccion,ciudad}` (Litigante). `{{#if}}` solo
-// evalúa verdad/falsedad → los condicionales usan booleans (embargoSalarios/embargoCuentas)
-// o presencia de campos, nunca el valor "Sí/No" de un select.
+// el domicilio de las partes de `parte.*.{direccion,ciudad}` (Litigante). `{{#if}}`
+// evalúa verdad/falsedad o pertenencia: para las cautelares (multiselect
+// `tipoCautelares`) se usa `{{#if incluye datos.tipoCautelares "..."}}`.
 
 const EJ_DEMANDA = `Señor
 JUEZ CIVIL MUNICIPAL DE {{mayus datos.ciudadReparto}} (REPARTO)
@@ -338,12 +338,12 @@ DEMANDADO: {{mayus parte.demandado.nombre}}
 
 {{parte.demandante.nombre}}, identificado(a) con {{parte.demandante.tipoDocumento}} No. {{parte.demandante.numeroDocumento}}, en el proceso de la referencia que adelanto contra {{parte.demandado.nombre}}, respetuosamente solicito al Despacho, conforme al artículo 599 y siguientes del Código General del Proceso, decretar las siguientes MEDIDAS CAUTELARES sobre los bienes del demandado(a):
 
-{{#if datos.embargoSalarios}}1) EMBARGO Y RETENCIÓN DE SALARIOS del señor(a) {{parte.demandado.nombre}}, identificado(a) con cédula No. {{parte.demandado.numeroDocumento}}, en su calidad de empleado(a) de la empresa {{datos.empleadorDemandado}}, en las proporciones legales. Ruego oficiar al empleador para que efectúe la retención y la consigne a órdenes del Despacho.
+{{#each datos.tipoCautelares}}- {{this}}.
+{{/each}}
+{{#if incluye datos.tipoCautelares "Embargo de salarios"}}Para el EMBARGO Y RETENCIÓN DE SALARIOS del señor(a) {{parte.demandado.nombre}}, con cédula No. {{parte.demandado.numeroDocumento}}, en su calidad de empleado(a) de la empresa {{datos.empleadorDemandado}}, ruego oficiar al empleador para que efectúe la retención en las proporciones legales y la consigne a órdenes del Despacho.
 
-{{/if}}{{#if datos.embargoCuentas}}2) EMBARGO DE CUENTAS BANCARIAS Y DEPÓSITOS a nombre del señor(a) {{parte.demandado.nombre}}, con cédula No. {{parte.demandado.numeroDocumento}}. Ruego oficiar a las siguientes entidades del sistema financiero:
+{{/if}}{{#if incluye datos.tipoCautelares "Embargo de cuentas bancarias"}}Para el EMBARGO DE CUENTAS BANCARIAS Y DEPÓSITOS a nombre del señor(a) {{parte.demandado.nombre}}, con cédula No. {{parte.demandado.numeroDocumento}}, ruego oficiar a las siguientes entidades del sistema financiero:
 Banco de Bogotá, Banco Popular, Bancolombia, Scotiabank Colpatria, Banco GNB Sudameris, BBVA Colombia, Banco de Occidente, Banco Caja Social, Banco Davivienda, Banco Colpatria Red Multibanca, Banco Agrario, Banco AV Villas, Banco ProCredit, Banca Mía S.A., Banco W S.A., Bancoomeva, Banco Finandina, Banco Falabella S.A., Banco Pichincha S.A., Banco Cooperativo Coopcentral, Banco Santander de Negocios Colombia S.A., Banco Mundo Mujer, Banco Multibank S.A., Banco Compartir S.A. y Banco Itaú.
-
-{{/if}}{{#if datos.otrasCautelares}}3) OTRAS MEDIDAS: {{datos.otrasCautelares}}
 
 {{/if}}Del señor Juez, atentamente,
 
