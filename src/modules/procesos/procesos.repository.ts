@@ -43,6 +43,34 @@ export class ProcesosRepository {
       this.db.proceso.findMany({ where: scoped, include: listInclude, orderBy: { updatedAt: "desc" }, skip, take }),
     ]);
   }
+  /** Listado ordenado por vencimiento: abiertos vencidos→por vencer→al día (fechaLimite
+   *  asc, nulos al final) y cerrados/archivados al final. Como Prisma no expresa el
+   *  "cerrado al final" (CASE) en orderBy, se ordenan en memoria las claves mínimas
+   *  (id/estado/fechaLimite) — reusando el mismo WHERE sin duplicarlo — y luego se trae
+   *  la página con su include. El orden es estable a través de la paginación. */
+  async countAndListByVencimiento(where: Prisma.ProcesoWhereInput, skip: number, take: number) {
+    const scoped = { ...where, empresaId: this.e };
+    const claves = await this.db.proceso.findMany({
+      where: scoped,
+      select: { id: true, estado: true, fechaLimite: true },
+    });
+    const cerrado = (e: string) => (e === "CERRADO" || e === "ARCHIVADO" ? 1 : 0);
+    claves.sort((a, b) => {
+      const ca = cerrado(a.estado), cb = cerrado(b.estado);
+      if (ca !== cb) return ca - cb; // abiertos primero, cerrados/archivados al final
+      const fa = a.fechaLimite, fb = b.fechaLimite;
+      if (!fa && !fb) return 0;
+      if (!fa) return 1; // sin fecha al final de su grupo
+      if (!fb) return -1;
+      return fa.getTime() - fb.getTime(); // más vencido/próximo primero
+    });
+    const total = claves.length;
+    const pageIds = claves.slice(skip, skip + take).map((c) => c.id);
+    if (pageIds.length === 0) return [total, []] as const;
+    const rows = await this.db.proceso.findMany({ where: { id: { in: pageIds } }, include: listInclude });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return [total, pageIds.map((id) => byId.get(id)!)] as const;
+  }
   listVencimientos(extra: Prisma.ProcesoWhereInput) {
     return this.db.proceso.findMany({
       where: { empresaId: this.e, estado: { notIn: ["CERRADO", "ARCHIVADO"] }, ...extra },

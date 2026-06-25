@@ -101,7 +101,11 @@ export async function listProcesos(t: TenantContext, query: Record<string, unkno
   const scope = scopeMisClientes(t);
   if (scope) Object.assign(where, scope);
 
-  const [total, procesos] = await repo(t).countAndList(where, (page - 1) * pageSize, pageSize);
+  const skip = (page - 1) * pageSize;
+  const [total, procesos] =
+    query.orden === "vencimiento"
+      ? await repo(t).countAndListByVencimiento(where, skip, pageSize)
+      : await repo(t).countAndList(where, skip, pageSize);
   const semaforo = crearSemaforo();
   return { total, page, pageSize, items: procesos.map((p) => toProcesoListItem(p, semaforo)) };
 }

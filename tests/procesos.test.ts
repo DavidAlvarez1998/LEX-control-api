@@ -295,6 +295,38 @@ describe("GET /procesos — búsqueda y filtros (change procesos-ux-ddp-tutela)"
     expect(where.empresaId).toBe("emp1");
     expect(where.OR).toBeUndefined();
   });
+
+  it("orden=vencimiento: vencidos→por vencer→al día→sin fecha→cerrados (estable y server-side)", async () => {
+    const d = (s: string) => new Date(s);
+    // Claves devueltas en desorden por la BD; el orden lo impone el servicio.
+    const claves = [
+      { id: "cerrado", estado: "CERRADO", fechaLimite: d("2020-01-01") }, // cerrado con fecha vieja → al final
+      { id: "sinfecha", estado: "ABIERTO", fechaLimite: null }, // abierto sin fecha → tras los fechados
+      { id: "futuro", estado: "ABIERTO", fechaLimite: d("2999-01-01") }, // al día (lejano)
+      { id: "vencido", estado: "ABIERTO", fechaLimite: d("2021-01-01") }, // vencido → primero
+    ];
+    const fila = (id: string, estado: string, fechaLimite: Date | null) => ({
+      id, codigoInterno: id, radicado: null, titulo: id,
+      jurisdiccion: "ORDINARIA_CIVIL", estado, prioridad: "MEDIA", proximaAudiencia: null,
+      etapaActual: "demanda", fechaLimite, responsableId: null, casoRelacionadoId: null,
+      actuacionesNuevas: 0,
+      tipoProceso: { nombre: "T", esJudicial: true, grupo: "JUDICIAL", areas: [], etapas: [] },
+      responsable: null, cliente: null, _count: { derivados: 0 },
+    });
+    proceso.findMany.mockImplementation((args: Record<string, unknown>) => {
+      if (args.select) return Promise.resolve(claves); // 1ª llamada: claves para ordenar
+      const ids = (args.where as { id: { in: string[] } }).id.in; // 2ª: trae la página por ids
+      return Promise.resolve(ids.map((id) => {
+        const c = claves.find((k) => k.id === id)!;
+        return fila(id, c.estado, c.fechaLimite);
+      }));
+    });
+
+    const res = await request(app).get("/procesos?orden=vencimiento").set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body.items.map((i: { id: string }) => i.id)).toEqual(["vencido", "futuro", "sinfecha", "cerrado"]);
+    expect(res.body.total).toBe(4);
+  });
 });
 
 describe("PATCH /procesos/:id/etapa — rule-gated", () => {
