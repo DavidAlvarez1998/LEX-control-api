@@ -14,6 +14,8 @@ export const PUBLIC_SELECT = {
   esAdminEmpresa: true,
   empresaId: true,
   porcentajeComision: true,
+  cedula: true,
+  tarjetaProfesional: true,
   createdAt: true,
 } as const;
 

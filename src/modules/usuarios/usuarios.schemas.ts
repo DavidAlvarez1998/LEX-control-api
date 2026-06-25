@@ -12,6 +12,9 @@ export const createUsuarioSchema = z
     esAdminEmpresa: z.boolean().optional(),
     // Solo para COMERCIAL: % de comisión por defecto del vendedor.
     porcentajeComision: z.number().min(0).max(100).optional(),
+    // Datos del abogado para firmar escritos generados (poder, demanda, etc.).
+    cedula: z.string().trim().optional(),
+    tarjetaProfesional: z.string().trim().optional(),
   })
   // Un USUARIO de empresa SÍ requiere empresa; un rol de plataforma NO.
   .refine((d) => (d.rol ?? "USUARIO") !== "USUARIO" || !!d.empresaId, {
@@ -26,6 +29,8 @@ export const updateUsuarioSchema = z.object({
   activo: z.boolean().optional(),
   esAdminEmpresa: z.boolean().optional(),
   porcentajeComision: z.number().min(0).max(100).nullable().optional(),
+  cedula: z.string().trim().optional(),
+  tarjetaProfesional: z.string().trim().optional(),
 });
 
 export const usuarioIdParams = z.object({ id: z.string().min(1) });

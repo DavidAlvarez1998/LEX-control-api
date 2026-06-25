@@ -38,7 +38,7 @@ export async function getCupos(t: TenantContext) {
 
 export async function createMiembro(t: TenantContext, input: CreateMiembroInput) {
   const empresaId = empresaIdOrThrow(t);
-  const { email, nombre, roles } = input;
+  const { email, nombre, roles, cedula, tarjetaProfesional } = input;
   const { raw, hash } = generateActivationToken();
   const esAdminEmpresa = roles.includes(RolEmpresa.ADMINISTRADOR);
 
@@ -53,6 +53,8 @@ export async function createMiembro(t: TenantContext, input: CreateMiembroInput)
         empresaId,
         rol: "USUARIO", // un admin de empresa nunca crea ADMIN de plataforma
         esAdminEmpresa,
+        cedula: cedula || null,
+        tarjetaProfesional: tarjetaProfesional || null,
         password: randomBytes(24).toString("hex"), // placeholder no usable hasta activar
         activationToken: hash,
         activationExpires: new Date(Date.now() + ACTIVATION_TTL_MS),

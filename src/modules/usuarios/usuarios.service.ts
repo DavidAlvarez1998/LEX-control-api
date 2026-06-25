@@ -17,7 +17,7 @@ export function listUsuarios(empresaId?: string) {
 }
 
 export async function createUsuario(input: CreateUsuarioInput) {
-  const { email, nombre, empresaId, rol, esAdminEmpresa, porcentajeComision } = input;
+  const { email, nombre, empresaId, rol, esAdminEmpresa, porcentajeComision, cedula, tarjetaProfesional } = input;
   const finalRol: Rol = rol ?? "USUARIO";
   const { raw, hash } = generateActivationToken();
 
@@ -28,6 +28,8 @@ export async function createUsuario(input: CreateUsuarioInput) {
     rol: finalRol,
     esAdminEmpresa: esAdminEmpresa ?? false,
     porcentajeComision: finalRol === "COMERCIAL" ? (porcentajeComision ?? 0) : null,
+    cedula: cedula || null,
+    tarjetaProfesional: tarjetaProfesional || null,
     password: randomBytes(24).toString("hex"), // placeholder no usable hasta activar
     activationToken: hash,
     activationExpires: new Date(Date.now() + ACTIVATION_TTL_MS),

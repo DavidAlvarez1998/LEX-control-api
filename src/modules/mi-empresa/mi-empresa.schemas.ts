@@ -17,6 +17,9 @@ export const createMiembroSchema = z.object({
   email: z.string().trim().email("Correo inválido"),
   nombre: z.string().trim().min(1, "El nombre es obligatorio"),
   roles: rolesArray,
+  // Datos del abogado para firmar escritos generados (poder, demanda, etc.).
+  cedula: z.string().trim().optional(),
+  tarjetaProfesional: z.string().trim().optional(),
 });
 
 /** Actualizar un miembro: activar/desactivar y/o reconciliar su conjunto de
