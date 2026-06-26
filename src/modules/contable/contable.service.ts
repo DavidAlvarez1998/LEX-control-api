@@ -8,7 +8,7 @@ import { prisma } from "../../shared/prisma";
 import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { paginated, type PageParams } from "../../shared/pagination";
 import { ContableRepository } from "./contable.repository";
-import { conSaldo, n } from "./cartera.service";
+import { conSaldo, conSaldoBatch, n } from "./cartera.service";
 import type {
   createCajaSchema, createCarteraSchema, createCuentaSchema, createEgresoSchema,
   createIngresoSchema, createMovimientoSchema, createNominaSchema, createServicioFijoSchema,
@@ -264,10 +264,10 @@ export async function listCartera(t: TenantContext, clienteId?: string, page?: P
   const r = repo(t);
   if (!page) {
     const filas = await r.listCartera(clienteId);
-    return Promise.all(filas.map(conSaldo));
+    return conSaldoBatch(filas);
   }
   const [total, filas] = await r.listCarteraPaginated(clienteId, page);
-  const items = await Promise.all(filas.map(conSaldo));
+  const items = await conSaldoBatch(filas);
   return paginated(items, total, page);
 }
 export async function createCartera(t: TenantContext, b: In<typeof createCarteraSchema>) {

@@ -12,7 +12,7 @@ vi.mock("../src/index", () => {
     seguimientoComercial: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
     comisionDespacho: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
     cartera: { findMany: vi.fn() },
-    ingreso: { aggregate: vi.fn() },
+    ingreso: { aggregate: vi.fn(), groupBy: vi.fn() },
     faseComercialHistorial: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
     cotizacion: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
     contratoComercial: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
@@ -365,7 +365,8 @@ describe("cartera (resumen de cobro en la ficha)", () => {
     p.cartera.findMany.mockResolvedValue([
       { id: "k1", valorTotalAcordado: 1000000, configuracionCobroId: "cc1", clienteId: "c1", procesoId: null, empresaId: "eA" },
     ]);
-    p.ingreso.aggregate.mockResolvedValue({ _sum: { valorRecibido: 400000 } });
+    // conSaldoBatch agrupa por configuracionCobroId (antes era un aggregate por fila).
+    p.ingreso.groupBy.mockResolvedValue([{ configuracionCobroId: "cc1", _sum: { valorRecibido: 400000 } }]);
     const res = await request(app).get("/comercial/clientes/c1/cartera").set(auth(token));
     expect(res.status).toBe(200);
     expect(res.body[0]).toMatchObject({ valorPagado: 400000, saldoPendiente: 600000 });

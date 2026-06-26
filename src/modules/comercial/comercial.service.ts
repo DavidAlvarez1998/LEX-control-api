@@ -9,7 +9,7 @@ import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { convertirCliente, findOrCreateLitiganteByDoc } from "../clientes/clientes.service";
 import { type EtapaDef, etapaEntrada } from "../procesos/esquema";
 import { generarCodigoInterno } from "../procesos/procesos.service";
-import { conSaldo } from "../contable/cartera.service";
+import { conSaldoBatch } from "../contable/cartera.service";
 import { ComercialRepository } from "./comercial.repository";
 import type {
   agendaQuery, asignarSolicitudSchema, cancelarSeguimientoSchema, completarSeguimientoSchema,
@@ -322,7 +322,7 @@ export async function carteraCliente(t: TenantContext, clienteId: string) {
   const r = repo(t);
   await assertCliente(r, clienteId);
   const filas = await r.listCarteraCliente(clienteId);
-  return Promise.all(filas.map(conSaldo));
+  return conSaldoBatch(filas);
 }
 
 // ===================== COMISIONES =====================
