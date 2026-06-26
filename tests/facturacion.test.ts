@@ -18,6 +18,7 @@ vi.mock("../src/index", () => {
     modulo: { findMany: vi.fn() },
     suscripcion: { findUnique: vi.fn() },
     $transaction: vi.fn(),
+    $queryRaw: vi.fn(), // lock FOR UPDATE en registrarPago (no-op en el mock)
   };
   // La transacción corre el callback con el MISMO prisma mockeado (tx === prisma).
   prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
@@ -194,6 +195,21 @@ describe("pagos (= Ingreso vinculado)", () => {
     const res = await request(app).post("/facturacion/facturas/f1/pagos").set(auth(token))
       .send({ valorRecibido: 100, metodoPago: "EFECTIVO" });
     expect(res.status).toBe(409);
+  });
+
+  it("toma lock FOR UPDATE sobre la factura (anti doble-abono concurrente)", async () => {
+    p.factura.findFirst.mockResolvedValue(emitida);
+    p.ingreso.aggregate
+      .mockResolvedValueOnce({ _sum: { valorRecibido: 0 } })
+      .mockResolvedValueOnce({ _sum: { valorRecibido: 100000 } });
+    p.ingreso.create.mockResolvedValue({ id: "i1" });
+    p.factura.findUniqueOrThrow.mockResolvedValue({ ...emitida, items: [] });
+    await request(app).post("/facturacion/facturas/f1/pagos").set(auth(token))
+      .send({ valorRecibido: 100000, metodoPago: "EFECTIVO" });
+    expect(p.$queryRaw).toHaveBeenCalled();
+    const [strings, ...valores] = p.$queryRaw.mock.calls[0];
+    expect((strings as string[]).join("?")).toContain("FOR UPDATE");
+    expect(valores).toContain("f1"); // la factura bloqueada
   });
 
   it("idempotente: reintento con el mismo numeroComprobante no duplica el Ingreso", async () => {

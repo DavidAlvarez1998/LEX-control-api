@@ -150,6 +150,11 @@ export async function registrarPago(t: TenantContext, id: string, b: PagoFactura
   // el mismo comprobante por factura es el MISMO pago, no uno nuevo.
   await prisma.$transaction(async (tx) => {
     const r = new FacturasRepository(empresaId, tx);
+    // Lock de fila (FOR UPDATE) sobre la factura: serializa los pagos concurrentes a la
+    // MISMA factura. Sin él, dos transacciones pueden leer el mismo `pagadoSum`, ambas
+    // pasar el chequeo de saldo e insertar (doble-abono). Con el lock, el segundo pago
+    // espera al commit del primero y recién ahí lee el saldo ya actualizado.
+    await tx.$queryRaw`SELECT id FROM facturas WHERE id = ${id} AND empresaId = ${empresaId} FOR UPDATE`;
     const factura = await r.findPlain(id);
     if (!factura) throw new HttpError(404, "Factura no encontrada");
     if (factura.estado !== "EMITIDA") throw new HttpError(409, "Solo se puede pagar una factura emitida");
