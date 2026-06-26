@@ -1,9 +1,9 @@
-// fileFilter de multer (S0.2): lista blanca de tipo/extensión para los uploads.
+// fileFilter de multer (S0.2): lista NEGRA — bloquea ejecutables/scripts/HTML y
+// acepta cualquier formato de documento legítimo (pdf/docx/odt/rtf/xlsx/imágenes).
 import { describe, expect, it } from "vitest";
 import { fileFilter } from "../src/middleware/upload";
 import { HttpError } from "../src/middleware/error";
 
-// Llama al fileFilter y captura el resultado del callback (cb(err) | cb(null, ok)).
 function correr(originalname: string, mimetype: string) {
   let aceptado: boolean | undefined;
   let error: unknown;
@@ -15,27 +15,25 @@ function correr(originalname: string, mimetype: string) {
 }
 
 describe("fileFilter de uploads", () => {
-  it("acepta PDF, Word e imágenes", () => {
+  it("acepta documentos legítimos (pdf, word, odt, rtf, excel, imágenes)", () => {
     expect(correr("demanda.pdf", "application/pdf").aceptado).toBe(true);
     expect(correr("poder.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document").aceptado).toBe(true);
-    expect(correr("escaneo.JPG", "image/jpeg").aceptado).toBe(true); // extensión case-insensitive
+    expect(correr("doc.odt", "application/vnd.oasis.opendocument.text").aceptado).toBe(true); // el caso que rompía
+    expect(correr("carta.rtf", "application/rtf").aceptado).toBe(true);
+    expect(correr("escaneo.JPG", "image/jpeg").aceptado).toBe(true);
   });
 
-  it("acepta extensión válida con MIME genérico o vacío (regresión de subidas reales)", () => {
-    // Los navegadores/OS a veces reportan octet-stream o "" para PDFs/Office legítimos.
+  it("acepta MIME genérico/vacío y archivos sin extensión (subidas reales)", () => {
     expect(correr("demanda.pdf", "application/octet-stream").aceptado).toBe(true);
     expect(correr("poder.pdf", "").aceptado).toBe(true);
-  });
-
-  it("acepta archivos SIN extensión (docs generados, p. ej. ..._api_documento)", () => {
     expect(correr("1781030558296_api_documento", "application/octet-stream").aceptado).toBe(true);
-    expect(correr("1781030558296_api_documento", "application/pdf").aceptado).toBe(true);
-    // …pero sin extensión y con MIME peligroso → se rechaza igual.
-    expect(correr("algo_sin_ext", "text/html").error).toBeInstanceOf(HttpError);
   });
 
-  it("rechaza HTML/SVG/ejecutables con HttpError 400", () => {
-    for (const [name, mime] of [["evil.html", "text/html"], ["x.svg", "image/svg+xml"], ["m.exe", "application/octet-stream"]] as const) {
+  it("rechaza ejecutables, scripts y HTML/SVG con HttpError 400", () => {
+    for (const [name, mime] of [
+      ["evil.html", "text/html"], ["x.svg", "image/svg+xml"], ["m.exe", "application/octet-stream"],
+      ["s.sh", "application/x-sh"], ["a.js", "text/javascript"],
+    ] as const) {
       const { aceptado, error } = correr(name, mime);
       expect(aceptado).toBeUndefined();
       expect(error).toBeInstanceOf(HttpError);
@@ -43,8 +41,8 @@ describe("fileFilter de uploads", () => {
     }
   });
 
-  it("rechaza si la extensión es válida pero el MIME no (o viceversa)", () => {
-    expect(correr("falso.pdf", "text/html").error).toBeInstanceOf(HttpError); // ext ok, mime no
-    expect(correr("falso.html", "application/pdf").error).toBeInstanceOf(HttpError); // mime ok, ext no
+  it("rechaza por MIME peligroso aunque la extensión parezca inofensiva", () => {
+    expect(correr("falso.pdf", "text/html").error).toBeInstanceOf(HttpError); // .pdf pero sirve HTML
+    expect(correr("sin_ext", "image/svg+xml").error).toBeInstanceOf(HttpError);
   });
 });
