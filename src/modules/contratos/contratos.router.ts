@@ -1,9 +1,9 @@
 // Contratos (RRHH del personal). Router FINO: HTTP + auth/validate + multer; el
 // ámbito (plataforma/empresa), la autorización y la lógica viven en contratos.service.
 import { Router } from "express";
-import multer from "multer";
 import { asyncHandler } from "../../middleware/async";
 import { requireAuth } from "../../middleware/auth";
+import { upload } from "../../middleware/upload";
 import { validate } from "../../middleware/validate";
 import { tenant } from "../../shared/tenant";
 import {
@@ -12,7 +12,6 @@ import {
 import * as contratos from "./contratos.service";
 
 export const contratoRoutes: Router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 /** GET /contratos/mio — los contratos de la persona logueada (su historial). */
 contratoRoutes.get("/mio", requireAuth,

@@ -3,9 +3,9 @@
 // procesos.service, el acceso a datos en procesos.repository y el motor puro en
 // maquina-etapas.ts. Tenant-scoped (empresaId del token).
 import { Router } from "express";
-import multer from "multer";
 import { asyncHandler } from "../../middleware/async";
 import { requireAuth, requirePermiso } from "../../middleware/auth";
+import { upload } from "../../middleware/upload";
 import { validate } from "../../middleware/validate";
 import { tenant } from "../../shared/tenant";
 import {
@@ -17,9 +17,6 @@ import * as procesos from "./procesos.service";
 import * as actuaciones from "./actuaciones.service";
 
 export const procesoRoutes: Router = Router();
-
-// Subida de archivos del expediente (en memoria; el binario va a tecnovapp).
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 // ===================== LISTA / VENCIMIENTOS / CÁLCULO =====================
 procesoRoutes.get("/", requireAuth, requirePermiso("proceso.ver"),
