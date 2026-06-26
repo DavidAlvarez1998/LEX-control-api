@@ -1908,7 +1908,7 @@
       {
         "key": "repLegalDocumento",
         "label": "C.C. del representante legal",
-        "tipo": "texto",
+        "tipo": "numero",
         "requerido": false
       },
       {
@@ -2197,6 +2197,33 @@
         "soloFicha": true
       },
       {
+        "key": "fechaApelacion",
+        "label": "Fecha de la apelación",
+        "tipo": "fecha",
+        "requerido": false,
+        "ayuda": "Fecha en que se interpuso el recurso contra la sentencia de excepciones. Adjunta el escrito de apelación.",
+        "mostrarSi": { "campo": "sentenciaExcepciones", "igualA": "No prosperan" },
+        "soloFicha": true
+      },
+      {
+        "key": "decisionJuzgadoApelacion",
+        "label": "Decisión del juzgado",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "ayuda": "Qué resolvió el juzgado sobre el recurso. Adjunta la providencia.",
+        "mostrarSi": { "campo": "sentenciaExcepciones", "igualA": "No prosperan" },
+        "soloFicha": true
+      },
+      {
+        "key": "actuacionesSiguientesApelacion",
+        "label": "Actuaciones siguientes",
+        "tipo": "textoLargo",
+        "requerido": false,
+        "ayuda": "Trámite posterior a la decisión (memoriales, oficios, requerimientos). Adjunta los soportes.",
+        "mostrarSi": { "campo": "sentenciaExcepciones", "igualA": "No prosperan" },
+        "soloFicha": true
+      },
+      {
         "key": "descripcionImpulso",
         "label": "Descripción del impulso",
         "tipo": "textoLargo",
@@ -2341,7 +2368,7 @@
       },
       {
         "key": "asuntoMemorial",
-        "label": "Asunto del memorial",
+        "label": "Memorial",
         "tipo": "texto",
         "requerido": false,
         "ayuda": "Por defecto: solicitud de estado del proceso.",
@@ -2514,7 +2541,10 @@
             "fechaAudiencia",
             "huboSentencia",
             "decisionExcepciones",
-            "sentenciaExcepciones"
+            "sentenciaExcepciones",
+            "fechaApelacion",
+            "decisionJuzgadoApelacion",
+            "actuacionesSiguientesApelacion"
           ],
           "documentosRequeridos": [
             "excepciones.pdf"
@@ -2527,6 +2557,18 @@
             {
               "si": { "campo": "huboSentencia", "igualA": "Sí" },
               "documentosRequeridos": ["sentencia.pdf"]
+            }
+          ],
+          "opcionalesSi": [
+            {
+              "si": { "campo": "sentenciaExcepciones", "igualA": "No prosperan" },
+              "anclaCampo": "fechaApelacion",
+              "documentosOpcionales": ["apelacion.pdf"]
+            },
+            {
+              "si": { "campo": "sentenciaExcepciones", "igualA": "No prosperan" },
+              "anclaCampo": "decisionJuzgadoApelacion",
+              "documentosOpcionales": ["decision-juzgado.pdf"]
             }
           ]
         }
