@@ -1812,6 +1812,7 @@
       { "etapaKey": "calificacion", "actuacion": ["INADMIT"], "fechaCampo": "fechaAdmision", "valorCampo": "decisionCalificacion", "valor": "Inadmite" },
       { "etapaKey": "calificacion", "actuacion": ["ADMIT", "ADMISOR"], "excluir": ["INADMIT"], "fechaCampo": "fechaAdmision", "valorCampo": "decisionCalificacion", "valor": "Admite" },
       { "etapaKey": "mandamientoPago", "actuacion": ["MANDAMIENTO"], "fechaCampo": "fechaMandamiento" },
+      { "etapaKey": "mandamientoPago", "actuacion": ["NOTIFICAC"], "excluir": ["ESTADO", "SENTENCIA", "EDICTO", "EMPLAZA"], "fechaCampo": "fechaNotificacion" },
       { "etapaKey": "notifCautelares", "actuacion": ["CAUTELAR", "EMBARGO", "SECUESTRO"] },
       { "etapaKey": "audiencia", "actuacion": ["SEGUIR ADELANTE", "SENTENCIA", "AUDIENCIA"], "excluir": ["NIEGA", "PREPARA", "SEÑALA", "CITA A"] },
       { "etapaKey": "liquidacionCredito", "actuacion": ["LIQUIDAC"], "anotacion": ["LIQUIDAC"], "excluir": ["NIEGA"] },
