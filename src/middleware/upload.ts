@@ -21,19 +21,26 @@ const MIME_PELIGROSOS = new Set([
 const MAX_BYTES = 15 * 1024 * 1024;
 
 /**
- * Gate por EXTENSIÓN (la señal confiable): acepta las extensiones de la lista blanca y
- * rechaza el resto (html/svg/exe…). NO exige que el MIME esté en una lista blanca —los
- * navegadores/OS reportan MIME genérico (`application/octet-stream`) o vacío para PDFs/
- * Office legítimos, y exigirlo rompía subidas válidas— pero SÍ rechaza un MIME
- * claramente peligroso aunque la extensión sea válida. Rechaza con HttpError(400).
+ * Filtro de subida. Reglas (en orden):
+ *  1. MIME claramente peligroso (html/svg/js/exe) → SIEMPRE rechaza, aunque la ext parezca ok.
+ *  2. Extensión en la lista blanca (.pdf/.docx/imágenes…) → acepta.
+ *  3. SIN extensión → acepta (muchos docs generados/descargados llegan sin extensión,
+ *     p. ej. los `..._api_documento`; el MIME peligroso ya se filtró en el paso 1).
+ *  4. Extensión presente pero NO permitida (.exe, .bat, .html…) → rechaza.
+ * No se exige MIME en lista blanca: navegadores/OS reportan `application/octet-stream`
+ * o vacío para PDFs/Office legítimos, y exigirlo rompía subidas válidas.
  */
 export const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
-  if (EXT_PERMITIDAS.has(ext) && !MIME_PELIGROSOS.has(file.mimetype)) {
+  if (MIME_PELIGROSOS.has(file.mimetype)) {
+    cb(new HttpError(400, `Tipo de archivo no permitido (${file.mimetype}).`));
+    return;
+  }
+  if (ext === "" || EXT_PERMITIDAS.has(ext)) {
     cb(null, true);
     return;
   }
-  cb(new HttpError(400, `Tipo de archivo no permitido (${ext || file.mimetype || "desconocido"}). Solo PDF, Word/Excel o imágenes.`));
+  cb(new HttpError(400, `Tipo de archivo no permitido (${ext}). Solo PDF, Word/Excel o imágenes.`));
 };
 
 /** multer configurado: memoria + tope 15 MB + lista blanca de tipo (PDF/Office/imagen). */

@@ -27,6 +27,13 @@ describe("fileFilter de uploads", () => {
     expect(correr("poder.pdf", "").aceptado).toBe(true);
   });
 
+  it("acepta archivos SIN extensión (docs generados, p. ej. ..._api_documento)", () => {
+    expect(correr("1781030558296_api_documento", "application/octet-stream").aceptado).toBe(true);
+    expect(correr("1781030558296_api_documento", "application/pdf").aceptado).toBe(true);
+    // …pero sin extensión y con MIME peligroso → se rechaza igual.
+    expect(correr("algo_sin_ext", "text/html").error).toBeInstanceOf(HttpError);
+  });
+
   it("rechaza HTML/SVG/ejecutables con HttpError 400", () => {
     for (const [name, mime] of [["evil.html", "text/html"], ["x.svg", "image/svg+xml"], ["m.exe", "application/octet-stream"]] as const) {
       const { aceptado, error } = correr(name, mime);
