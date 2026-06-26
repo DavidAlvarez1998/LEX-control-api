@@ -15,7 +15,7 @@ import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { carpetaModulo, subirDocumento } from "../documentos/documentos.client";
 import { enviarNovedadActuaciones } from "../notificaciones";
 import { consultarRadicado, descargarDocumento, obtenerActuaciones, obtenerDetalle, obtenerDocumentos, obtenerSujetos, type ActuacionRama } from "../rama-judicial";
-import { derivarDesdeActuaciones, detectarHitos, etapaMasAvanzada } from "./hitos-actuaciones";
+import { derivarDesdeActuaciones, detectarHitos, divergenciasRama, etapaMasAvanzada } from "./hitos-actuaciones";
 import { evaluarCondicion, type EtapaDef } from "./esquema";
 import { derivarFechaLimite } from "./diasHabiles";
 import { categoriaDoc } from "./procesos.service";
@@ -451,7 +451,11 @@ export async function sugerenciasDeProceso(t: TenantContext, procesoId: string) 
   const etapas = (proceso.tipoProceso?.etapas ?? []) as Array<{ key: string; nombre: string }>;
   const esquema = (proceso.tipoProceso?.esquemaFormulario ?? []) as Array<{ key: string }>;
   const datos = (proceso.datos ?? {}) as Record<string, unknown>;
-  return detectarHitos(proceso.actuaciones, etapas, esquema, datos, proceso.tipoProceso?.mapeoActuaciones);
+  const mapeo = proceso.tipoProceso?.mapeoActuaciones;
+  return {
+    hitos: detectarHitos(proceso.actuaciones, etapas, esquema, datos, mapeo),
+    divergencias: divergenciasRama(proceso.actuaciones, etapas, esquema, datos, mapeo),
+  };
 }
 
 // ===================== P9 — Documentos del expediente (importar PDFs) =====================

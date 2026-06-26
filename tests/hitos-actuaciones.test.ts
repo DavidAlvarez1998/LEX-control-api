@@ -1,7 +1,7 @@
 // Tests de detección de HITOS (puro): mapea texto libre de actuaciones → sugerencia
 // de avance de etapa, solo si la etapa/campo existen y el campo está vacío.
 import { describe, expect, it } from "vitest";
-import { detectarHitos } from "../src/modules/procesos/hitos-actuaciones";
+import { detectarHitos, divergenciasRama } from "../src/modules/procesos/hitos-actuaciones";
 
 const ETAPAS = [
   { key: "radicacionJuzgado", nombre: "Radicación en el juzgado" },
@@ -83,5 +83,26 @@ describe("detectarHitos", () => {
     );
     expect(s.filter((x) => x.etapaKey === "calificacion")).toHaveLength(1); // una sola
     expect(s.find((x) => x.etapaKey === "impulsos")).toBeUndefined(); // etapa ausente
+  });
+});
+
+describe("divergenciasRama", () => {
+  it("marca divergencia cuando la fecha cargada difiere de la de la Rama", () => {
+    const d = divergenciasRama(
+      [{ actuacion: "LIBRA MANDAMIENTO DE PAGO", fechaActuacion: "2026-03-15T00:00:00" }],
+      ETAPAS, ESQUEMA, { fechaMandamiento: "2026-03-01" },
+    );
+    expect(d).toEqual([{ campo: "fechaMandamiento", fechaRama: "2026-03-15", fechaActual: "2026-03-01" }]);
+  });
+
+  it("no marca divergencia si coinciden, ni si el campo está vacío", () => {
+    expect(divergenciasRama(
+      [{ actuacion: "MANDAMIENTO DE PAGO", fechaActuacion: "2026-03-01T00:00:00" }],
+      ETAPAS, ESQUEMA, { fechaMandamiento: "2026-03-01" },
+    )).toHaveLength(0);
+    expect(divergenciasRama(
+      [{ actuacion: "MANDAMIENTO DE PAGO", fechaActuacion: "2026-03-01T00:00:00" }],
+      ETAPAS, ESQUEMA, {},
+    )).toHaveLength(0);
   });
 });

@@ -133,6 +133,47 @@ export function detectarHitos(
   return [...porClave.values()];
 }
 
+/** Divergencia O2: un campo de fecha YA diligenciado por el abogado cuyo valor difiere
+ *  del que traería la Rama (la actuación que mapea a ese campo). NO se autollena (el
+ *  sync respeta lo cargado); solo se SUPERFICIA como hint no bloqueante en la ficha. */
+export type DivergenciaFecha = { campo: string; fechaRama: string; fechaActual: string };
+
+/**
+ * Campos de fecha donde el dato del abogado y el de la Rama NO coinciden. A diferencia
+ * de `detectarHitos` (que anula la fecha si el campo está lleno), acá justamente nos
+ * interesa el campo lleno: comparamos la fecha cargada con la de la actuación que mapea
+ * a ese campo. Una divergencia por campo (la actuación más reciente que lo mapea).
+ */
+export function divergenciasRama(
+  actuaciones: ActuacionLite[],
+  etapas: EtapaLite[],
+  esquema: CampoLite[],
+  datos: Record<string, unknown>,
+  mapeo?: unknown,
+): DivergenciaFecha[] {
+  const reglas = reglasDeTipo(mapeo);
+  const etapaKeys = new Set(etapas.map((e) => e.key));
+  const campos = new Set(esquema.map((c) => c.key));
+  const vistos = new Set<string>();
+  const out: DivergenciaFecha[] = [];
+  for (const a of actuaciones) {
+    const titulo = normaliza(a.actuacion ?? "");
+    const anot = normaliza(a.anotacion ?? "");
+    if (!titulo && !anot) continue;
+    const regla = reglas.find((r) => coincide(r, titulo, anot));
+    if (!regla?.fechaCampo) continue;
+    if (!etapaKeys.has(regla.etapaKey) || !campos.has(regla.fechaCampo)) continue;
+    if (vistos.has(regla.fechaCampo)) continue; // primera (más reciente) por campo
+    vistos.add(regla.fechaCampo);
+    const actual = aISO((datos[regla.fechaCampo] as string | null) ?? null);
+    const fechaRama = aISO(a.fechaActuacion);
+    if (actual && fechaRama && actual !== fechaRama) {
+      out.push({ campo: regla.fechaCampo, fechaRama, fechaActual: actual });
+    }
+  }
+  return out;
+}
+
 export type DerivacionRama = {
   /** Campos a fijar en `datos` (fechas y decisiones), solo de los hitos detectados. */
   campos: Record<string, string>;
