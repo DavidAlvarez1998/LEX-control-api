@@ -316,8 +316,6 @@ En ejercicio de este poder, el apoderado podrá solicitar información, presenta
 
 El presente poder se otorga a partir de la fecha de su firma y permanecerá vigente hasta su revocatoria expresa o el cumplimiento de la gestión encomendada.
 
-Se firma en la ciudad de {{datos.ciudadFirmaPoder}}, el {{fecha datos.fechaPoder}}.
-
 
 OTORGANTE,
 
