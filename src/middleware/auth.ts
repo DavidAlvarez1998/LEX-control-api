@@ -4,7 +4,7 @@ import { prisma } from "../index";
 import { HttpError } from "./error";
 import { asyncHandler } from "./async";
 import { type JwtPayload, verifyToken } from "../modules/auth/auth.service";
-import { resolveEntitlements } from "../modules/entitlements/entitlements.service";
+import { resolveEntitlements, type Entitlements } from "../modules/entitlements/entitlements.service";
 
 // Agrega el usuario autenticado al Request de Express. El JWT solo lleva
 // { sub, rol, tv }: la empresa, el flag esAdminEmpresa y los roles de empresa se
@@ -122,6 +122,20 @@ export function empresaIdRequerido(req: Request): string {
  * módulo). El `empresaId` SIEMPRE sale del token (nunca del cliente). Debe ir
  * DESPUÉS de `requireAuth`.
  */
+// Memo por-request de los entitlements: una sola request puede cruzar varias puertas
+// (p. ej. la búsqueda global corre ~5 `tienePermiso`), y cada `resolveEntitlements`
+// son 2 queries de datos casi estáticos. Cacheamos la promesa por objeto `req` (el
+// empresaId es fijo por request, viene del token) → de ~5×2 queries de auth a 2.
+const entitlementsPorReq = new WeakMap<Request, Promise<Entitlements>>();
+function entitlementsDeReq(req: Request, empresaId: string): Promise<Entitlements> {
+  let p = entitlementsPorReq.get(req);
+  if (!p) {
+    p = resolveEntitlements(empresaId);
+    entitlementsPorReq.set(req, p);
+  }
+  return p;
+}
+
 export function requirePermiso(clave: string) {
   return asyncHandler(async (req, _res, next) => {
     const empresaId = empresaIdRequerido(req);
@@ -139,7 +153,7 @@ export function requirePermiso(clave: string) {
     }
 
     // Puerta de módulo.
-    const { modulosHabilitados } = await resolveEntitlements(empresaId);
+    const { modulosHabilitados } = await entitlementsDeReq(req, empresaId);
     if (!modulosHabilitados.has(permiso.modulo.clave)) {
       throw new HttpError(403, "Módulo no contratado");
     }
@@ -170,7 +184,7 @@ export async function tienePermiso(req: Request, clave: string): Promise<boolean
     },
   });
   if (!permiso) return false; // permiso no sembrado → trátalo como sin acceso
-  const { modulosHabilitados } = await resolveEntitlements(req.empresaId);
+  const { modulosHabilitados } = await entitlementsDeReq(req, req.empresaId);
   if (!modulosHabilitados.has(permiso.modulo.clave)) return false;
   if (req.esAdminEmpresa) return true;
   const concedidos = new Set(permiso.roles.map((r) => r.rolEmpresa));
