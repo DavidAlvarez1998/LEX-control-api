@@ -1822,7 +1822,7 @@
     "esquemaFormulario": [
       {
         "key": "demandanteNombre",
-        "label": "Demandante",
+        "label": "Nombre del demandante",
         "tipo": "texto",
         "requerido": false,
         "ayuda": "Persona o empresa que demanda (la parte que cobra)."
@@ -1836,7 +1836,7 @@
       },
       {
         "key": "demandadoNombre",
-        "label": "Demandado",
+        "label": "Nombre del demandado",
         "tipo": "texto",
         "requerido": false,
         "ayuda": "Persona o empresa demandada (la parte deudora)."
