@@ -562,11 +562,15 @@ export async function importarPartesRama(t: TenantContext, procesoId: string, no
     const nom = (s.nombreRazonSocial ?? "").trim();
     if (!nom || existentes.has(normNombre(nom)) || (sel && !sel.has(normNombre(nom)))) continue;
     try {
-      const lit = await prisma.litigante.create({
-        data: { empresaId, nombre: nom, tipoPersona: inferTipoPersona(nom), numeroDocumento: s.identificacion ?? undefined },
-      });
-      await prisma.parteProceso.create({
-        data: { procesoId, litiganteId: lit.id, rol: rolDeSujeto(s.tipoSujeto, esEjec), esNuestroCliente: false },
+      // Atómico: litigante + su parte en una sola tx. Si la 2ª falla, se revierte la 1ª
+      // (antes quedaba un litigante huérfano). Best-effort por sujeto: el catch sigue.
+      await prisma.$transaction(async (tx) => {
+        const lit = await tx.litigante.create({
+          data: { empresaId, nombre: nom, tipoPersona: inferTipoPersona(nom), numeroDocumento: s.identificacion ?? undefined },
+        });
+        await tx.parteProceso.create({
+          data: { procesoId, litiganteId: lit.id, rol: rolDeSujeto(s.tipoSujeto, esEjec), esNuestroCliente: false },
+        });
       });
       existentes.add(normNombre(nom));
       importadas++;
