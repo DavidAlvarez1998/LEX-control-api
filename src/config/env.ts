@@ -31,6 +31,11 @@ export const env = {
   clientUrl: process.env.CLIENT_URL ?? "http://localhost:3001",
   adminUrl: process.env.ADMIN_URL ?? "http://localhost:3000",
 
+  // Clave del plan al que se suscribe una empresa creada por AUTOSERVICIO desde la
+  // landing ("Crea tu cuenta"). Es un plan oculto del catálogo público (activo=false)
+  // sembrado en seed-foundations. Ver openspec/changes/cuenta-autoservicio-empresa.
+  selfSignupPlanClave: process.env.PLAN_AUTOSERVICIO_CLAVE ?? "trial",
+
   // API documental externa (tecnovapp): microservicio que almacena y sirve los
   // archivos (PDFs, imágenes) del sistema. Guardamos solo el `path` relativo que
   // devuelve (NO la URL completa: así un cambio de dominio no rompe registros

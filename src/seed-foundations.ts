@@ -140,7 +140,17 @@ for (const j of JUDICIAL) {
 const PLANES: {
   clave: string; nombre: string; precio: number; orden: number;
   modulos: string[]; cuotas: Partial<Record<RolEmpresa, number | null>>;
+  activo?: boolean; // ausente = true. trial = oculto del catálogo público.
 }[] = [
+  {
+    // Plan de arranque para altas autoservicio desde la landing ("Crea tu cuenta").
+    // activo:false → NO aparece en GET /publico/planes (precios), pero resolverPlanTrial lo
+    // encuentra por clave. Baseline-only (procesos/DdP) + 1 admin + 1 jurídico = el abogado
+    // solo puede trabajar su despacho de una. Ver openspec/changes/cuenta-autoservicio-empresa.
+    clave: "trial", nombre: "Prueba gratis", precio: 0, orden: 0, activo: false,
+    modulos: [],
+    cuotas: { ADMINISTRADOR: 1, JURIDICO: 1 },
+  },
   {
     clave: "independiente", nombre: "Abogado independiente", precio: 200000, orden: 1,
     modulos: [],
@@ -202,8 +212,8 @@ async function main() {
   for (const pl of PLANES) {
     const plan = await prisma.plan.upsert({
       where: { clave: pl.clave },
-      update: { nombre: pl.nombre, precioMensual: pl.precio, orden: pl.orden },
-      create: { clave: pl.clave, nombre: pl.nombre, precioMensual: pl.precio, orden: pl.orden },
+      update: { nombre: pl.nombre, precioMensual: pl.precio, orden: pl.orden, activo: pl.activo ?? true },
+      create: { clave: pl.clave, nombre: pl.nombre, precioMensual: pl.precio, orden: pl.orden, activo: pl.activo ?? true },
     });
     for (const mClave of pl.modulos) {
       await prisma.planModulo.upsert({

@@ -1,20 +1,20 @@
 import { z } from "zod";
 
-/** Cuerpo de "Crear cuenta" (público): datos del despacho + del usuario admin +
- *  plan elegido. Genera una SOLICITUD (Prospecto) pendiente de aprobación; no crea
- *  acceso. `website` es un honeypot anti-spam: los bots lo llenan, un humano no. */
+/** Cuerpo de "Crea tu cuenta" (público): despacho/abogado + usuario administrador.
+ *  APROVISIONA el tenant de una (Empresa + Suscripción trial + Usuario admin) y manda
+ *  el correo de activación; no es una solicitud pendiente. El plan lo decide el servidor
+ *  (trial), no el cliente. `website` es un honeypot anti-spam: los bots lo llenan, un
+ *  humano no. Ver openspec/changes/cuenta-autoservicio-empresa. */
 export const solicitudCuentaSchema = z.object({
-  // Empresa / despacho
+  // Despacho / abogado
   nombreEmpresa: z.string().trim().min(2, "El nombre del despacho es obligatorio").max(160),
-  nit: z.string().trim().max(40).optional(),
-  emailEmpresa: z.string().trim().email("Correo de empresa inválido").max(160).optional().or(z.literal("")),
-  telefonoEmpresa: z.string().trim().max(40).optional(),
+  nit: z.string().trim().min(1, "El NIT/CC es obligatorio").max(40),
+  tarjeta: z.string().trim().max(60).optional().or(z.literal("")),
   // Usuario administrador
-  nombreContacto: z.string().trim().min(2, "El nombre del administrador es obligatorio").max(160),
-  email: z.string().trim().email("Correo del administrador inválido").max(160),
-  telefono: z.string().trim().max(40).optional(),
-  // Plan elegido (clave del catálogo público) + honeypot
-  planClave: z.string().trim().max(60).optional(),
+  nombreContacto: z.string().trim().min(2, "El nombre del usuario es obligatorio").max(120),
+  email: z.string().trim().email("Correo inválido").max(160),
+  telefono: z.string().trim().min(5, "El teléfono es obligatorio").max(30),
+  // Honeypot anti-spam (oculto en el form)
   website: z.string().max(200).optional(),
 });
 

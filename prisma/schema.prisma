@@ -103,6 +103,10 @@ model Usuario {
   // motor de plantillas para no re-teclearlos por proceso.
   cedula             String?
   tarjetaProfesional String?
+  // Teléfono de notificación personal del usuario (capturado en el alta
+  // autoservicio desde la landing y editable en el perfil). Distinto de
+  // Empresa.telefono (conmutador del despacho).
+  telefono           String?
 
   // Solo aplica a rol COMERCIAL: % de comisión por defecto de este vendedor,
   // aplicado al precio de venta. Un monto fijo por venta puede sobreescribirlo.
