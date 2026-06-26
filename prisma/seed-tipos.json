@@ -1849,6 +1849,20 @@
         "ayuda": "Cédula si es persona natural, o NIT si es empresa."
       },
       {
+        "key": "repLegalNombre",
+        "label": "Representante legal (solo si el demandante es empresa)",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Quién firma el poder a nombre de la empresa demandante. Va en el encabezado del poder; dejalo vacío si el demandante es persona natural."
+      },
+      {
+        "key": "repLegalDocumento",
+        "label": "CC/NIT del representante legal",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Documento de quien firma el poder por la empresa."
+      },
+      {
         "key": "tipoTitulo",
         "label": "Tipo de título ejecutivo",
         "tipo": "select",
@@ -1923,19 +1937,6 @@
         "tipo": "textoLargo",
         "requerido": false,
         "ayuda": "Enuncia las pruebas que pides (una por línea). Los documentos súbelos arriba."
-      },
-      {
-        "key": "repLegalNombre",
-        "label": "Representante legal (solo si el demandante es empresa)",
-        "tipo": "texto",
-        "requerido": false,
-        "ayuda": "Quién firma el poder a nombre de la empresa demandante. Va en el encabezado del poder; dejalo vacío si el demandante es persona natural."
-      },
-      {
-        "key": "repLegalDocumento",
-        "label": "C.C. del representante legal",
-        "tipo": "numero",
-        "requerido": false
       },
       {
         "key": "ciudadReparto",
