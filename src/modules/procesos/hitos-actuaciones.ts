@@ -41,6 +41,7 @@ const REGLAS_LEGACY: MapeoRegla[] = [
   { etapaKey: "calificacion", actuacion: ["INADMIT"], fechaCampo: "fechaAdmision", valorCampo: "decisionCalificacion", valor: "Inadmite" },
   { etapaKey: "calificacion", actuacion: ["ADMIT", "ADMISOR"], excluir: ["INADMIT"], fechaCampo: "fechaAdmision", valorCampo: "decisionCalificacion", valor: "Admite" },
   { etapaKey: "mandamientoPago", actuacion: ["MANDAMIENTO"], fechaCampo: "fechaMandamiento" },
+  { etapaKey: "mandamientoPago", actuacion: ["NOTIFICAC"], fechaCampo: "fechaNotificacion" },
   { etapaKey: "notifCautelares", actuacion: ["CAUTELAR", "EMBARGO", "SECUESTRO"], fechaCampo: "fechaCautelares" },
   { etapaKey: "audiencia", actuacion: ["SEGUIR ADELANTE", "SENTENCIA"], excluir: ["NIEGA"], fechaCampo: "fechaSentencia" },
   { etapaKey: "liquidacionCredito", actuacion: ["LIQUIDAC"], anotacion: ["LIQUIDAC"], fechaCampo: "fechaLiquidacion" },
