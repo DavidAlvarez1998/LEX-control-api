@@ -1857,10 +1857,10 @@
       },
       {
         "key": "repLegalDocumento",
-        "label": "CC/NIT del representante legal",
+        "label": "C.C. del representante legal",
         "tipo": "texto",
         "requerido": false,
-        "ayuda": "Documento de quien firma el poder por la empresa."
+        "ayuda": "Cédula de quien firma el poder por la empresa (el representante es persona natural)."
       },
       {
         "key": "tipoTitulo",
