@@ -1918,7 +1918,7 @@
       {
         "key": "repLegalDocumento",
         "label": "C.C. del representante legal",
-        "tipo": "texto",
+        "tipo": "numero",
         "requerido": false
       },
       {
