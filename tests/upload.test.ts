@@ -21,6 +21,12 @@ describe("fileFilter de uploads", () => {
     expect(correr("escaneo.JPG", "image/jpeg").aceptado).toBe(true); // extensión case-insensitive
   });
 
+  it("acepta extensión válida con MIME genérico o vacío (regresión de subidas reales)", () => {
+    // Los navegadores/OS a veces reportan octet-stream o "" para PDFs/Office legítimos.
+    expect(correr("demanda.pdf", "application/octet-stream").aceptado).toBe(true);
+    expect(correr("poder.pdf", "").aceptado).toBe(true);
+  });
+
   it("rechaza HTML/SVG/ejecutables con HttpError 400", () => {
     for (const [name, mime] of [["evil.html", "text/html"], ["x.svg", "image/svg+xml"], ["m.exe", "application/octet-stream"]] as const) {
       const { aceptado, error } = correr(name, mime);

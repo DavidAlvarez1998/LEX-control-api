@@ -11,26 +11,29 @@ const EXT_PERMITIDAS = new Set([
   ".pdf", ".doc", ".docx", ".xls", ".xlsx",
   ".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff",
 ]);
-const MIME_PERMITIDOS = new Set([
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "image/jpeg", "image/png", "image/webp", "image/tiff",
+// MIME claramente peligrosos: se rechazan aunque la extensión sea válida (un .pdf que
+// en realidad es HTML/SVG y se serviría inline = XSS almacenado).
+const MIME_PELIGROSOS = new Set([
+  "text/html", "application/xhtml+xml", "image/svg+xml",
+  "application/x-msdownload", "application/javascript", "text/javascript",
 ]);
 
 const MAX_BYTES = 15 * 1024 * 1024;
 
-/** Lista blanca: acepta solo si la extensión Y el MIME están permitidos. Rechaza con un
- *  HttpError(400) (lo renderiza el errorHandler) en vez de aceptar binarios arbitrarios. */
+/**
+ * Gate por EXTENSIÓN (la señal confiable): acepta las extensiones de la lista blanca y
+ * rechaza el resto (html/svg/exe…). NO exige que el MIME esté en una lista blanca —los
+ * navegadores/OS reportan MIME genérico (`application/octet-stream`) o vacío para PDFs/
+ * Office legítimos, y exigirlo rompía subidas válidas— pero SÍ rechaza un MIME
+ * claramente peligroso aunque la extensión sea válida. Rechaza con HttpError(400).
+ */
 export const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
-  if (EXT_PERMITIDAS.has(ext) && MIME_PERMITIDOS.has(file.mimetype)) {
+  if (EXT_PERMITIDAS.has(ext) && !MIME_PELIGROSOS.has(file.mimetype)) {
     cb(null, true);
     return;
   }
-  cb(new HttpError(400, `Tipo de archivo no permitido (${file.mimetype || ext || "desconocido"}). Solo PDF, Word/Excel o imágenes.`));
+  cb(new HttpError(400, `Tipo de archivo no permitido (${ext || file.mimetype || "desconocido"}). Solo PDF, Word/Excel o imágenes.`));
 };
 
 /** multer configurado: memoria + tope 15 MB + lista blanca de tipo (PDF/Office/imagen). */
