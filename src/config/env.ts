@@ -84,6 +84,12 @@ export const env = {
     pauseOnErrorsMs: Number(process.env.RAMA_JUDICIAL_PAUSE_ON_ERRORS_MS ?? 45_000),
     // Tamaño máximo de un documento del expediente al importarlo (MB).
     docMaxBytes: Number(process.env.RAMA_JUDICIAL_DOC_MAX_MB ?? 25) * 1024 * 1024,
+    // Posicionamiento automático de etapa al sincronizar. DESACTIVADO por defecto:
+    // las actuaciones reflejan el estado del JUZGADO, no el flujo documental del
+    // despacho; mover/cerrar la etapa por la Rama saltaría las etapas intermedias
+    // (docs sin cargar) y cerraría procesos con documentos faltantes. El autollenado
+    // de fechas (hechos del expediente) SÍ sigue activo. Opt-in con RAMA_AUTOPOSICION=on.
+    autoposicion: (process.env.RAMA_AUTOPOSICION ?? "off").toLowerCase() === "on",
   },
 };
 

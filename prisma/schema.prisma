@@ -340,6 +340,10 @@ model TipoProceso {
   esquemaFormulario Json // [{ key, label, tipo, requerido, opciones? }]
   esquemaVersion    Int          @default(1)
   etapas            Json // [{ key, nombre, orden, terminal?, reglas? }]
+  // Reglas data-driven actuación(Rama)→etapa para autollenar la ficha y posicionar
+  // la etapa al sincronizar. null = el tipo no participa del autollenado por Rama.
+  // [{ etapaKey, actuacion?[], anotacion?[], excluir?[], fechaCampo?, valorCampo?, valor? }]
+  mapeoActuaciones  Json? // ver openspec/changes/rama-autollenado-y-timeline
   empresaId         String? // null = global
   empresaKey        String // empresaId ?? "" (sentinela del unique)
   origenId          String? // si el despacho clonó un tipo global

@@ -6,7 +6,7 @@
 // Tenant-scoped: el proceso debe ser de la empresa del solicitante. Ver
 // openspec/changes/rama-judicial-actuaciones.
 import { createHash } from "crypto";
-import { Prisma, RolParte, TipoPersona } from "@prisma/client";
+import { Prisma, RolParte, TipoPersona, type EstadoProceso } from "@prisma/client";
 import { env } from "../../config/env";
 import { HttpError } from "../../middleware/error";
 import { logger } from "../../shared/logger";
@@ -15,7 +15,9 @@ import { empresaIdOrThrow, type TenantContext } from "../../shared/tenant";
 import { carpetaModulo, subirDocumento } from "../documentos/documentos.client";
 import { enviarNovedadActuaciones } from "../notificaciones";
 import { consultarRadicado, descargarDocumento, obtenerActuaciones, obtenerDetalle, obtenerDocumentos, obtenerSujetos, type ActuacionRama } from "../rama-judicial";
-import { detectarHitos } from "./hitos-actuaciones";
+import { derivarDesdeActuaciones, detectarHitos, etapaMasAvanzada } from "./hitos-actuaciones";
+import { evaluarCondicion, type EtapaDef } from "./esquema";
+import { derivarFechaLimite } from "./diasHabiles";
 import { categoriaDoc } from "./procesos.service";
 
 // En tests no esperamos (evita esperas reales del batching/anti-bloqueo).
@@ -37,6 +39,11 @@ type ProcesoSync = {
   // Keys del formulario del tipo: para autollenar SOLO campos que existen (sin
   // introducir claves desconocidas en `datos`).
   esquema?: Array<{ key: string }>;
+  // Para el autollenado/posicionamiento data-driven desde la Rama.
+  etapaActual?: string;
+  estado?: EstadoProceso;
+  etapas?: EtapaDef[];
+  mapeo?: unknown; // TipoProceso.mapeoActuaciones (reglas actuación→etapa)
 };
 type ResultadoSync = { encontrado: boolean; reservado: boolean; nuevas: number; total: number };
 
@@ -98,9 +105,9 @@ async function cargarProcesoScoped(t: TenantContext, procesoId: string) {
     where: { id: procesoId, empresaId },
     select: {
       id: true, radicado: true, idProcesoRama: true, datos: true, despachoJuzgado: true,
-      titulo: true, actuacionesVistasAt: true,
+      titulo: true, actuacionesVistasAt: true, etapaActual: true, estado: true,
       responsable: { select: { email: true, nombre: true } },
-      tipoProceso: { select: { esquemaFormulario: true } },
+      tipoProceso: { select: { esquemaFormulario: true, etapas: true, mapeoActuaciones: true } },
     },
   });
   if (!proceso) throw new HttpError(404, "Proceso no encontrado");
@@ -108,8 +115,15 @@ async function cargarProcesoScoped(t: TenantContext, procesoId: string) {
 }
 
 /** Adapta el proceso cargado (con tipoProceso anidado) a ProcesoSync. */
-function aProcesoSync(p: { tipoProceso?: { esquemaFormulario: unknown } | null } & Record<string, unknown>): ProcesoSync {
-  return { ...(p as unknown as ProcesoSync), esquema: (p.tipoProceso?.esquemaFormulario ?? []) as Array<{ key: string }> };
+function aProcesoSync(
+  p: { tipoProceso?: { esquemaFormulario: unknown; etapas?: unknown; mapeoActuaciones?: unknown } | null } & Record<string, unknown>,
+): ProcesoSync {
+  return {
+    ...(p as unknown as ProcesoSync),
+    esquema: (p.tipoProceso?.esquemaFormulario ?? []) as Array<{ key: string }>,
+    etapas: (p.tipoProceso?.etapas ?? []) as EtapaDef[],
+    mapeo: p.tipoProceso?.mapeoActuaciones ?? null,
+  };
 }
 
 /** CORE de sincronización (SIN tenant): lo comparten el endpoint on-demand y el
@@ -183,6 +197,23 @@ export async function sincronizarProceso(
   fijar("fechaRadicacion", fechaProceso?.slice(0, 10)); // fecha de radicación (de fechaProceso)
   if (despacho && vacio(proceso.despachoJuzgado)) camposRama.push("despachoJuzgado");
 
+  // Autollenado DATA-DRIVEN desde los hitos de las actuaciones (fechas/decisiones) +
+  // cálculo de la etapa más avanzada alcanzada según la Rama. El autollenado usa el
+  // mismo `fijar()` (solo si vacío). El posicionamiento se aplica tras el update.
+  const etapas = (proceso.etapas ?? []) as EtapaDef[];
+  let etapaDestino: string | null = null;
+  if (etapas.length && proceso.etapaActual) {
+    const { campos: derivados, hitos } = derivarDesdeActuaciones(
+      actuaciones, etapas, proceso.esquema ?? [], datos, proceso.mapeo,
+    );
+    for (const [k, v] of Object.entries(derivados)) fijar(k, v);
+    // `disponibleSi` se evalúa contra los datos YA autollenados (datosPatch).
+    etapaDestino = etapaMasAvanzada(
+      hitos, etapas, proceso.etapaActual,
+      (e) => !e.disponibleSi || evaluarCondicion(e.disponibleSi as never, datosPatch),
+    );
+  }
+
   // P1: contador denormalizado de no-leídas (createdAt > actuacionesVistasAt). Si nunca
   // se marcó "vistas", 0 (no inunda en la primera carga; igual que listarActuaciones).
   const vistasAt = proceso.actuacionesVistasAt ?? null;
@@ -204,6 +235,19 @@ export async function sincronizarProceso(
     },
   });
 
+  // Posicionar la etapa a la más avanzada alcanzada según la Rama, SIN exigir los
+  // requisitos documentales (quedan pendientes y visibles). Kill-switch por env.
+  if (etapaDestino && env.ramaJudicial.autoposicion && proceso.etapaActual) {
+    await posicionarEtapaPorRama({
+      procesoId: proceso.id,
+      etapaActual: proceso.etapaActual,
+      estado: proceso.estado ?? "EN_PROCESO",
+      etapas,
+      datos: datosPatch,
+      etapaDestino,
+    });
+  }
+
   // #2: avisar por correo al abogado responsable cuando el CRON encuentra novedades
   // (en on-demand no se notifica: el abogado ya las ve en pantalla). Best-effort.
   if (opts.notificar && nuevas.length > 0 && proceso.responsable?.email) {
@@ -219,6 +263,49 @@ export async function sincronizarProceso(
 
   logger.info("actuaciones sincronizadas", { procesoId: proceso.id, nuevas: nuevas.length, total: items.length });
   return { encontrado: true, reservado: false, nuevas: nuevas.length, total: items.length };
+}
+
+/** Mueve `etapaActual` hacia adelante a `etapaDestino` SIN exigir los requisitos
+ *  documentales del motor (los deja pendientes y visibles en la ficha) — a diferencia
+ *  de `moverEtapa` (avance manual), que sí los exige. Nunca retrocede. Registra el
+ *  movimiento en `EtapaProceso` con una nota que marca el origen "Rama". Idempotente:
+ *  si ya está en la etapa destino (o más adelante) no hace nada. Devuelve si movió. */
+async function posicionarEtapaPorRama(input: {
+  procesoId: string;
+  etapaActual: string;
+  estado: EstadoProceso;
+  etapas: EtapaDef[];
+  datos: Record<string, unknown>;
+  etapaDestino: string;
+}): Promise<boolean> {
+  const { etapas, datos } = input;
+  if (input.estado === "ARCHIVADO") return false; // archivado: no se mueve
+  const destino = etapas.find((e) => e.key === input.etapaDestino);
+  if (!destino) return false;
+  const ordenActual = etapas.find((e) => e.key === input.etapaActual)?.orden ?? 0;
+  if (destino.orden <= ordenActual) return false; // nunca retrocede automáticamente
+  if (destino.disponibleSi && !evaluarCondicion(destino.disponibleSi, datos)) return false;
+
+  const nuevaFechaLimite = destino.reglas?.plazoDesdeCampo ? derivarFechaLimite(destino.reglas, datos) : undefined;
+  await prisma.$transaction(async (tx) => {
+    await tx.etapaProceso.create({
+      data: {
+        procesoId: input.procesoId,
+        etapaKey: destino.key,
+        nota: "Posicionado automáticamente por la sincronización con la Rama Judicial (faltan documentos por subir).",
+      },
+    });
+    await tx.proceso.update({
+      where: { id: input.procesoId },
+      data: {
+        etapaActual: destino.key,
+        estado: destino.terminal ? "CERRADO" : "EN_PROCESO",
+        ...(nuevaFechaLimite !== undefined ? { fechaLimite: nuevaFechaLimite } : {}),
+      },
+    });
+  });
+  logger.info("etapa posicionada por Rama", { procesoId: input.procesoId, etapaDestino: destino.key });
+  return true;
 }
 
 /** On-demand (tenant-scoped): valida pertenencia y sincroniza un proceso. */
@@ -241,8 +328,9 @@ export async function sincronizarTodas(): Promise<{
     where: { radicado: { not: null }, estado: { notIn: ["CERRADO", "ARCHIVADO"] } },
     select: {
       id: true, radicado: true, idProcesoRama: true, datos: true, despachoJuzgado: true,
-      titulo: true, actuacionesVistasAt: true, responsable: { select: { email: true, nombre: true } },
-      tipoProceso: { select: { esquemaFormulario: true } },
+      titulo: true, actuacionesVistasAt: true, etapaActual: true, estado: true,
+      responsable: { select: { email: true, nombre: true } },
+      tipoProceso: { select: { esquemaFormulario: true, etapas: true, mapeoActuaciones: true } },
     },
   });
 
@@ -297,8 +385,9 @@ export async function sincronizarMisProcesos(t: TenantContext, procesoIds?: stri
     take: 40,
     select: {
       id: true, radicado: true, idProcesoRama: true, datos: true, despachoJuzgado: true, titulo: true,
-      actuacionesVistasAt: true, responsable: { select: { email: true, nombre: true } },
-      tipoProceso: { select: { esquemaFormulario: true } },
+      actuacionesVistasAt: true, etapaActual: true, estado: true,
+      responsable: { select: { email: true, nombre: true } },
+      tipoProceso: { select: { esquemaFormulario: true, etapas: true, mapeoActuaciones: true } },
     },
   });
   let conNovedad = 0;
@@ -354,15 +443,15 @@ export async function sugerenciasDeProceso(t: TenantContext, procesoId: string) 
     where: { id: procesoId, empresaId },
     select: {
       datos: true,
-      tipoProceso: { select: { etapas: true, esquemaFormulario: true } },
-      actuaciones: { orderBy: { fechaActuacion: "desc" }, select: { actuacion: true, fechaActuacion: true } },
+      tipoProceso: { select: { etapas: true, esquemaFormulario: true, mapeoActuaciones: true } },
+      actuaciones: { orderBy: { fechaActuacion: "desc" }, select: { actuacion: true, anotacion: true, fechaActuacion: true } },
     },
   });
   if (!proceso) throw new HttpError(404, "Proceso no encontrado");
   const etapas = (proceso.tipoProceso?.etapas ?? []) as Array<{ key: string; nombre: string }>;
   const esquema = (proceso.tipoProceso?.esquemaFormulario ?? []) as Array<{ key: string }>;
   const datos = (proceso.datos ?? {}) as Record<string, unknown>;
-  return detectarHitos(proceso.actuaciones, etapas, esquema, datos);
+  return detectarHitos(proceso.actuaciones, etapas, esquema, datos, proceso.tipoProceso?.mapeoActuaciones);
 }
 
 // ===================== P9 — Documentos del expediente (importar PDFs) =====================

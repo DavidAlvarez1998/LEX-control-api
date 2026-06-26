@@ -65,6 +65,7 @@ type TipoSeed = {
   areaSlugs: string[];
   esquemaFormulario: Prisma.InputJsonValue;
   etapas: Prisma.InputJsonValue;
+  mapeoActuaciones?: Prisma.InputJsonValue; // reglas actuación(Rama)→etapa (opcional)
 };
 
 const TIPOS: TipoSeed[] = JSON.parse(
@@ -127,6 +128,7 @@ async function main() {
             nombreVisual: t.nombreVisual ?? null,
             esquemaFormulario: t.esquemaFormulario,
             etapas: t.etapas,
+            mapeoActuaciones: t.mapeoActuaciones ?? Prisma.DbNull,
             esquemaVersion: { increment: 1 },
             areas: { create: areas.map((a) => ({ areaId: a.id })) },
           },
@@ -147,6 +149,7 @@ async function main() {
           nombreVisual: t.nombreVisual ?? null,
           esquemaFormulario: t.esquemaFormulario,
           etapas: t.etapas,
+          mapeoActuaciones: t.mapeoActuaciones ?? Prisma.DbNull,
           empresaId: null,
           empresaKey: "",
           areas: { create: areas.map((a) => ({ areaId: a.id })) },

@@ -1808,6 +1808,16 @@
       "civil",
       "comercial-societario"
     ],
+    "mapeoActuaciones": [
+      { "etapaKey": "calificacion", "actuacion": ["INADMIT"], "fechaCampo": "fechaAdmision", "valorCampo": "decisionCalificacion", "valor": "Inadmite" },
+      { "etapaKey": "calificacion", "actuacion": ["ADMIT", "ADMISOR"], "excluir": ["INADMIT"], "fechaCampo": "fechaAdmision", "valorCampo": "decisionCalificacion", "valor": "Admite" },
+      { "etapaKey": "mandamientoPago", "actuacion": ["MANDAMIENTO"], "fechaCampo": "fechaMandamiento" },
+      { "etapaKey": "notifCautelares", "actuacion": ["CAUTELAR", "EMBARGO", "SECUESTRO"] },
+      { "etapaKey": "audiencia", "actuacion": ["SEGUIR ADELANTE", "SENTENCIA", "AUDIENCIA"], "excluir": ["NIEGA", "PREPARA", "SEÑALA", "CITA A"] },
+      { "etapaKey": "liquidacionCredito", "actuacion": ["LIQUIDAC"], "anotacion": ["LIQUIDAC"], "excluir": ["NIEGA"] },
+      { "etapaKey": "avaluoRemate", "actuacion": ["AVALUO", "REMATE"], "fechaCampo": "fechaRemate" },
+      { "etapaKey": "terminacion", "actuacion": ["TERMINA"], "anotacion": ["TERMINA"], "excluir": ["NIEGA", "TRASLADO", "SOLICITUD", "CORRECCION"], "fechaCampo": "fechaTerminacion" }
+    ],
     "esquemaFormulario": [
       {
         "key": "tipoTitulo",
@@ -1908,7 +1918,7 @@
       {
         "key": "repLegalDocumento",
         "label": "C.C. del representante legal",
-        "tipo": "numero",
+        "tipo": "texto",
         "requerido": false
       },
       {
