@@ -1821,6 +1821,34 @@
     ],
     "esquemaFormulario": [
       {
+        "key": "demandanteNombre",
+        "label": "Demandante",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Persona o empresa que demanda (la parte que cobra)."
+      },
+      {
+        "key": "demandanteDocumento",
+        "label": "CC/NIT del demandante",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Cédula si es persona natural, o NIT si es empresa."
+      },
+      {
+        "key": "demandadoNombre",
+        "label": "Demandado",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Persona o empresa demandada (la parte deudora)."
+      },
+      {
+        "key": "demandadoDocumento",
+        "label": "CC/NIT del demandado",
+        "tipo": "texto",
+        "requerido": false,
+        "ayuda": "Cédula si es persona natural, o NIT si es empresa."
+      },
+      {
         "key": "tipoTitulo",
         "label": "Tipo de título ejecutivo",
         "tipo": "select",
@@ -1897,24 +1925,11 @@
         "ayuda": "Enuncia las pruebas que pides (una por línea). Los documentos súbelos arriba."
       },
       {
-        "key": "ciudadFirmaPoder",
-        "label": "Ciudad de firma del poder",
-        "tipo": "texto",
-        "requerido": false,
-        "ayuda": "Dónde firmó el poderdante (puede diferir de la ciudad del juzgado)."
-      },
-      {
-        "key": "fechaPoder",
-        "label": "Fecha de otorgamiento del poder",
-        "tipo": "fecha",
-        "requerido": false
-      },
-      {
         "key": "repLegalNombre",
-        "label": "Nombre del representante legal",
+        "label": "Representante legal (solo si el demandante es empresa)",
         "tipo": "texto",
         "requerido": false,
-        "ayuda": "Solo si el cliente es una sociedad: quién firma el poder a su nombre. Va en el encabezado del poder."
+        "ayuda": "Quién firma el poder a nombre de la empresa demandante. Va en el encabezado del poder; dejalo vacío si el demandante es persona natural."
       },
       {
         "key": "repLegalDocumento",
