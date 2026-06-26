@@ -29,14 +29,19 @@ export function verifyPassword(plain: string, hash: string): Promise<boolean> {
   return bcrypt.compare(plain, hash);
 }
 
+// Algoritmo único y explícito (HMAC-SHA256). Fijarlo en sign Y verify evita la
+// confusión de algoritmo (p. ej. aceptar 'none' o un RS256 con la clave pública como
+// HMAC); sin la lista en verify, jsonwebtoken acepta cualquier algoritmo HMAC.
+const JWT_ALG: jwt.Algorithm = "HS256";
+
 /** Firma un JWT con el id y rol del usuario. */
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: TOKEN_TTL });
+  return jwt.sign(payload, env.jwtSecret, { expiresIn: TOKEN_TTL, algorithm: JWT_ALG });
 }
 
 /** Verifica y decodifica un JWT. Lanza si es inválido o expiró. */
 export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, env.jwtSecret) as JwtPayload;
+  return jwt.verify(token, env.jwtSecret, { algorithms: [JWT_ALG] }) as JwtPayload;
 }
 
 /** Hash SHA-256 de un token de activación (alta entropía → no necesita bcrypt). */

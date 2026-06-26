@@ -48,8 +48,14 @@ export function createApp(): Express {
     res.status(200).json({ status: "ok" });
   });
 
-  // Métricas Prometheus (las consume un scraper externo cuando exista).
-  app.get("/metrics", async (_req, res) => {
+  // Métricas Prometheus (las consume un scraper externo cuando exista). Si hay
+  // METRICS_TOKEN configurado, se exige `Authorization: Bearer <token>` (evita exponer
+  // métricas internas a cualquiera); sin token configurado, queda abierto (dev).
+  app.get("/metrics", async (req, res) => {
+    if (env.metricsToken && req.headers.authorization !== `Bearer ${env.metricsToken}`) {
+      res.status(401).json({ error: { message: "No autorizado" } });
+      return;
+    }
     res.set("Content-Type", registry.contentType);
     res.end(await registry.metrics());
   });

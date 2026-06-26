@@ -19,6 +19,9 @@ export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: Number(process.env.PORT ?? 4000),
   jwtSecret: required("JWT_SECRET"),
+  // Token opcional para `/metrics`: si se setea, el endpoint exige `Authorization:
+  // Bearer <token>` (el scraper lo manda). Si no se setea, queda abierto (dev).
+  metricsToken: process.env.METRICS_TOKEN ?? null,
   corsOrigins: (process.env.CORS_ORIGINS ?? DEFAULT_ORIGINS)
     .split(",")
     .map((origin) => origin.trim())
