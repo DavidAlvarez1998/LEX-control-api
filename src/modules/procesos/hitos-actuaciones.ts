@@ -92,7 +92,14 @@ export function detectarHitos(
   const reglas = reglasDeTipo(mapeo);
   const etapaPorKey = new Map(etapas.map((e) => [e.key, e]));
   const campos = new Set(esquema.map((c) => c.key));
-  const porEtapa = new Map<string, SugerenciaHito>();
+  // Dedup por (etapa, campo-destino de la regla), NO solo por etapa: una etapa puede
+  // tener varios campos a prellenar desde la Rama (p. ej. `mandamientoPago` →
+  // fechaMandamiento Y fechaNotificacion). Se llavea por el destino DECLARADO de la
+  // regla (no por el campo ya resuelto, que puede venir nulo si está lleno), para que
+  // dos reglas con el MISMO destino (Admite vs Inadmite → decisionCalificacion) sí
+  // colapsen y la primera/más reciente gane.
+  const porClave = new Map<string, SugerenciaHito>();
+  const claveDe = (r: MapeoRegla) => `${r.etapaKey}|${r.fechaCampo ?? r.valorCampo ?? "_"}`;
 
   for (const a of actuaciones) {
     const titulo = normaliza(a.actuacion ?? "");
@@ -103,7 +110,7 @@ export function detectarHitos(
 
     const etapa = etapaPorKey.get(regla.etapaKey);
     if (!etapa) continue; // el tipo no tiene esa etapa → no aplica
-    if (porEtapa.has(regla.etapaKey)) continue; // ya hay sugerencia (la primera gana)
+    if (porClave.has(claveDe(regla))) continue; // ya hay sugerencia para ese destino (la primera gana)
 
     const campoFecha = regla.fechaCampo && campos.has(regla.fechaCampo) && vacio(datos[regla.fechaCampo])
       ? regla.fechaCampo
@@ -112,7 +119,7 @@ export function detectarHitos(
       ? regla.valorCampo
       : null;
 
-    porEtapa.set(regla.etapaKey, {
+    porClave.set(claveDe(regla), {
       etapaKey: regla.etapaKey,
       etapaNombre: etapa.nombre,
       campoFecha,
@@ -123,7 +130,7 @@ export function detectarHitos(
     });
   }
 
-  return [...porEtapa.values()];
+  return [...porClave.values()];
 }
 
 export type DerivacionRama = {

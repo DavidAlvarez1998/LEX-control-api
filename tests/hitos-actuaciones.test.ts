@@ -38,6 +38,33 @@ describe("detectarHitos", () => {
     expect(s[0]).toMatchObject({ etapaKey: "mandamientoPago", campoFecha: "fechaNotificacion" });
   });
 
+  it("mandamiento + notificación → AMBAS fechas (una sugerencia por (etapa,campo))", () => {
+    const s = detectarHitos(
+      [
+        { actuacion: "Notificación personal al demandado", fechaActuacion: "2026-03-05T00:00:00" },
+        { actuacion: "LIBRA MANDAMIENTO DE PAGO", fechaActuacion: "2026-03-01T00:00:00" },
+      ],
+      ETAPAS, ESQUEMA, {},
+    );
+    const mando = s.filter((x) => x.etapaKey === "mandamientoPago");
+    expect(mando).toHaveLength(2); // antes el dedup por etapa dejaba solo 1
+    expect(mando.find((x) => x.campoFecha === "fechaMandamiento")?.fechaSugerida).toBe("2026-03-01");
+    expect(mando.find((x) => x.campoFecha === "fechaNotificacion")?.fechaSugerida).toBe("2026-03-05");
+  });
+
+  it("dos actuaciones al MISMO campo → una sola sugerencia (la primera gana)", () => {
+    const s = detectarHitos(
+      [
+        { actuacion: "AUTO INADMITE LA DEMANDA", fechaActuacion: "2026-02-12T00:00:00" },
+        { actuacion: "AUTO ADMITE LA DEMANDA", fechaActuacion: "2026-02-10T00:00:00" },
+      ],
+      ETAPAS, ESQUEMA, {},
+    );
+    // ambas reglas apuntan a decisionCalificacion/fechaAdmision → colapsan; gana la 1ª
+    expect(s.filter((x) => x.etapaKey === "calificacion")).toHaveLength(1);
+    expect(s[0]).toMatchObject({ campoValor: "decisionCalificacion", valorSugerido: "Inadmite" });
+  });
+
   it("no re-sugiere fecha si el campo ya está diligenciado (campoFecha=null)", () => {
     const s = detectarHitos([{ actuacion: "MANDAMIENTO DE PAGO", fechaActuacion: "2026-03-01T00:00:00" }], ETAPAS, ESQUEMA, { fechaMandamiento: "2026-03-01" });
     expect(s[0]).toMatchObject({ etapaKey: "mandamientoPago", campoFecha: null, fechaSugerida: null });
