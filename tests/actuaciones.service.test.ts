@@ -123,7 +123,9 @@ describe("sincronizarActuaciones", () => {
   });
 
   it("idempotente: si todas ya existen, no inserta", async () => {
-    p.proceso.findFirst.mockResolvedValue({ id: "pr1", radicado: RAD, idProcesoRama: "1810780324", datos: {} });
+    // Proceso YA completo (juzgado + fecha + despacho) → con idProcesoRama cacheado no hay
+    // ni nuevas actuaciones ni básicos por backfillear: no debe tocar el Endpoint A.
+    p.proceso.findFirst.mockResolvedValue({ id: "pr1", radicado: RAD, idProcesoRama: "1810780324", datos: { juzgado: "J", fechaRadicacion: "2014-01-01" }, despachoJuzgado: "J" });
     mockActuaciones.mockResolvedValue([{ fechaActuacion: "2026-03-09T00:00:00", actuacion: "RECIBE MEMORIALES", anotacion: "x" }]);
     // findMany devuelve la huella ya existente → 0 nuevas. Reproducimos el hash:
     const { createHash } = await import("crypto");
@@ -135,7 +137,28 @@ describe("sincronizarActuaciones", () => {
 
     expect(r).toMatchObject({ nuevas: 0, total: 1 });
     expect(p.actuacionProceso.createMany).not.toHaveBeenCalled();
-    expect(mockConsultar).not.toHaveBeenCalled(); // idProcesoRama cacheado → no llama Endpoint A
+    expect(mockConsultar).not.toHaveBeenCalled(); // caché + básicos llenos → no llama Endpoint A
+  });
+
+  it("backfillea juzgado/fecha de radicación con idProcesoRama cacheado si están vacíos", async () => {
+    // idProceso cacheado PERO juzgado/fecha vacíos → debe consultar el Endpoint A igual y
+    // rellenarlos (antes solo se hacía en el primer sync, así que no se recuperaban nunca).
+    p.proceso.findFirst.mockResolvedValue({
+      id: "pr1", radicado: RAD, idProcesoRama: "1810780324", datos: {}, despachoJuzgado: null,
+      tipoProceso: { esquemaFormulario: [{ key: "juzgado" }, { key: "fechaRadicacion" }] },
+    });
+    mockConsultar.mockResolvedValue({ encontrado: true, idProceso: 999, esPrivado: false, despacho: "JUZGADO 5", fechaProceso: "2021-05-27T00:00:00" });
+    mockActuaciones.mockResolvedValue([{ fechaActuacion: "2026-01-01T00:00:00", actuacion: "A", anotacion: null }]);
+    p.actuacionProceso.findMany.mockResolvedValue([]);
+    p.actuacionProceso.createMany.mockResolvedValue({ count: 1 });
+    p.proceso.update.mockResolvedValue({});
+
+    await sincronizarActuaciones(t, "pr1");
+
+    expect(mockConsultar).toHaveBeenCalled(); // básicos vacíos → consulta el Endpoint A pese a la caché
+    const update = p.proceso.update.mock.calls[0][0];
+    expect(update.data.datos).toMatchObject({ juzgado: "JUZGADO 5", fechaRadicacion: "2021-05-27" });
+    expect(update.data.despachoJuzgado).toBe("JUZGADO 5");
   });
 });
 

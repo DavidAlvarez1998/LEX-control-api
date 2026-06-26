@@ -136,23 +136,44 @@ export async function sincronizarProceso(
   const radicado = normalizarRadicado(proceso.radicado);
   if (!radicado) throw new HttpError(400, "El proceso no tiene un radicado válido de 23 dígitos");
 
-  // idProceso: usar el cacheado o resolverlo vía Endpoint A.
+  // idProceso + datos básicos (juzgado, fecha de radicación) los trae el Endpoint A.
   let idProceso = proceso.idProcesoRama;
   let despacho: string | null = null; // #4: juzgado, solo lo trae el Endpoint A
   let fechaProceso: string | null = null; // fecha de radicación, idem
+  // Llamamos al Endpoint A si NO hay idProceso cacheado (para resolverlo), O si el juzgado
+  // / la fecha de radicación siguen VACÍOS (para backfillearlos). Antes solo se llamaba en
+  // el PRIMER sync, así que un proceso que quedó sin juzgado/fecha (la Rama aún no los
+  // publicaba) no los recuperaba nunca. Con idProceso cacheado el backfill es best-effort:
+  // si el Endpoint A falla, seguimos sincronizando actuaciones con la caché.
+  const datosPrev = (proceso.datos ?? {}) as Record<string, unknown>;
+  const faltanBasicos = vacio(datosPrev.juzgado) || vacio(datosPrev.fechaRadicacion) || vacio(proceso.despachoJuzgado);
+  if (!idProceso || faltanBasicos) {
+    try {
+      const info = await consultarRadicado(radicado);
+      // RESERVADO / NO_PUBLICADO solo cortan cuando NO hay idProceso cacheado (sin él no hay
+      // nada que sincronizar). Con caché, un backfill fallido no debe cambiar el estado.
+      if (!idProceso && info.esPrivado) {
+        await prisma.proceso.update({ where: { id: proceso.id }, data: { ramaEstado: "RESERVADO", actuacionesSyncAt: new Date() } });
+        return { encontrado: false, reservado: true, nuevas: 0, total: 0 };
+      }
+      if (!idProceso && (!info.encontrado || info.idProceso == null)) {
+        await prisma.proceso.update({ where: { id: proceso.id }, data: { ramaEstado: "NO_PUBLICADO", actuacionesSyncAt: new Date() } });
+        return { encontrado: false, reservado: false, nuevas: 0, total: 0 };
+      }
+      if (info.encontrado && info.idProceso != null) {
+        idProceso = String(info.idProceso);
+        despacho = info.despacho;
+        fechaProceso = info.fechaProceso;
+      }
+    } catch (err) {
+      if (!idProceso) throw err; // sin caché no hay forma de seguir → propaga
+      logger.warn("backfill Endpoint A falló; sigo con idProceso cacheado", { procesoId: proceso.id, err: String(err) });
+    }
+  }
   if (!idProceso) {
-    const info = await consultarRadicado(radicado);
-    if (info.esPrivado) {
-      await prisma.proceso.update({ where: { id: proceso.id }, data: { ramaEstado: "RESERVADO", actuacionesSyncAt: new Date() } });
-      return { encontrado: false, reservado: true, nuevas: 0, total: 0 };
-    }
-    if (!info.encontrado || info.idProceso == null) {
-      await prisma.proceso.update({ where: { id: proceso.id }, data: { ramaEstado: "NO_PUBLICADO", actuacionesSyncAt: new Date() } });
-      return { encontrado: false, reservado: false, nuevas: 0, total: 0 };
-    }
-    idProceso = String(info.idProceso);
-    despacho = info.despacho;
-    fechaProceso = info.fechaProceso;
+    // Defensivo (y para estrechar el tipo): sin caché y sin resolución del Endpoint A.
+    await prisma.proceso.update({ where: { id: proceso.id }, data: { ramaEstado: "NO_PUBLICADO", actuacionesSyncAt: new Date() } });
+    return { encontrado: false, reservado: false, nuevas: 0, total: 0 };
   }
 
   const actuaciones = await obtenerActuaciones(idProceso);
