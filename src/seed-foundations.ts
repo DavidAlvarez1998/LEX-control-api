@@ -16,7 +16,7 @@ const MODULOS: { clave: string; nombre: string; esBaseline: boolean }[] = [
   { clave: "contable", nombre: "Módulo contable", esBaseline: false },
   { clave: "comercial", nombre: "Módulo comercial", esBaseline: false },
   { clave: "contratos", nombre: "Módulo de contratos", esBaseline: false },
-  { clave: "ia_redaccion", nombre: "IA — redacción de documentos", esBaseline: false },
+  { clave: "ia_redaccion", nombre: "Redacción de documentos", esBaseline: false },
   { clave: "logo_personalizado", nombre: "Logo personalizado", esBaseline: false },
   { clave: "automatizacion_contratos", nombre: "Automatización de contratos y poderes", esBaseline: false },
 ];
@@ -145,11 +145,13 @@ const PLANES: {
   {
     // Plan de arranque para altas autoservicio desde la landing ("Crea tu cuenta").
     // activo:false → NO aparece en GET /publico/planes (precios), pero resolverPlanTrial lo
-    // encuentra por clave. Baseline-only (procesos/DdP) + 1 admin + 1 jurídico = el abogado
-    // solo puede trabajar su despacho de una. Ver openspec/changes/cuenta-autoservicio-empresa.
+    // encuentra por clave. Ver openspec/changes/cuenta-autoservicio-empresa.
+    // DECISIÓN 2026-06-27: el trial da acceso COMPLETO — todos los módulos + cupos
+    // ilimitados (null) en los 4 roles — para que el usuario pruebe la plataforma entera
+    // sin topes. (Antes era baseline-only + 1 admin + 1 jurídico.)
     clave: "trial", nombre: "Prueba gratis", precio: 0, orden: 0, activo: false,
-    modulos: [],
-    cuotas: { ADMINISTRADOR: 1, JURIDICO: 1 },
+    modulos: ["contable", "comercial", "contratos", "ia_redaccion", "logo_personalizado", "automatizacion_contratos"],
+    cuotas: { ADMINISTRADOR: null, JURIDICO: null, CONTABLE: null, COMERCIAL: null },
   },
   {
     clave: "independiente", nombre: "Abogado independiente", precio: 200000, orden: 1,

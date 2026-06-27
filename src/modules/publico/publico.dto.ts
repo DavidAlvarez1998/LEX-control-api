@@ -5,7 +5,7 @@ const n = (d: Prisma.Decimal) => Number(d);
 
 type PlanRow = {
   clave: string; nombre: string; descripcion: string | null; precioMensual: Prisma.Decimal;
-  modulos: { modulo: { clave: string } }[];
+  modulos: { modulo: { clave: string; nombre: string } }[];
   cuotas: { rolEmpresa: RolEmpresa; limite: number | null }[];
 };
 
@@ -15,7 +15,7 @@ export function toPlanPublico(p: PlanRow) {
     nombre: p.nombre,
     descripcion: p.descripcion,
     precioMensual: n(p.precioMensual),
-    modulos: p.modulos.map((m) => m.modulo.clave),
+    modulos: p.modulos.map((m) => m.modulo.nombre),
     cuotas: Object.fromEntries(p.cuotas.map((c) => [c.rolEmpresa, c.limite])),
   };
 }

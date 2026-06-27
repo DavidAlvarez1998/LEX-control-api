@@ -51,7 +51,10 @@ describe("GET /publico/planes (público, sin auth)", () => {
         nombre: "Firma",
         descripcion: "Para despachos pequeños",
         precioMensual: { toString: () => "120000" } as never,
-        modulos: [{ modulo: { clave: "comercial" } }, { modulo: { clave: "contable" } }],
+        modulos: [
+          { modulo: { clave: "comercial", nombre: "Módulo comercial" } },
+          { modulo: { clave: "contable", nombre: "Módulo contable" } },
+        ],
         cuotas: [{ rolEmpresa: "JURIDICO", limite: 5 }, { rolEmpresa: "CONTABLE", limite: 1 }],
       },
     ]);
@@ -65,7 +68,7 @@ describe("GET /publico/planes (público, sin auth)", () => {
       nombre: "Firma",
       descripcion: "Para despachos pequeños",
       precioMensual: 120000,
-      modulos: ["comercial", "contable"],
+      modulos: ["Módulo comercial", "Módulo contable"],
       cuotas: { JURIDICO: 5, CONTABLE: 1 },
     });
     expect(p).not.toHaveProperty("id");

@@ -24,6 +24,12 @@ authRoutes.get(
   asyncHandler(async (req, res) => res.json(await auth.me(req.user!.sub))),
 );
 
+/** GET /auth/activacion/:token — correo asociado al token (para mostrarlo no editable). */
+authRoutes.get(
+  "/activacion/:token",
+  asyncHandler(async (req, res) => res.json(await auth.activationInfo(req.params.token))),
+);
+
 /** POST /auth/set-password — activa la cuenta con el token y define la contraseña. */
 authRoutes.post(
   "/set-password",

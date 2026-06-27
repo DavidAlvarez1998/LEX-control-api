@@ -12,7 +12,7 @@ export class PublicoRepository {
       orderBy: { orden: "asc" },
       select: {
         clave: true, nombre: true, descripcion: true, precioMensual: true,
-        modulos: { select: { modulo: { select: { clave: true } } } },
+        modulos: { select: { modulo: { select: { clave: true, nombre: true } } } },
         cuotas: { select: { rolEmpresa: true, limite: true } },
       },
     });

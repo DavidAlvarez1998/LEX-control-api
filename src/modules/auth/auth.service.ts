@@ -93,6 +93,17 @@ export async function me(userId: string) {
   return toAuthUser(usuario);
 }
 
+/** Correo (y nombre) asociado a un token de activación VÁLIDO. Sirve para mostrar
+ *  el correo —no editable— en la pantalla de activación. Lanza si el token es
+ *  inválido o expiró (mismo criterio que setPassword). */
+export async function activationInfo(token: string) {
+  const usuario = await new AuthRepository().findByActivationToken(hashActivationToken(token));
+  if (!usuario || !usuario.activationExpires || usuario.activationExpires < new Date()) {
+    throw new HttpError(400, "El enlace de activación es inválido o expiró");
+  }
+  return { email: usuario.email, nombre: usuario.nombre };
+}
+
 /** Activa la cuenta con el token y define la contraseña (revoca tokens previos). */
 export async function setPassword(body: SetPasswordInput) {
   const repo = new AuthRepository();
