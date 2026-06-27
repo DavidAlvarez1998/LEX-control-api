@@ -11,6 +11,7 @@ import {
   createMiembroSchema,
   miembroIdParams,
   updateMiembroSchema,
+  updatePerfilSchema,
 } from "./mi-empresa.schemas";
 import * as miEmpresa from "./mi-empresa.service";
 import { toMiembroDTO } from "./mi-empresa.dto";
@@ -24,6 +25,27 @@ miEmpresaRoutes.get(
   requireRole(Rol.USUARIO),
   asyncHandler(async (req, res) => {
     res.json(await miEmpresa.getMiEmpresa(tenant(req)));
+  }),
+);
+
+/** GET /mi-empresa/perfil — perfil profesional propio (cualquier USUARIO). */
+miEmpresaRoutes.get(
+  "/perfil",
+  requireAuth,
+  requireRole(Rol.USUARIO),
+  asyncHandler(async (req, res) => {
+    res.json(await miEmpresa.getPerfil(tenant(req)));
+  }),
+);
+
+/** PATCH /mi-empresa/perfil — auto-edición (cédula, tarjeta profesional, teléfono). */
+miEmpresaRoutes.patch(
+  "/perfil",
+  requireAuth,
+  requireRole(Rol.USUARIO),
+  validate({ body: updatePerfilSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await miEmpresa.updatePerfil(tenant(req), req.body));
   }),
 );
 

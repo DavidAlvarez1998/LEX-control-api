@@ -1789,6 +1789,10 @@ model Contrato {
   nombreCompleto  String
   tipoDocumento   TipoDocumento?
   numeroDocumento String?
+  // Tarjeta profesional del contratado (abogados). Campo propio del contrato:
+  // al vincular un usuario se prellena de Usuario.tarjetaProfesional, pero queda
+  // editable aquí (permite override y personal externo sin cuenta).
+  tarjetaProfesional String?
   fechaNacimiento DateTime?
   direccion       String?
   telefono        String?

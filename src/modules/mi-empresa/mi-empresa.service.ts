@@ -13,7 +13,7 @@ import { assertSeatAvailable } from "../roles/roles.service";
 import { ACTIVATION_TTL_MS, activationUrl } from "../usuarios/usuarios.shared";
 import { MiEmpresaRepository } from "./mi-empresa.repository";
 import { toCuposDTO } from "./mi-empresa.dto";
-import type { CreateMiembroInput, UpdateMiembroInput } from "./mi-empresa.schemas";
+import type { CreateMiembroInput, UpdateMiembroInput, UpdatePerfilInput } from "./mi-empresa.schemas";
 
 /** La empresa del usuario logueado (con servicios solo si es admin de empresa). */
 export async function getMiEmpresa(t: TenantContext) {
@@ -26,6 +26,27 @@ export async function getMiEmpresa(t: TenantContext) {
 /** Equipo de la propia empresa (filas crudas; el router las pasa por el DTO). */
 export function listEquipo(t: TenantContext) {
   return new MiEmpresaRepository(empresaIdOrThrow(t)).listTeam();
+}
+
+/** Perfil profesional propio (datos del abogado + teléfono). */
+export async function getPerfil(t: TenantContext) {
+  const perfil = await new MiEmpresaRepository(empresaIdOrThrow(t)).findPerfil(t.userId);
+  if (!perfil) throw new HttpError(404, "Perfil no encontrado");
+  return perfil;
+}
+
+/** Auto-edición del perfil propio: cédula, tarjeta profesional, teléfono. La
+ *  cadena vacía limpia el campo (null). Nunca toca a otro usuario (scoped). */
+export async function updatePerfil(t: TenantContext, input: UpdatePerfilInput) {
+  const empresaId = empresaIdOrThrow(t);
+  const repo = new MiEmpresaRepository(empresaId);
+  const data: Prisma.UsuarioUncheckedUpdateManyInput = {};
+  if (input.cedula !== undefined) data.cedula = input.cedula || null;
+  if (input.tarjetaProfesional !== undefined) data.tarjetaProfesional = input.tarjetaProfesional || null;
+  if (input.telefono !== undefined) data.telefono = input.telefono || null;
+  const count = await repo.updatePerfil(t.userId, data);
+  if (count === 0) throw new HttpError(404, "Perfil no encontrado");
+  return getPerfil(t);
 }
 
 /** Cupos (cap/usados) por rol según el plan. */

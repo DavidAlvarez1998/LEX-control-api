@@ -29,6 +29,20 @@ export class MiEmpresaRepository {
     });
   }
 
+  /** Perfil profesional propio (scoped por empresa, para que solo lea LO SUYO). */
+  findPerfil(userId: string) {
+    return this.db.usuario.findFirst({
+      where: { id: userId, empresaId: this.empresaId },
+      select: { nombre: true, email: true, cedula: true, tarjetaProfesional: true, telefono: true },
+    });
+  }
+
+  /** Actualiza el perfil propio (cédula/tarjeta/teléfono); scoped por empresa. */
+  async updatePerfil(userId: string, data: Prisma.UsuarioUncheckedUpdateManyInput): Promise<number> {
+    const { count } = await this.db.usuario.updateMany({ where: { id: userId, empresaId: this.empresaId }, data });
+    return count;
+  }
+
   countSeatsByRole() {
     return this.db.usuarioRolEmpresa.groupBy({
       by: ["rolEmpresa"],

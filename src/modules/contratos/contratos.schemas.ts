@@ -22,6 +22,8 @@ const contratoFields = {
   nombreCompleto: z.string().trim().min(1, "El nombre es obligatorio"),
   tipoDocumento: z.nativeEnum(TipoDocumento).optional(),
   numeroDocumento: optionalText,
+  // Tarjeta profesional (abogados): campo propio del contrato, editable.
+  tarjetaProfesional: optionalText,
   fechaNacimiento: z.coerce.date().optional(),
   direccion: optionalText,
   telefono: optionalText,

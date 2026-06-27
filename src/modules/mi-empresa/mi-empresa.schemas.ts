@@ -35,5 +35,16 @@ export const updateMiembroSchema = z
 
 export const miembroIdParams = z.object({ id: z.string().min(1) });
 
+/** Auto-edición del perfil profesional propio (cualquier USUARIO edita lo SUYO).
+ *  Solo datos del abogado para firmar escritos (cédula, tarjeta profesional) y el
+ *  teléfono personal. Nombre/correo/contraseña son identidad/login → no aquí.
+ *  Cadena vacía = limpiar el campo (se persiste como null en el servicio). */
+export const updatePerfilSchema = z.object({
+  cedula: z.string().trim().max(40).optional(),
+  tarjetaProfesional: z.string().trim().max(60).optional(),
+  telefono: z.string().trim().max(40).optional(),
+});
+
 export type CreateMiembroInput = z.infer<typeof createMiembroSchema>;
 export type UpdateMiembroInput = z.infer<typeof updateMiembroSchema>;
+export type UpdatePerfilInput = z.infer<typeof updatePerfilSchema>;
