@@ -1821,34 +1821,6 @@
     ],
     "esquemaFormulario": [
       {
-        "key": "demandanteNombre",
-        "label": "Nombre del demandante",
-        "tipo": "texto",
-        "requerido": false,
-        "ayuda": "Persona o empresa que demanda (la parte que cobra)."
-      },
-      {
-        "key": "demandanteDocumento",
-        "label": "CC/NIT del demandante",
-        "tipo": "texto",
-        "requerido": false,
-        "ayuda": "Cédula si es persona natural, o NIT si es empresa."
-      },
-      {
-        "key": "demandadoNombre",
-        "label": "Nombre del demandado",
-        "tipo": "texto",
-        "requerido": false,
-        "ayuda": "Persona o empresa demandada (la parte deudora)."
-      },
-      {
-        "key": "demandadoDocumento",
-        "label": "CC/NIT del demandado",
-        "tipo": "texto",
-        "requerido": false,
-        "ayuda": "Cédula si es persona natural, o NIT si es empresa."
-      },
-      {
         "key": "repLegalNombre",
         "label": "Representante legal (solo si el demandante es empresa)",
         "tipo": "texto",
@@ -2744,66 +2716,6 @@
           "Apoderado de ambas partes en procesos diferentes"
         ],
         "ayuda": "Calidad procesal del cliente (CGP). No es solo demandante/demandado."
-      },
-      {
-        "key": "demandanteNombre",
-        "label": "Demandante — nombre",
-        "tipo": "texto",
-        "requerido": true
-      },
-      {
-        "key": "demandanteCedula",
-        "label": "Demandante — cédula/NIT",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandanteDireccion",
-        "label": "Demandante — dirección",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandanteCorreo",
-        "label": "Demandante — correo",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandanteTelefono",
-        "label": "Demandante — teléfono",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoNombre",
-        "label": "Demandado — nombre",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoCedula",
-        "label": "Demandado — cédula/NIT",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoDireccion",
-        "label": "Demandado — dirección",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoCorreo",
-        "label": "Demandado — correo",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoTelefono",
-        "label": "Demandado — teléfono",
-        "tipo": "texto",
-        "requerido": false
       },
       {
         "key": "unidadMedida",
@@ -4920,66 +4832,6 @@
           "Escrita"
         ],
         "ayuda": "En el verbal sumario la demanda puede ser verbal o escrita (art. 390)."
-      },
-      {
-        "key": "demandanteNombre",
-        "label": "Demandante — nombre",
-        "tipo": "texto",
-        "requerido": true
-      },
-      {
-        "key": "demandanteCedula",
-        "label": "Demandante — cédula/NIT",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandanteDireccion",
-        "label": "Demandante — dirección",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandanteCorreo",
-        "label": "Demandante — correo",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandanteTelefono",
-        "label": "Demandante — celular",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoNombre",
-        "label": "Demandado — nombre",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoCedula",
-        "label": "Demandado — cédula/NIT",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoDireccion",
-        "label": "Demandado — dirección",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoCorreo",
-        "label": "Demandado — correo",
-        "tipo": "texto",
-        "requerido": false
-      },
-      {
-        "key": "demandadoTelefono",
-        "label": "Demandado — celular",
-        "tipo": "texto",
-        "requerido": false
       },
       {
         "key": "unidadMedida",
